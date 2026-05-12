@@ -146,7 +146,14 @@ class Database {
     initSQLiteFallback() {
         const sqlite3 = require('sqlite3').verbose();
         const path = require('path');
+        const fs = require('fs');
         const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../database/game.db');
+        
+        // Skapa database-mappen om den inte finns (viktigt på Railway m.fl.)
+        const dbDir = path.dirname(DB_PATH);
+        if (!fs.existsSync(dbDir)) {
+            fs.mkdirSync(dbDir, { recursive: true });
+        }
         
         this.db = new sqlite3.Database(DB_PATH);
         this.isSQLite = true;
