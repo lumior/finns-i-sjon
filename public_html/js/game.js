@@ -177,9 +177,10 @@ class GameClient {
     }
 
     setupUI() {
-        // På mobil (≤1024px): starta med chatten minimerad så den inte blockerar korten
-        if (window.innerWidth <= 1024) {
-            document.getElementById('chat-panel').classList.add('minimized');
+        // Chat-panelen startar alltid minimized (satt i HTML).
+        // På desktop (>1024px): veckla ut den automatiskt så den syns.
+        if (window.innerWidth > 1024) {
+            document.getElementById('chat-panel').classList.remove('minimized');
         }
         
         // Sätt spelarens namn i videorutan
