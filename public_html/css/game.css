@@ -1540,20 +1540,48 @@ input:checked + .toggle::after {
     .opponents-area {
         gap: var(--space-xs);
         padding: var(--space-xs);
+        min-height: 90px;
     }
     
     .opponent {
-        min-width: 80px;
+        min-width: 70px;
         padding: var(--space-xs);
+        border-radius: var(--radius-md);
     }
     
-    .opponent .avatar {
-        width: 36px;
-        height: 36px;
+    .opponent-avatar {
+        width: 32px;
+        height: 32px;
+        margin-bottom: 2px;
     }
     
-    .opponent .name {
+    .opponent-name {
         font-size: 0.75rem;
+        margin-bottom: 2px;
+    }
+    
+    .opponent-cards {
+        height: 40px;
+        margin: 2px 0;
+    }
+    
+    .card-back {
+        width: 24px;
+        height: 34px;
+    }
+    
+    .card-back::after {
+        font-size: 0.6rem;
+    }
+    
+    .opponent-video {
+        min-height: 50px;
+        margin-bottom: 2px;
+    }
+    
+    .opponent-stats {
+        font-size: 0.65rem;
+        gap: var(--space-xs);
     }
     
     .card {
@@ -1667,4 +1695,36 @@ input:checked + .toggle::after {
         padding: var(--space-xs) var(--space-sm);
         font-size: 0.85rem;
     }
-}
+    
+    .opponents-area {
+        min-height: 80px;
+    }
+    
+    .opponent {
+        min-width: 60px;
+        padding: 4px;
+    }
+    
+    .opponent-avatar {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .opponent-name {
+        font-size: 0.7rem;
+    }
+    
+    .opponent-cards {
+        height: 32px;
+        margin: 0;
+    }
+    
+    .card-back {
+        width: 20px;
+        height: 28px;
+    }
+    
+    .opponent-stats {
+        font-size: 0.6rem;
+        gap: 4px;
+    }
