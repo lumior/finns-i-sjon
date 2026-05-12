@@ -866,6 +866,8 @@ class GameClient {
         }).join('');
         
         document.getElementById('my-pairs').textContent = pairs.length;
+        const mobilePairsCount = document.getElementById('mobile-pairs-count');
+        if (mobilePairsCount) mobilePairsCount.textContent = pairs.length;
         
         const me = this.gameState?.players.find(p => p.isYou);
         if (me) {
@@ -965,6 +967,16 @@ class GameClient {
             surrenderBtn.classList.remove('hidden');
         } else {
             surrenderBtn.classList.add('hidden');
+        }
+        
+        // Uppdatera mobil parnings-badge
+        const mobilePairs = document.getElementById('mobile-pairs');
+        if (mobilePairs) {
+            if (state.state === 'playing') {
+                mobilePairs.classList.remove('hidden');
+            } else {
+                mobilePairs.classList.add('hidden');
+            }
         }
         
         // Dölj Fråga-knappen om det finns en pending ask (väntar på svar)

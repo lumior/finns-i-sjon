@@ -936,6 +936,10 @@
     padding: var(--space-md);
 }
 
+.mobile-pairs-badge {
+    display: none;
+}
+
 .chat-panel {
     position: fixed;
     top: 60px;
@@ -1486,6 +1490,11 @@ input:checked + .toggle::after {
     animation: resultPop 0.5s ease;
 }
 
+
+/* ================================================================
+   MOBIL-LAYOUT — Kompakt, läsbar, touch-vänlig
+   ================================================================ */
+
 @media (max-width: 1024px) {
     .game-board {
         padding-right: var(--space-md);
@@ -1497,134 +1506,406 @@ input:checked + .toggle::after {
     }
 }
 
+/* === Huvudmobilbreakpoint: allt ≤768px === */
 @media (max-width: 768px) {
-    .game-header {
-        grid-template-columns: auto 1fr auto;
-        gap: var(--space-sm);
-        padding: var(--space-xs) var(--space-sm);
-        min-height: 50px;
+    /* ── Grundlayout ── */
+    .game-board {
+        padding-top: 45px;
+        padding-bottom: 60px; /* Utrymme för fixed bottom-bar */
+        gap: 0;
+        grid-template-rows: auto auto auto 1fr auto;
     }
     
-    .header-center {
-        justify-content: flex-start;
+    /* ── Header: kompakt 45px ── */
+    .game-header {
+        height: 45px;
+        min-height: 45px;
+        padding: 0 8px;
+        grid-template-columns: auto 1fr auto;
+        gap: 6px;
+    }
+    
+    .header-left {
+        gap: 6px;
     }
     
     .room-title {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+    
+    /* Dölj sekundär info i header */
+    .game-type-badge,
+    .deck-label,
+    #surrender-btn,
+    .timer-ring,
+    .timer-text {
+        display: none !important;
+    }
+    
+    .header-center {
+        justify-content: center;
     }
     
     .turn-indicator {
-        padding: var(--space-xs);
+        padding: 2px 8px;
+        background: transparent;
+        gap: 4px;
     }
     
     .turn-text {
         font-size: 0.75rem;
+        white-space: nowrap;
     }
     
-    .timer-text {
-        font-size: 0.7rem;
+    .turn-text.active {
+        animation: none;
+        color: var(--accent);
     }
     
-    .center-area {
-        min-height: 120px;
-        padding: var(--space-xs);
+    .header-right {
+        gap: 6px;
     }
     
-    .game-log {
-        max-height: 100px;
-        overflow-y: auto;
-        padding: var(--space-sm);
-        font-size: 0.8rem;
+    /* Dölj header-knappar, behåll bara deck-info och host */
+    .header-actions .btn-icon:not(#host-menu-btn):not(#settings-btn) {
+        display: none;
     }
     
-    .opponents-area {
-        gap: var(--space-xs);
-        padding: var(--space-xs);
-        min-height: 90px;
-    }
-    
-    .opponent {
-        min-width: 70px;
-        padding: var(--space-xs);
-        border-radius: var(--radius-md);
-    }
-    
-    .opponent-avatar {
-        width: 32px;
-        height: 32px;
-        margin-bottom: 2px;
-    }
-    
-    .opponent-name {
+    .deck-info {
+        padding: 2px 8px;
         font-size: 0.75rem;
-        margin-bottom: 2px;
+        gap: 2px;
     }
     
-    .opponent-cards {
-        height: 40px;
-        margin: 2px 0;
-    }
-    
-    .card-back {
-        width: 24px;
-        height: 34px;
-    }
-    
-    .card-back::after {
-        font-size: 0.6rem;
-    }
-    
-    .opponent-video {
-        min-height: 50px;
-        margin-bottom: 2px;
-    }
-    
-    .opponent-stats {
-        font-size: 0.65rem;
-        gap: var(--space-xs);
-    }
-    
-    .card {
-        width: 48px;
-        height: 67px;
-        font-size: 1.1rem;
-        margin-left: -14px;
-        border-radius: var(--space-sm);
-    }
-    
-    .card .suit {
-        font-size: 1.2rem;
-    }
-    
-    .card .rank-top,
-    .card .rank-bottom {
-        font-size: 0.75rem;
-    }
-    
-    .hand {
-        min-height: 80px;
-        gap: -14px;
-    }
-    
-    .player-area {
-        padding: var(--space-sm);
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    }
-    
-    .player-info-bar {
-        padding: var(--space-xs) 0;
-    }
-    
-    .btn-action {
-        padding: var(--space-sm) var(--space-md);
+    .deck-icon {
         font-size: 0.9rem;
     }
     
-    .ask-dialog {
-        max-width: 95%;
-        padding: var(--space-sm);
+    /* Host-meny kompakt */
+    .btn-host {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
     }
     
+    .host-menu {
+        top: 40px;
+        min-width: 180px;
+    }
+    
+    /* ── Motspelare: horisontell rad ── */
+    .opponents-area {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        min-height: auto;
+        padding: 4px 8px;
+        gap: 8px;
+        align-items: center;
+        /* Dölj scrollbar */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
+    .opponents-area::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .opponent {
+        background: transparent;
+        border: none;
+        padding: 0;
+        border-radius: 0;
+        min-width: auto;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        text-align: left;
+    }
+    
+    .opponent.current-turn {
+        border-color: transparent;
+        box-shadow: none;
+        animation: none;
+    }
+    
+    .opponent.current-turn .opponent-name {
+        color: var(--accent);
+        font-weight: 700;
+    }
+    
+    .opponent-avatar {
+        width: 20px;
+        height: 20px;
+        margin: 0;
+        border-width: 1px;
+    }
+    
+    .opponent-name {
+        font-size: 0.7rem;
+        margin: 0;
+        gap: 2px;
+        white-space: nowrap;
+    }
+    
+    .ai-badge {
+        font-size: 0.55rem;
+        padding: 1px 4px;
+    }
+    
+    .surrender-badge {
+        font-size: 0.55rem;
+        padding: 1px 4px;
+    }
+    
+    /* Dölj kort-baksidor och video på mobil */
+    .opponent-cards,
+    .opponent-video,
+    .turn-badge {
+        display: none;
+    }
+    
+    .opponent-stats {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        font-size: 0.6rem;
+        white-space: nowrap;
+    }
+    
+    /* ── Center-area: minimal ── */
+    .center-area {
+        min-height: auto;
+        padding: 0;
+    }
+    
+    /* ── Game-log: en rad, senaste synlig ── */
+    .game-log {
+        max-height: 28px;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column-reverse;
+    }
+    
+    .game-log .log-entry {
+        padding: 2px 0;
+        border-bottom: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex-shrink: 0;
+    }
+    
+    /* ── Player-area: dölj info, fokusera på korten ── */
+    .player-area {
+        padding: 8px;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+    }
+    
+    .player-info-bar,
+    .player-video-self {
+        display: none;
+    }
+    
+    /* ── Hand: större kort, horisontell scroll ── */
+    .hand {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        min-height: auto;
+        margin: 4px 0;
+        gap: 0;
+        justify-content: flex-start;
+        padding: 0 4px;
+        align-items: flex-end;
+        /* Dölj scrollbar */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
+    .hand::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .card {
+        width: 55px;
+        height: 77px;
+        font-size: 1.2rem;
+        margin-left: -16px;
+        border-radius: var(--space-sm);
+        flex-shrink: 0;
+        box-shadow: 1px 1px 8px rgba(0, 0, 0, 0.4);
+        /* Touch-optimering */
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+    
+    .card:first-child {
+        margin-left: 0;
+    }
+    
+    /* Inget hover på touch-enheter */
+    .card:hover {
+        transform: translateY(-10px) rotate(0deg) !important;
+    }
+    
+    .card:active {
+        transform: scale(0.95) translateY(-5px) !important;
+    }
+    
+    .card .suit {
+        font-size: 1.5rem;
+    }
+    
+    .card .rank-top {
+        top: 3px;
+        left: 5px;
+        font-size: 0.8rem;
+    }
+    
+    .card .rank-bottom {
+        bottom: 3px;
+        right: 5px;
+        font-size: 0.8rem;
+    }
+    
+    /* Highlight för card-request mer synlig */
+    .card.card-request-highlight {
+        box-shadow: 0 0 15px rgba(34, 197, 94, 0.9), 0 0 30px rgba(34, 197, 94, 0.5);
+        border: 3px solid #22c55e;
+    }
+    
+    /* ── Fixed bottom action-bar ── */
+    .player-actions {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        padding: 8px 12px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .btn-action {
+        flex: 1;
+        padding: 12px;
+        font-size: 1rem;
+        min-height: 44px;
+        min-width: 44px;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+    
+    .waiting-message {
+        width: 100%;
+        text-align: center;
+        padding: 8px;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+    
+    /* Par-badge i bottom-bar */
+    .mobile-pairs-badge {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        background: rgba(245, 158, 11, 0.2);
+        padding: 4px 8px;
+        border-radius: var(--radius-full);
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+    
+    /* Ask-pending banner ovanför bottom-bar */
+    .ask-pending-banner {
+        position: fixed;
+        bottom: 55px;
+        bottom: calc(55px + env(safe-area-inset-bottom));
+        left: 0;
+        right: 0;
+        margin: 0;
+        border-radius: 0;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        z-index: 99;
+    }
+    
+    /* ── Overlays: z-index hantering ── */
+    .card-request-overlay {
+        position: fixed;
+        z-index: 90;
+    }
+    
+    .ask-dialog {
+        position: fixed;
+        z-index: 110;
+    }
+    
+    .turn-result {
+        z-index: 120;
+    }
+    
+    /* ── Ask-dialog mobil-optimering ── */
+    .ask-dialog {
+        max-width: 95%;
+        width: 95%;
+        padding: var(--space-md);
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    .target-players {
+        gap: var(--space-xs);
+        margin-bottom: var(--space-md);
+    }
+    
+    .target-player-btn {
+        padding: var(--space-sm);
+        min-width: 80px;
+    }
+    
+    .target-player-btn .tp-avatar {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .rank-selector {
+        gap: var(--space-xs);
+    }
+    
+    .rank-btn {
+        width: 40px;
+        height: 56px;
+    }
+    
+    .rc-suit {
+        font-size: 1.1rem;
+    }
+    
+    /* ── Game-over mobil ── */
     .standing-row {
         grid-template-columns: 40px 1fr 60px;
     }
@@ -1636,95 +1917,95 @@ input:checked + .toggle::after {
     .game-over-actions {
         flex-direction: column;
     }
+    
+    /* ── Animation-area på mobil ── */
+    .animation-area {
+        z-index: 130;
+    }
+    
+    /* ── Spectator-notice ── */
+    .spectator-notice {
+        top: 50px;
+    }
 }
 
+/* === Extra-kompakt för små skärmar ≤480px === */
 @media (max-width: 480px) {
+    .game-board {
+        padding-top: 40px;
+        padding-bottom: 55px;
+    }
+    
     .game-header {
-        padding: var(--space-xs);
+        height: 40px;
+        min-height: 40px;
     }
     
     .room-title {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
     }
     
-    .game-type-badge {
-        font-size: 0.6rem;
+    .turn-text {
+        font-size: 0.7rem;
     }
     
-    .player-info-bar {
-        flex-direction: row;
-        gap: var(--space-xs);
-        align-items: center;
+    .opponents-area {
+        padding: 2px 6px;
+        gap: 6px;
     }
     
-    .player-name {
-        font-size: 0.9rem;
+    .opponent {
+        gap: 4px;
     }
     
-    .player-stats {
-        width: auto;
-        gap: var(--space-xs);
+    .opponent-avatar {
+        width: 18px;
+        height: 18px;
     }
     
-    .stat-badge {
-        padding: var(--space-xs) var(--space-sm);
-        font-size: 0.75rem;
+    .opponent-name {
+        font-size: 0.65rem;
     }
     
-    .hand {
-        min-height: 70px;
+    .opponent-stats {
+        font-size: 0.55rem;
     }
     
     .card {
-        width: 42px;
-        height: 59px;
-        font-size: 1rem;
-        margin-left: -12px;
+        width: 50px;
+        height: 70px;
+        font-size: 1.1rem;
+        margin-left: -14px;
     }
     
     .card .suit {
-        font-size: 1.1rem;
+        font-size: 1.3rem;
     }
     
     .card .rank-top,
     .card .rank-bottom {
-        font-size: 0.65rem;
-    }
-    
-    .btn-action {
-        padding: var(--space-xs) var(--space-sm);
-        font-size: 0.85rem;
-    }
-    
-    .opponents-area {
-        min-height: 80px;
-    }
-    
-    .opponent {
-        min-width: 60px;
-        padding: 4px;
-    }
-    
-    .opponent-avatar {
-        width: 28px;
-        height: 28px;
-    }
-    
-    .opponent-name {
         font-size: 0.7rem;
     }
     
-    .opponent-cards {
-        height: 32px;
-        margin: 0;
+    .game-log {
+        font-size: 0.65rem;
+        max-height: 24px;
     }
     
-    .card-back {
-        width: 20px;
-        height: 28px;
+    .player-actions {
+        padding: 6px 10px;
+        padding-bottom: calc(6px + env(safe-area-inset-bottom));
     }
     
-    .opponent-stats {
-        font-size: 0.6rem;
-        gap: 4px;
+    .btn-action {
+        padding: 10px;
+        font-size: 0.9rem;
     }
+    
+    .ask-pending-banner {
+        bottom: 50px;
+        bottom: calc(50px + env(safe-area-inset-bottom));
+        padding: 4px 10px;
+        font-size: 0.75rem;
+    }
+}
