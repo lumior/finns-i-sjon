@@ -1547,6 +1547,20 @@ input:checked + .toggle::after {
         justify-content: center;
     }
     
+    /* Starta-spelet-knapp: stor fixed knapp i mitten på mobil */
+    .start-game-btn {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 150;
+        padding: 16px 32px;
+        font-size: 1.2rem;
+        box-shadow: 0 0 40px rgba(99, 102, 241, 0.5), 0 8px 30px rgba(0, 0, 0, 0.4);
+        animation: pulse 1.5s ease-in-out infinite;
+        white-space: nowrap;
+    }
+    
     .turn-indicator {
         padding: 2px 8px;
         background: transparent;
