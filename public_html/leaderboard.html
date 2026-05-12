@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topplista – Finns i sjön PRO</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/animations.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="main-nav">
+        <div class="nav-brand">
+            <a href="/" class="nav-link" style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 900;">
+                <span class="logo">🎣</span>
+                <span>Finns i sjön <span class="pro-badge">PRO</span></span>
+            </a>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-link">← Tillbaka till spelet</a>
+        </div>
+    </nav>
+
+    <main class="main-content" style="padding-top: 100px;">
+        <h1 style="font-family: var(--font-display); font-size: 3rem; text-align: center; margin-bottom: var(--space-xl);">
+            🏆 Topplista
+        </h1>
+        
+        <div class="leaderboard-filters" style="display: flex; gap: var(--space-md); margin-bottom: var(--space-lg); justify-content: center;">
+            <button class="tab-btn active" data-filter="all">Alla</button>
+            <button class="tab-btn" data-filter="week">Denna vecka</button>
+            <button class="tab-btn" data-filter="month">Denna månad</button>
+        </div>
+        
+        <div id="full-leaderboard" class="leaderboard-list" style="max-width: 800px; margin: 0 auto;">
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Laddar topplista...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function loadLeaderboard() {
+            try {
+                const response = await fetch('/api/users/leaderboard?limit=100');
+                const leaderboard = await response.json();
+                renderLeaderboard(leaderboard);
+            } catch (error) {
+                document.getElementById('full-leaderboard').innerHTML = '<p class="empty-state">Kunde inte ladda topplista</p>';
+            }
+        }
+        
+        function renderLeaderboard(leaderboard) {
+            const container = document.getElementById('full-leaderboard');
+            
+            if (leaderboard.length === 0) {
+                container.innerHTML = '<p class="empty-state">Inga spelare på topplistan än</p>';
+                return;
+            }
+            
+            container.innerHTML = leaderboard.map((user, index) => `
+                <div class="leaderboard-row" style="grid-template-columns: 60px 1fr 100px 100px 100px;">
+                    <div class="rank-number ${index < 3 ? 'top-3' : ''}" style="font-size: 1.5rem;">
+                        ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                    </div>
+                    <div class="leaderboard-user">
+                        <img src="${user.avatar_url || '/assets/images/default-avatar.png'}" alt="" class="leaderboard-avatar" style="width: 40px; height: 40px;">
+                        <div>
+                            <div class="leaderboard-name" style="font-size: 1.1rem;">${user.display_name || user.username}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">${user.games_played} spel</div>
+                        </div>
+                    </div>
+                    <div class="leaderboard-elo" style="font-size: 1.2rem;">${user.elo_rating}</div>
+                    <div style="color: var(--secondary); font-weight: 600;">${user.games_won} vinster</div>
+                    <div style="color: var(--text-muted);">${user.winRate || 0}% WR</div>
+                </div>
+            `).join('');
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadLeaderboard);
+    </script>
+</body>
+</html>

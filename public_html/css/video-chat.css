@@ -1,0 +1,164 @@
+/* ===== VIDEO CHAT CONTAINER ===== */
+.video-chat-container {
+    position: fixed;
+    top: 70px;
+    left: 20px;
+    width: 140px;
+    z-index: 90;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.video-chat-container.has-videos {
+    opacity: 1;
+}
+
+.video-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ===== VIDEO PEER WRAPPER ===== */
+.video-peer-wrapper {
+    position: relative;
+    width: 120px;
+    height: 90px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    opacity: 1;
+    transform: scale(1);
+    transition: all 0.3s ease;
+    pointer-events: auto;
+    margin: 0 auto 8px;
+}
+
+.video-peer-wrapper.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.video-peer-wrapper.talking {
+    border-color: var(--secondary);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+}
+
+.video-peer-wrapper video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* Spegla så det ser ut som en selfie */
+}
+
+.video-talking-indicator {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 10px;
+    height: 10px;
+    background: var(--secondary);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.video-peer-wrapper.talking .video-talking-indicator {
+    opacity: 1;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.video-peer-name {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px 8px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ===== SELF VIDEO (PREVIEW) ===== */
+.video-self {
+    position: fixed;
+    bottom: 20px;
+    right: 340px; /* Bredvid chat-panel */
+    width: 160px;
+    height: 120px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    transition: all 0.3s ease;
+    z-index: 95;
+    display: none; /* Dold – egen video visas nu i player-area */
+}
+
+.video-self.talking {
+    border-color: var(--secondary);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.video-self video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
+.video-self .video-label {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px 8px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    color: white;
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+/* ===== VOICE CHAT PANEL UTÖKNINGAR ===== */
+.voice-chat-panel {
+    left: 20px;
+    bottom: 160px; /* Ge plats åt self-video */
+}
+
+.voice-btn.video-toggle {
+    background: var(--bg-primary);
+}
+
+.voice-btn.video-toggle.active {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+/* ===== RESPONSIVT ===== */
+@media (max-width: 768px) {
+    .video-chat-container {
+        top: auto;
+        bottom: 160px;
+        left: 10px;
+        width: 120px;
+    }
+    
+    .video-peer-wrapper {
+        width: 90px;
+        height: 68px;
+    }
+    
+    .video-self {
+        width: 120px;
+        height: 90px;
+        right: 10px;
+        bottom: 160px;
+    }
+}

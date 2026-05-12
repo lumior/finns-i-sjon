@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finns i sjön PRO – Multiplayer Kortspel</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/animations.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <canvas id="particle-canvas" class="particle-bg"></canvas>
+    
+    <nav class="main-nav">
+        <div class="nav-brand">
+            <span class="logo">🎣</span>
+            <span class="brand-text">Finns i sjön <span class="pro-badge">PRO</span></span>
+        </div>
+        <div class="nav-links">
+            <a href="/leaderboard.html" class="nav-link">🏆 Topplista</a>
+            <a href="#how-to-play" class="nav-link">❓ Så spelar du</a>
+            <div id="auth-section" class="auth-section">
+                <button id="login-btn" class="btn btn-outline">Logga in</button>
+                <button id="register-btn" class="btn btn-primary">Registrera</button>
+            </div>
+            <div id="user-section" class="user-section hidden">
+                <img id="user-avatar" src="/assets/images/default-avatar.png" alt="Avatar" class="nav-avatar">
+                <span id="user-name" class="nav-username"></span>
+                <span id="user-elo" class="nav-elo"></span>
+                <button id="logout-btn" class="btn btn-small btn-outline">Logga ut</button>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">
+                <span class="title-main">Finns i sjön</span>
+                <span class="title-sub">Multiplayer Edition</span>
+            </h1>
+            <p class="hero-description">
+                Det klassiska svenska kortspelet – nu online med vänster, 
+                AI-motståndare, rankningssystem och realtidschatt.
+            </p>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <span class="stat-number" id="online-count">0</span>
+                    <span class="stat-label">Spelare online</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="active-games">0</span>
+                    <span class="stat-label">Aktiva spel</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="total-games">0</span>
+                    <span class="stat-label">Spelade spel</span>
+                </div>
+            </div>
+            <div class="hero-actions">
+                <button id="quick-play-btn" class="btn btn-large btn-glow">
+                    🎴 Spela nu
+                </button>
+                <button id="vs-ai-btn" class="btn btn-large btn-secondary">
+                    🤖 Spela mot AI
+                </button>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="floating-cards">
+                <div class="float-card card-red">♥ A</div>
+                <div class="float-card card-black">♠ K</div>
+                <div class="float-card card-red">♦ Q</div>
+                <div class="float-card card-black">♣ J</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <section id="game-setup" class="game-setup hidden">
+            <div class="setup-container">
+                <div class="setup-tabs">
+                    <button class="tab-btn active" data-tab="join">🔍 Hitta bord</button>
+                    <button class="tab-btn" data-tab="create">➕ Skapa bord</button>
+                    <button class="tab-btn" data-tab="ai">🤖 Träna mot AI</button>
+                </div>
+
+                <div id="tab-join" class="tab-content active">
+                    <div class="room-filters">
+                        <input type="text" id="room-search" placeholder="Sök bord..." class="search-input">
+                        <select id="room-filter" class="filter-select">
+                            <option value="all">Alla bord</option>
+                            <option value="open">Öppna bord</option>
+                            <option value="private">Privata bord</option>
+                        </select>
+                    </div>
+                    <div id="rooms-list" class="rooms-list">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Laddar tillgängliga bord...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-create" class="tab-content">
+                    <div class="create-form">
+                        <div class="form-group">
+                            <label for="create-name">Ditt namn</label>
+                            <input type="text" id="create-name" maxlength="20" placeholder="Ange ditt namn...">
+                        </div>
+                        <div class="form-group">
+                            <label for="create-room-name">Bordets namn (valfritt)</label>
+                            <input type="text" id="create-room-name" maxlength="30" placeholder="Mitt bord...">
+                        </div>
+                        <div class="form-group">
+                            <label for="create-password">Lösenord (valfritt)</label>
+                            <input type="password" id="create-password" placeholder="Privat bord...">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="create-max-players">Max spelare</label>
+                                <select id="create-max-players">
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4" selected>4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="create-game-type">Speltyp</label>
+                                <select id="create-game-type">
+                                    <option value="standard">Standard</option>
+                                    <option value="tournament">Turnering</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-checkboxes">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="create-allow-ai" checked>
+                                <span>Tillåt AI-spelare</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="create-turn-timer" checked>
+                                <span>Tur-timer (45s)</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="create-spectator" checked>
+                                <span>Tillåt åskådare</span>
+                            </label>
+                        </div>
+                        <button id="create-room-submit" class="btn btn-primary btn-large">
+                            🎴 Skapa bord
+                        </button>
+                    </div>
+                </div>
+
+                <div id="tab-ai" class="tab-content">
+                    <div class="ai-setup">
+                        <div class="ai-difficulties">
+                            <h3>Välj svårighetsgrad</h3>
+                            <div class="difficulty-cards">
+                                <div class="diff-card" data-diff="naive">
+                                    <div class="diff-icon">🐣</div>
+                                    <h4>Nybörjare</h4>
+                                    <p>Slumpmässiga drag. Perfekt för att lära sig spelet.</p>
+                                    <span class="diff-elo">ELO: ~800</span>
+                                </div>
+                                <div class="diff-card" data-diff="smart">
+                                    <div class="diff-icon">🦊</div>
+                                    <h4>Smart</h4>
+                                    <p>Kommer ihåg vad du frågat efter. En riktig utmaning!</p>
+                                    <span class="diff-elo">ELO: ~1100</span>
+                                </div>
+                                <div class="diff-card" data-diff="expert">
+                                    <div class="diff-icon">🦉</div>
+                                    <h4>Expert</h4>
+                                    <p>Beräknar sannolikheter. För erfarna spelare.</p>
+                                    <span class="diff-elo">ELO: ~1400</span>
+                                </div>
+                                <div class="diff-card" data-diff="master">
+                                    <div class="diff-icon">🐉</div>
+                                    <h4>Mästare</h4>
+                                    <p>Kombinerar allt + psykologi. Nästan omöjlig att slå!</p>
+                                    <span class="diff-elo">ELO: ~1700</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ai-options">
+                            <div class="form-group">
+                                <label for="ai-player-name">Ditt namn</label>
+                                <input type="text" id="ai-player-name" maxlength="20" placeholder="Ange ditt namn...">
+                            </div>
+                            <button id="start-ai-game" class="btn btn-primary btn-large" disabled>
+                                🎴 Starta match
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="how-to-play" class="how-to-play">
+            <h2>Så spelar du <span class="highlight">Finns i sjön</span></h2>
+            <div class="rules-grid">
+                <div class="rule-card">
+                    <div class="rule-number">1</div>
+                    <h3>Dela ut kort</h3>
+                    <p>Varje spelare får 5 kort (7 vid 2 spelare). Resten bildar "sjön".</p>
+                </div>
+                <div class="rule-card">
+                    <div class="rule-number">2</div>
+                    <h3>Fråga om kort</h3>
+                    <p>Välj en motståndare och fråga efter en valör du själv har. T.ex: "Har du någon sjua?"</p>
+                </div>
+                <div class="rule-card">
+                    <div class="rule-number">3</div>
+                    <h3>Finns i sjön!</h3>
+                    <p>Om motståndaren inte har kortet säger de "Finns i sjön!" och du drar från högen.</p>
+                </div>
+                <div class="rule-card">
+                    <div class="rule-number">4</div>
+                    <h3>Samla par</h3>
+                    <p>När du får två kort med samma valör lägger du ut dem. Flest par vinner!</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="leaderboard-preview">
+            <h2>🏆 Topplista</h2>
+            <div id="leaderboard-preview-list" class="leaderboard-list">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Laddar topplista...</p>
+                </div>
+            </div>
+            <a href="/leaderboard.html" class="btn btn-outline">Se fullständig topplista →</a>
+        </section>
+    </main>
+
+    <footer class="main-footer">
+        <p>Finns i sjön PRO © 2026 – Ett svenskt kortspel för hela världen</p>
+    </footer>
+
+    <div id="login-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <h2>Logga in</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-username">Användarnamn</label>
+                    <input type="text" id="login-username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Lösenord</label>
+                    <input type="password" id="login-password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-large">Logga in</button>
+            </form>
+            <p class="form-switch">Har du inget konto? <a href="#" id="switch-to-register">Registrera dig</a></p>
+        </div>
+    </div>
+
+    <div id="register-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <h2>Registrera dig</h2>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="reg-username">Användarnamn</label>
+                    <input type="text" id="reg-username" required minlength="3" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">E-post</label>
+                    <input type="email" id="reg-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-display">Visningsnamn (valfritt)</label>
+                    <input type="text" id="reg-display" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Lösenord</label>
+                    <input type="password" id="reg-password" required minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary btn-large">Registrera</button>
+            </form>
+            <p class="form-switch">Har du redan ett konto? <a href="#" id="switch-to-login">Logga in</a></p>
+        </div>
+    </div>
+
+    <div id="error-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-small">
+            <h3>⚠️ Oops!</h3>
+            <p id="error-message"></p>
+            <button class="btn btn-primary" onclick="closeError()">Stäng</button>
+        </div>
+    </div>
+
+    <div id="join-room-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <h2>Gå med i bord</h2>
+            <div class="join-info">
+                <p>Bord: <span id="join-room-name"></span></p>
+                <p>Värd: <span id="join-room-host"></span></p>
+            </div>
+            <div class="form-group">
+                <label for="join-player-name">Ditt namn</label>
+                <input type="text" id="join-player-name" maxlength="20" placeholder="Ange ditt namn...">
+            </div>
+            <div id="join-password-group" class="form-group hidden">
+                <label for="join-room-password">Lösenord</label>
+                <input type="password" id="join-room-password" placeholder="Ange lösenord...">
+            </div>
+            <button id="confirm-join" class="btn btn-primary btn-large">Gå med</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,227 @@
+/* ===== VOICE CHAT PANEL ===== */
+.voice-chat-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 280px;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    transition: all var(--transition-base);
+    overflow: hidden;
+}
+
+.voice-chat-panel.collapsed {
+    height: 48px;
+}
+
+.voice-chat-panel.hidden {
+    display: none;
+}
+
+.voice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.voice-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.voice-toggle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: transform var(--transition-fast);
+}
+
+.collapsed .voice-toggle {
+    transform: rotate(180deg);
+}
+
+.voice-body {
+    padding: var(--space-md);
+}
+
+.voice-controls {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.voice-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.voice-btn:hover {
+    border-color: var(--primary-light);
+}
+
+.voice-btn.muted {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.voice-btn.active {
+    border-color: var(--secondary);
+    background: rgba(16, 185, 129, 0.1);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.voice-volume {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+}
+
+.voice-volume label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.voice-volume input[type="range"] {
+    flex: 1;
+    accent-color: var(--primary);
+}
+
+/* ===== PEERS LIST ===== */
+.voice-peers {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.voice-peer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.voice-peer.talking {
+    border: 1px solid var(--secondary);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.peer-avatar {
+    font-size: 1.5rem;
+}
+
+.peer-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.peer-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.peer-waveform {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 20px;
+}
+
+.waveform-bar {
+    width: 3px;
+    background: var(--primary-light);
+    border-radius: var(--radius-full);
+    height: 20%;
+    transition: height 0.1s ease;
+}
+
+.voice-peer.talking .waveform-bar {
+    background: var(--secondary);
+}
+
+@keyframes waveform {
+    0% { height: 20%; }
+    100% { height: 100%; }
+}
+
+.peer-status {
+    font-size: 0.9rem;
+}
+
+/* ===== STATUS ===== */
+.voice-status {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border-color);
+}
+
+/* ===== TALKING INDICATOR ON OPPONENT CARDS ===== */
+.opponent.talking {
+    border-color: var(--secondary) !important;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) !important;
+}
+
+.opponent.talking::after {
+    content: '🔊';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--secondary);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* ===== PUSH-TO-TALK OVERLAY ===== */
+.ptt-overlay {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: var(--space-md) var(--space-xl);
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    z-index: 200;
+    animation: fadeInUp 0.3s ease;
+}
+
+.ptt-overlay.hidden {
+    display: none;
+}

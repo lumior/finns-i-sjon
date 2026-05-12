@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finns i sjön PRO – Spel</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/game.css?v=13">
+    <link rel="stylesheet" href="/css/animations.css">
+    <link rel="stylesheet" href="/css/voice-chat.css?v=13">
+    <link rel="stylesheet" href="/css/video-chat.css?v=13">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body class="game-body">
+    <header class="game-header">
+        <div class="header-left">
+            <button id="leave-btn" class="btn btn-icon" title="Lämna spelet">←</button>
+            <button id="surrender-btn" class="btn btn-icon surrender-btn hidden" title="Ge upp">🏳️</button>
+            <div class="room-info">
+                <span id="room-name" class="room-title">Bord: ???</span>
+                <span id="game-type" class="game-type-badge">Standard</span>
+            </div>
+        </div>
+        
+        <div class="header-center">
+            <div id="turn-indicator" class="turn-indicator">
+                <div class="turn-timer">
+                    <svg class="timer-ring" viewBox="0 0 36 36">
+                        <path class="timer-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        <path id="timer-progress" class="timer-progress" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                    </svg>
+                    <span id="timer-text" class="timer-text">45</span>
+                </div>
+                <span id="turn-text" class="turn-text">Väntar på spelare...</span>
+            </div>
+            <button id="start-game-btn" class="btn btn-primary start-game-btn hidden">🎴 Starta spelet</button>
+        </div>
+        
+        <div class="header-right">
+            <div class="deck-info">
+                <span class="deck-icon">🎴</span>
+                <span id="deck-count" class="deck-count">0</span>
+                <span class="deck-label">kort i sjön</span>
+            </div>
+            <div class="header-actions">
+                <div id="host-controls" class="host-controls hidden">
+                    <button id="host-menu-btn" class="btn btn-host" title="Host-meny">👑</button>
+                    <div id="host-menu" class="host-menu hidden">
+                        <button id="add-ai-btn" class="menu-item">🤖 Lägg till AI</button>
+                        <button id="add-ai-dev-btn" class="menu-item" style="color: #fbbf24;">⚙️ Dev: Lägg till AI</button>
+                        <button id="ai-vs-ai-dev-btn" class="menu-item" style="color: #fbbf24;">🤖🆚🤖 Dev: Kör AI vs AI</button>
+                        <button id="kick-player-btn" class="menu-item">👢 Kicka spelare</button>
+                        <button id="start-game-host" class="menu-item">🎴 Starta spelet</button>
+                    </div>
+                </div>
+                <button id="sound-toggle" class="btn btn-icon" title="Ljud av/på">🔊</button>
+                <button id="music-toggle" class="btn btn-icon" title="Musik av/på">🎵</button>
+                <button id="voice-chat-toggle" class="btn btn-icon" title="Röstchatt">🎙️</button>
+                <button id="deck-toggle" class="btn btn-icon" title="Växla kortlek">🥗</button>
+                <button id="settings-btn" class="btn btn-icon" title="Inställningar">⚙️</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="game-board">
+        <section id="opponents-area" class="opponents-area"></section>
+
+        <section class="center-area">
+            <div id="game-log" class="game-log">
+                <div class="log-entry system">Välkommen till Finns i sjön PRO! 🎣</div>
+            </div>
+            
+            <div id="animation-area" class="animation-area"></div>
+            
+            <div id="ask-dialog" class="ask-dialog hidden">
+                <div class="dialog-header">
+                    <h3>🎣 Vem vill du fråga?</h3>
+                    <button class="dialog-close">&times;</button>
+                </div>
+                <div id="target-players" class="target-players"></div>
+                <div class="dialog-divider"></div>
+                <h4>Vilket kort vill du fråga efter?</h4>
+                <div id="rank-selector" class="rank-selector"></div>
+                <div class="dialog-actions">
+                    <button id="cancel-ask" class="btn btn-secondary">Avbryt</button>
+                    <button id="confirm-ask" class="btn btn-primary" disabled>
+                        Fråga! <span id="ask-confidence"></span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="turn-result" class="turn-result hidden">
+                <div class="result-animation"></div>
+                <div class="result-text"></div>
+            </div>
+            
+            <!-- Overlay som visas när en motståndare frågar efter ett kort -->
+            <div id="card-request-overlay" class="card-request-overlay hidden">
+                <div class="card-request-content">
+                    <div class="card-request-icon">🎣</div>
+                    <h3 id="card-request-title">Någon frågar efter ett kort!</h3>
+                    <p id="card-request-subtitle">Klicka på kortet i din hand om du har det</p>
+                    <button id="card-request-fisk" class="btn btn-fisk hidden">🌊 Fisk!</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="player-area">
+            <div class="player-video-self" id="player-video-self">
+                <video id="local-video-preview" autoplay muted playsinline></video>
+                <div class="video-label" id="local-video-label">Du</div>
+            </div>
+            <div class="player-info-bar">
+                <div class="player-identity">
+                    <img id="my-avatar" src="/assets/images/default-avatar.png" class="player-avatar" alt="Du">
+                    <div class="player-details">
+                        <span id="my-name" class="player-name">Du</span>
+                        <span id="my-elo" class="player-elo"></span>
+                    </div>
+                </div>
+                <div class="player-stats">
+                    <div class="stat-badge">
+                        <span class="stat-icon">🏆</span>
+                        <span id="my-pairs" class="stat-value">0</span>
+                        <span class="stat-label">par</span>
+                    </div>
+                    <div class="stat-badge">
+                        <span class="stat-icon">🎯</span>
+                        <span id="my-success-rate" class="stat-value">0%</span>
+                        <span class="stat-label">träffsäkerhet</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="my-hand" class="hand"></div>
+            
+            <!-- Banner som visas när man väntar på svar från en motståndare -->
+            <div id="ask-pending-banner" class="ask-pending-banner hidden">
+                <span class="ask-pending-text">Väntar på svar...</span>
+            </div>
+            
+            <div class="player-actions">
+                <button id="ask-btn" class="btn btn-primary btn-action hidden">
+                    <span class="btn-icon">🎣</span>
+                    <span class="btn-text">Fråga om kort</span>
+                </button>
+                <div id="waiting-message" class="waiting-message hidden">
+                    Väntar på din tur...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <aside id="chat-panel" class="chat-panel">
+        <div class="chat-header">
+            <h3>💬 Chatt</h3>
+            <div class="chat-tabs">
+                <button class="chat-tab active" data-tab="chat">Chatt</button>
+                <button class="chat-tab" data-tab="log">Logg</button>
+            </div>
+            <button id="toggle-chat" class="btn btn-icon btn-small">_</button>
+        </div>
+        <div id="chat-messages" class="chat-messages active"></div>
+        <div id="log-messages" class="chat-messages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" maxlength="200" placeholder="Skriv ett meddelande..." autocomplete="off">
+            <button id="send-chat" class="btn btn-small">📤</button>
+        </div>
+    </aside>
+
+    <div id="spectator-notice" class="spectator-notice hidden">
+        👁️ Du tittar på som åskådare
+    </div>
+
+    <div id="victory-overlay" class="victory-overlay hidden">
+        <div class="victory-content">
+            <div class="victory-trophy">🏆</div>
+            <div class="victory-text">DU VANN!</div>
+            <div class="victory-subtitle">Fantastiskt spelat!</div>
+        </div>
+        <div class="victory-flash"></div>
+    </div>
+
+    <div id="game-over-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-large">
+            <div class="game-over-header">
+                <h2 id="game-over-title">🏆 Spelet är slut!</h2>
+                <p class="game-over-subtitle" id="game-over-subtitle">Här är resultatet</p>
+            </div>
+            
+            <div id="final-standings" class="final-standings"></div>
+            
+            <div id="elo-change" class="elo-change"></div>
+            
+            <div id="new-achievements" class="new-achievements hidden">
+                <h3>🎉 Nya achievements!</h3>
+                <div id="achievements-list"></div>
+            </div>
+            
+            <div class="game-over-actions">
+                <button id="play-again-btn" class="btn btn-primary btn-large">Spela igen</button>
+                <button id="back-to-lobby" class="btn btn-secondary btn-large">Tillbaka till lobbyn</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="alert-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-small">
+            <h2 id="alert-modal-title">Meddelande</h2>
+            <p id="alert-modal-message"></p>
+            <button id="alert-modal-btn" class="btn btn-primary">OK</button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <h2>⚙️ Inställningar</h2>
+            <div class="settings-section">
+                <h3>Ljud</h3>
+                <label class="setting-item">
+                    <span>Ljudeffekter</span>
+                    <input type="checkbox" id="setting-sound" checked>
+                    <span class="toggle"></span>
+                </label>
+                <label class="setting-item">
+                    <span>Bakgrundsmusik</span>
+                    <input type="checkbox" id="setting-music">
+                    <span class="toggle"></span>
+                </label>
+            </div>
+            <div class="settings-section">
+                <h3>Visuellt</h3>
+                <label class="setting-item">
+                    <span>Animationer</span>
+                    <input type="checkbox" id="setting-animations" checked>
+                    <span class="toggle"></span>
+                </label>
+                <label class="setting-item">
+                    <span>Kortstil</span>
+                    <select id="setting-card-style">
+                        <option value="classic">Klassisk</option>
+                        <option value="modern">Modern</option>
+                        <option value="minimal">Minimal</option>
+                    </select>
+                </label>
+                <label class="setting-item">
+                    <span>Kortlek</span>
+                    <select id="setting-deck-theme">
+                        <option value="standard">Standard</option>
+                        <option value="vegetable">🥗 Grönsaker</option>
+                    </select>
+                </label>
+            </div>
+            <div class="settings-section">
+                <h3>Spel</h3>
+                <label class="setting-item">
+                    <span>Auto-sort hand</span>
+                    <input type="checkbox" id="setting-auto-sort" checked>
+                    <span class="toggle"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div id="ai-thinking" class="ai-thinking hidden">
+        <div class="thinking-dots">
+            <span></span><span></span><span></span>
+        </div>
+        <span class="thinking-text">AI tänker...</span>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/audio.js?v=13"></script>
+    <script src="/js/animations.js?v=13"></script>
+    <script src="/js/socket-client.js?v=13"></script>
+    <script src="/js/voice-chat.js?v=13"></script>
+    <script src="/js/voice-ui.js?v=13"></script>
+    <script src="/js/video-chat.js?v=13"></script>
+    <script src="/js/video-ui.js?v=13"></script>
+    <script src="/js/game.js?v=13"></script>
+</body>
+</html>
