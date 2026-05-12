@@ -1501,46 +1501,100 @@ input:checked + .toggle::after {
     .game-header {
         grid-template-columns: auto 1fr auto;
         gap: var(--space-sm);
+        padding: var(--space-xs) var(--space-sm);
+        min-height: 50px;
     }
     
     .header-center {
         justify-content: flex-start;
     }
     
+    .room-title {
+        font-size: 0.85rem;
+    }
+    
     .turn-indicator {
-        padding: var(--space-xs) var(--space-sm);
+        padding: var(--space-xs);
     }
     
     .turn-text {
+        font-size: 0.75rem;
+    }
+    
+    .timer-text {
+        font-size: 0.7rem;
+    }
+    
+    .center-area {
+        min-height: 120px;
+        padding: var(--space-xs);
+    }
+    
+    .game-log {
+        max-height: 100px;
+        overflow-y: auto;
+        padding: var(--space-sm);
         font-size: 0.8rem;
     }
     
     .opponents-area {
-        gap: var(--space-sm);
-        padding: var(--space-sm);
+        gap: var(--space-xs);
+        padding: var(--space-xs);
     }
     
     .opponent {
-        min-width: 100px;
-        padding: var(--space-sm);
+        min-width: 80px;
+        padding: var(--space-xs);
+    }
+    
+    .opponent .avatar {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .opponent .name {
+        font-size: 0.75rem;
     }
     
     .card {
-        width: 60px;
-        height: 84px;
-        font-size: 1.3rem;
-        margin-left: -20px;
+        width: 48px;
+        height: 67px;
+        font-size: 1.1rem;
+        margin-left: -14px;
+        border-radius: var(--space-sm);
     }
     
     .card .suit {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
     }
     
-
+    .card .rank-top,
+    .card .rank-bottom {
+        font-size: 0.75rem;
+    }
+    
+    .hand {
+        min-height: 80px;
+        gap: -14px;
+    }
+    
+    .player-area {
+        padding: var(--space-sm);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+    
+    .player-info-bar {
+        padding: var(--space-xs) 0;
+    }
+    
+    .btn-action {
+        padding: var(--space-sm) var(--space-md);
+        font-size: 0.9rem;
+    }
     
     .ask-dialog {
         max-width: 95%;
-        padding: var(--space-md);
+        padding: var(--space-sm);
     }
     
     .standing-row {
@@ -1557,29 +1611,60 @@ input:checked + .toggle::after {
 }
 
 @media (max-width: 480px) {
+    .game-header {
+        padding: var(--space-xs);
+    }
+    
+    .room-title {
+        font-size: 0.75rem;
+    }
+    
+    .game-type-badge {
+        font-size: 0.6rem;
+    }
+    
     .player-info-bar {
-        flex-direction: column;
-        gap: var(--space-sm);
-        align-items: flex-start;
+        flex-direction: row;
+        gap: var(--space-xs);
+        align-items: center;
+    }
+    
+    .player-name {
+        font-size: 0.9rem;
     }
     
     .player-stats {
-        width: 100%;
-        justify-content: flex-start;
+        width: auto;
+        gap: var(--space-xs);
+    }
+    
+    .stat-badge {
+        padding: var(--space-xs) var(--space-sm);
+        font-size: 0.75rem;
     }
     
     .hand {
-        min-height: 80px;
+        min-height: 70px;
     }
     
     .card {
-        width: 50px;
-        height: 70px;
-        font-size: 1.1rem;
-        margin-left: -15px;
+        width: 42px;
+        height: 59px;
+        font-size: 1rem;
+        margin-left: -12px;
     }
     
     .card .suit {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
+    }
+    
+    .card .rank-top,
+    .card .rank-bottom {
+        font-size: 0.65rem;
+    }
+    
+    .btn-action {
+        padding: var(--space-xs) var(--space-sm);
+        font-size: 0.85rem;
     }
 }
