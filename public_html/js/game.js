@@ -177,12 +177,6 @@ class GameClient {
     }
 
     setupUI() {
-        // Chat-panelen startar alltid minimized (satt i HTML).
-        // På desktop (>1024px): veckla ut den automatiskt så den syns.
-        if (window.innerWidth > 1024) {
-            document.getElementById('chat-panel').classList.remove('minimized');
-        }
-        
         // Sätt spelarens namn i videorutan
         const localVideoLabel = document.getElementById('local-video-label');
         if (localVideoLabel && this.playerName) {
