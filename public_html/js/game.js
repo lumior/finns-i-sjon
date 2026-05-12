@@ -177,6 +177,11 @@ class GameClient {
     }
 
     setupUI() {
+        // På mobil (≤1024px): starta med chatten minimerad så den inte blockerar korten
+        if (window.innerWidth <= 1024) {
+            document.getElementById('chat-panel').classList.add('minimized');
+        }
+        
         // Sätt spelarens namn i videorutan
         const localVideoLabel = document.getElementById('local-video-label');
         if (localVideoLabel && this.playerName) {

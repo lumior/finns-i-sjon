@@ -1489,11 +1489,12 @@ input:checked + .toggle::after {
 @media (max-width: 1024px) {
     .game-board {
         padding-right: var(--space-md);
+        padding-bottom: 50px; /* Ge plats åt chat-fliken */
     }
     
     .chat-panel {
         width: 100%;
-        height: 250px;
+        height: 220px;
         top: auto;
         bottom: 0;
         border-left: none;
@@ -1501,7 +1502,7 @@ input:checked + .toggle::after {
     }
     
     .chat-panel.minimized {
-        transform: translateY(calc(100% - 40px));
+        transform: translateY(calc(100% - 44px));
     }
 }
 
