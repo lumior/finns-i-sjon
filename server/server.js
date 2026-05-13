@@ -14,6 +14,7 @@ const Game = require('./models/Game');
 const ELO = require('./utils/elo');
 const { GAME_STATES, AI_DIFFICULTIES } = require('./utils/constants');
 const WebRTCSignaling = require('./webrtc/signaling');
+const { escapeHtml } = require('./utils/sanitize');
 
 const app = express();
 const server = http.createServer(app);
@@ -27,11 +28,17 @@ const roomManager = new RoomManager();
 const webRTC = new WebRTCSignaling(io, roomManager);
 const PORT = process.env.PORT || 3000;
 
+// JWT_SECRET måste vara satt — avsluta om det saknas
+if (!process.env.JWT_SECRET) {
+    console.error('❌ JWT_SECRET måste sättas i miljövariabler');
+    process.exit(1);
+}
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            scriptSrc: ["'self'", "https://fonts.googleapis.com"],
             scriptSrcAttr: ["'unsafe-inline'"], // Tillåt inline event handlers (onerror på img-taggar)
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
@@ -653,9 +660,12 @@ io.on('connection', (socket) => {
     });
 
     socket.on('chat_message', async (data) => {
-        const { message } = data;
+        let { message } = data;
         const room = roomManager.getRoomBySocket(socket.id);
         if (!room) return;
+
+        // XSS-sanering: escape HTML i chat-meddelanden
+        message = escapeHtml(message);
 
         const game = room.game;
         const chatMsg = game.addChatMessage(socket.id, message);
