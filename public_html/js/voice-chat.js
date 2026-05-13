@@ -246,6 +246,26 @@ class VoiceChatManager {
                 if (remoteStream) {
                     this.startTalkingDetection(peerId, remoteStream);
                 }
+            } else if (pc.connectionState === 'failed') {
+                console.warn(`🎙️ Connection FAILED för ${peerId} — återskapar...`);
+                this.handleConnectionFailure(peerId);
+            }
+        };
+        
+        pc.oniceconnectionstatechange = () => {
+            console.log(`🎙️ ICE state ${peerId}:`, pc.iceConnectionState);
+            if (pc.iceConnectionState === 'disconnected') {
+                // Vänta 5 sekunder — om fortfarande disconnected, försök ICE-restart
+                setTimeout(() => {
+                    const currentPc = this.peerConnections.get(peerId);
+                    if (currentPc && currentPc.iceConnectionState === 'disconnected') {
+                        console.warn(`🎙️ ICE fortfarande disconnected för ${peerId} — försöker ICE-restart`);
+                        this.handleConnectionFailure(peerId, true);
+                    }
+                }, 5000);
+            } else if (pc.iceConnectionState === 'failed') {
+                console.warn(`🎙️ ICE FAILED för ${peerId} — återskapar...`);
+                this.handleConnectionFailure(peerId);
             }
         };
 
@@ -331,6 +351,37 @@ class VoiceChatManager {
         };
         
         checkTalking();
+    }
+
+    /**
+     * Hantera anslutningsfel — ICE-restart eller återskapa PC
+     */
+    async handleConnectionFailure(peerId, tryIceRestart = false) {
+        const pc = this.peerConnections.get(peerId);
+        if (!pc) return;
+        
+        if (tryIceRestart && pc.connectionState !== 'closed') {
+            try {
+                const offer = await pc.createOffer({ iceRestart: true });
+                await pc.setLocalDescription(offer);
+                
+                this.socket.emit('webrtc_offer', {
+                    targetPeerId: peerId,
+                    offer: pc.localDescription
+                });
+                console.log(`🎙️ ICE-restart skickad till ${peerId}`);
+                return;
+            } catch (err) {
+                console.warn(`🎙️ ICE-restart misslyckades för ${peerId}:`, err.message);
+            }
+        }
+        
+        // Om ICE-restart misslyckades eller inte försöktes — återskapa hela PC:n
+        console.log(`🎙️ Återskapar PeerConnection för ${peerId}`);
+        this.removePeerConnection(peerId);
+        
+        // Skapa ny PC — vi är initiator eftersom vi upptäckte felet
+        await this.createPeerConnection(peerId, true);
     }
 
     /**

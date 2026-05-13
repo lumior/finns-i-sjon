@@ -244,6 +244,18 @@ class VideoChatManager extends VoiceChatManager {
         
         pc.oniceconnectionstatechange = () => {
             console.log(`📹 ICE state ${peerId}:`, pc.iceConnectionState);
+            if (pc.iceConnectionState === 'disconnected') {
+                setTimeout(() => {
+                    const currentPc = this.peerConnections.get(peerId);
+                    if (currentPc && currentPc.iceConnectionState === 'disconnected') {
+                        console.warn(`📹 ICE fortfarande disconnected för ${peerId} — försöker ICE-restart`);
+                        this.handleConnectionFailure(peerId, true);
+                    }
+                }, 5000);
+            } else if (pc.iceConnectionState === 'failed') {
+                console.warn(`📹 ICE FAILED för ${peerId} — återskapar...`);
+                this.handleConnectionFailure(peerId);
+            }
         };
         
         pc.onconnectionstatechange = () => {
@@ -253,6 +265,9 @@ class VideoChatManager extends VoiceChatManager {
                 if (remoteStream) {
                     this.startTalkingDetection(peerId, remoteStream);
                 }
+            } else if (pc.connectionState === 'failed') {
+                console.warn(`📹 Connection FAILED för ${peerId} — återskapar...`);
+                this.handleConnectionFailure(peerId);
             }
         };
         
