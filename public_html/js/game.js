@@ -842,13 +842,16 @@ class GameClient {
             
             if (useImageDeck) {
                 const veggie = suitToVeggie[card.suit];
+                const isRedCard = card.suit === 'hearts' || card.suit === 'diamonds';
                 return `
                     <div class="card card-deck-image ${cardStyleClass}"
                          data-card-id="${card.id}"
                          style="${transformStyle}">
                         <img src="/assets/cards/${veggie}/${card.rank}.png"
                              alt="${card.rank}"
-                             onerror="this.style.display='none'; this.parentElement.classList.remove('card-deck-image'); this.parentElement.classList.add('${card.suit === 'hearts' || card.suit === 'diamonds' ? 'red' : 'black'}'); this.parentElement.innerHTML='<span class=\\'rank-top\\'>${card.rank}</span><span class=\\'suit\\'>${suits[card.suit]}</span><span class=\\'rank-bottom\\'>${card.rank}</span>';">
+                             data-fb-rank="${card.rank}"
+                             data-fb-suit="${suits[card.suit]}"
+                             data-fb-red="${isRedCard}">
                     </div>
                 `;
             }
@@ -864,6 +867,19 @@ class GameClient {
                 </div>
             `;
         }).join('');
+        
+        // Sätt upp fallback-lyssnare för kortbilder (utan inline onerror)
+        container.querySelectorAll('.card-deck-image img').forEach(img => {
+            img.addEventListener('error', function onCardImgError() {
+                this.style.display = 'none';
+                const parent = this.parentElement;
+                parent.classList.remove('card-deck-image');
+                const isRed = this.dataset.fbRed === 'true';
+                parent.classList.add(isRed ? 'red' : 'black');
+                parent.innerHTML = `<span class='rank-top'>${this.dataset.fbRank}</span><span class='suit'>${this.dataset.fbSuit}</span><span class='rank-bottom'>${this.dataset.fbRank}</span>`;
+                this.removeEventListener('error', onCardImgError);
+            }, { once: true });
+        });
         
         document.getElementById('my-pairs').textContent = pairs.length;
         const mobilePairsCount = document.getElementById('mobile-pairs-count');
@@ -1042,7 +1058,9 @@ class GameClient {
                         style="background: transparent; border: none; box-shadow: none; padding: 0;">
                         <img src="/assets/cards/${veggie}/${r}.png" alt="${r}"
                              style="width: 50px; height: 70px; object-fit: cover; border-radius: var(--radius-md); display: block; box-shadow: 1px 1px 6px rgba(0,0,0,0.3);"
-                             onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(135deg, #ffffff, #f1f5f9)'; this.parentElement.style.border='2px solid var(--border-color)'; this.parentElement.style.boxShadow='1px 1px 6px rgba(0,0,0,0.3)'; this.parentElement.classList.add('${isRed ? 'red' : 'black'}'); this.parentElement.innerHTML='<span class=\\'rc-rank-top\\'>${r}</span><span class=\\'rc-suit\\'>${suits[example.suit]}</span><span class=\\'rc-rank-bottom\\'>${r}</span>';">
+                             data-fb-rank="${r}"
+                             data-fb-suit="${suits[example.suit]}"
+                             data-fb-red="${isRed}">
                     </button>
                 `;
             }
@@ -1055,6 +1073,21 @@ class GameClient {
                 </button>
             `;
         }).join('');
+        
+        // Sätt upp fallback-lyssnare för rank-knapparnas bilder
+        rankContainer.querySelectorAll('.rank-btn-image img').forEach(img => {
+            img.addEventListener('error', function onRankImgError() {
+                this.style.display = 'none';
+                const parent = this.parentElement;
+                parent.style.background = 'linear-gradient(135deg, #ffffff, #f1f5f9)';
+                parent.style.border = '2px solid var(--border-color)';
+                parent.style.boxShadow = '1px 1px 6px rgba(0,0,0,0.3)';
+                const isRed = this.dataset.fbRed === 'true';
+                parent.classList.add(isRed ? 'red' : 'black');
+                parent.innerHTML = `<span class='rc-rank-top'>${this.dataset.fbRank}</span><span class='rc-suit'>${this.dataset.fbSuit}</span><span class='rc-rank-bottom'>${this.dataset.fbRank}</span>`;
+                this.removeEventListener('error', onRankImgError);
+            }, { once: true });
+        });
         
         targetContainer.querySelectorAll('.target-player-btn').forEach(btn => {
             btn.addEventListener('click', () => {

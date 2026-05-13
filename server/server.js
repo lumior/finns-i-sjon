@@ -38,7 +38,6 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "https://fonts.googleapis.com"],
-            scriptSrcAttr: ["'unsafe-inline'"], // Tillåt inline event handlers (onerror på img-taggar)
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "blob:"],
@@ -51,12 +50,29 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '../public_html')));
 
-const limiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW) || 15 * 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
-    skip: (req) => req.method === 'GET' && (req.path === '/rooms' || req.path === '/users/online' || req.path === '/stats/total-games')
+// Separata rate limiters per endpoint-typ
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { error: 'För många försök. Försök igen senare.' }
 });
-app.use('/api/', limiter);
+
+const readLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 120
+});
+
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100
+});
+
+app.use('/api/auth/', authLimiter);
+app.use('/api/rooms', readLimiter);
+app.use('/api/users/online', readLimiter);
+app.use('/api/stats/total-games', readLimiter);
+app.use('/api/users/leaderboard', readLimiter);
+app.use('/api/', apiLimiter);
 
 app.use(Auth.middleware());
 

@@ -487,9 +487,20 @@ class AnimationManager {
         const suitSymbol = suits[drawnCard.suit] || '♠';
         
         let cardHtml;
+        let setupFallback = null;
         if (useImageDeck) {
             const veggie = suitToVeggie[drawnCard.suit];
-            cardHtml = `<img class="lf-card-img" src="/assets/cards/${veggie}/${drawnCard.rank}.png" alt="${drawnCard.rank}" onerror="this.style.display='none';this.parentElement.classList.add('${isRed?'red':'black'}');this.parentElement.innerHTML='<span class=\\'lf-rank-top\\'>${drawnCard.rank}</span><span class=\\'lf-suit\\'>${suitSymbol}</span><span class=\\'lf-rank-bottom\\'>${drawnCard.rank}</span>';">`;
+            cardHtml = `<img class="lf-card-img" src="/assets/cards/${veggie}/${drawnCard.rank}.png" alt="${drawnCard.rank}" data-fb-rank="${drawnCard.rank}" data-fb-suit="${suitSymbol}" data-fb-red="${isRed}">`;
+            setupFallback = (img) => {
+                img.addEventListener('error', function onLuckyFishError() {
+                    this.style.display = 'none';
+                    const parent = this.parentElement;
+                    const isRedCard = this.dataset.fbRed === 'true';
+                    parent.classList.add(isRedCard ? 'red' : 'black');
+                    parent.innerHTML = `<span class='lf-rank-top'>${this.dataset.fbRank}</span><span class='lf-suit'>${this.dataset.fbSuit}</span><span class='lf-rank-bottom'>${this.dataset.fbRank}</span>`;
+                    this.removeEventListener('error', onLuckyFishError);
+                }, { once: true });
+            };
         } else {
             cardHtml = `<span class="lf-rank-top">${drawnCard.rank}</span><span class="lf-suit">${suitSymbol}</span><span class="lf-rank-bottom">${drawnCard.rank}</span>`;
         }
@@ -503,6 +514,11 @@ class AnimationManager {
         `;
         
         document.body.appendChild(container);
+        
+        if (setupFallback) {
+            const img = container.querySelector('.lf-card-img');
+            if (img) setupFallback(img);
+        }
         
         // Flasha skärmen guld
         const flash = document.createElement('div');
