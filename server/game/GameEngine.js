@@ -760,7 +760,7 @@ class GameEngine {
         };
     }
 
-    respondToAsk(targetSocketId, hasCard, givenRank) {
+    respondToAsk(targetSocketId, hasCard, givenRank, isAutoResolve = false) {
         if (!this.pendingAsk) {
             return { success: false, error: 'Ingen aktiv förfrågan' };
         }
@@ -774,9 +774,13 @@ class GameEngine {
             return { success: false, error: 'Spelare inte funnen' };
         }
         
-        // Verifiera att target verkligen är den som ska svara
-        if (target.socketId !== targetSocketId && target.id !== targetSocketId) {
-            return { success: false, error: 'Det är inte din förfrågan att svara på' };
+        // Vid auto-resolve (t.ex. efter disconnect) hoppar vi över socketId-kontrollen
+        // eftersom spelaren kan ha återanslutit med ett nytt socketId
+        if (!isAutoResolve) {
+            const responder = this.players.find(p => p.socketId === targetSocketId || p.id === targetSocketId);
+            if (!responder || responder.id !== targetId) {
+                return { success: false, error: 'Det är inte din förfrågan att svara på' };
+            }
         }
         
         this.totalTurns++;
@@ -904,7 +908,9 @@ class GameEngine {
 
     autoResolvePendingAsk() {
         if (!this.pendingAsk) return null;
-        const result = this.respondToAsk(this.pendingAsk.targetSocketId, false, null);
+        // Använd isAutoResolve=true så att socketId-kontrollen hoppas över
+        // Detta behövs när target har återanslutit med ett nytt socketId
+        const result = this.respondToAsk(this.pendingAsk.targetSocketId, false, null, true);
         return result;
     }
 
