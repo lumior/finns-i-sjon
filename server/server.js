@@ -169,6 +169,15 @@ app.get('/api/users/leaderboard', async (req, res) => {
     }
 });
 
+app.get('/api/stats/total-games', async (req, res) => {
+    try {
+        const count = await Game.getTotalCount();
+        res.json({ count });
+    } catch (error) {
+        res.status(500).json({ error: 'Kunde inte hämta statistik' });
+    }
+});
+
 app.get('/api/users/online', async (req, res) => {
     try {
         const users = await User.getOnlineUsers();

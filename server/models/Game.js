@@ -55,6 +55,11 @@ class Game {
         
         return { ...game, participants, events };
     }
+
+    static async getTotalCount() {
+        const result = await db.get('SELECT COUNT(*) as count FROM games');
+        return result ? result.count : 0;
+    }
 }
 
 module.exports = Game;

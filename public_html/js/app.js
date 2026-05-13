@@ -474,16 +474,19 @@ function renderLeaderboard(leaderboard) {
 
 async function updateOnlineStats() {
     try {
-        const [onlineRes, roomsRes] = await Promise.all([
+        const [onlineRes, roomsRes, totalRes] = await Promise.all([
             fetch('/api/users/online'),
-            fetch('/api/rooms')
+            fetch('/api/rooms'),
+            fetch('/api/stats/total-games')
         ]);
         
         const online = await onlineRes.json();
         const rooms = await roomsRes.json();
+        const totalGames = await totalRes.json();
         
         document.getElementById('online-count').textContent = online.length;
         document.getElementById('active-games').textContent = rooms.filter(r => !r.hasPassword).length;
+        document.getElementById('total-games').textContent = totalGames.count || 0;
     } catch (error) {
         // Silent fail
     }
