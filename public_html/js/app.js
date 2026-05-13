@@ -128,7 +128,6 @@ function setupEventListeners() {
         e.preventDefault();
         createRoom();
     });
-    document.getElementById('create-room-submit').addEventListener('click', createRoom);
     
     document.querySelectorAll('.diff-card').forEach(card => {
         card.addEventListener('click', () => {
