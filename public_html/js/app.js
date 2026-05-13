@@ -240,12 +240,12 @@ async function loadRooms() {
 function startRoomsPolling() {
     if (roomsRefreshInterval) return;
     console.log('🔄 Startar bords-polling');
-    // Polling var 5:e sekund för realtidsuppdatering av bordslistan
+    // Polling var 10:e sekund för realtidsuppdatering av bordslistan
     roomsRefreshInterval = setInterval(() => {
         console.log('🔄 Polling: hämtar bordslista...');
         loadRooms();
         updateOnlineStats();
-    }, 5000);
+    }, 10000);
 }
 
 function stopRoomsPolling() {
