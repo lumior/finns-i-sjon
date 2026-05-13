@@ -103,7 +103,7 @@
                 </div>
 
                 <div id="tab-create" class="tab-content">
-                    <div class="create-form">
+                    <form class="create-form" id="create-room-form">
                         <div class="form-group">
                             <label for="create-name">Ditt namn</label>
                             <input type="text" id="create-name" maxlength="20" placeholder="Ange ditt namn...">
@@ -114,7 +114,7 @@
                         </div>
                         <div class="form-group">
                             <label for="create-password">Lösenord (valfritt)</label>
-                            <input type="password" id="create-password" placeholder="Privat bord...">
+                            <input type="password" id="create-password" placeholder="Privat bord..." autocomplete="new-password">
                         </div>
                         <div class="form-row">
                             <div class="form-group">
@@ -152,7 +152,7 @@
                         <button id="create-room-submit" class="btn btn-primary btn-large">
                             🎴 Skapa bord
                         </button>
-                    </div>
+                    </form>
                 </div>
 
                 <div id="tab-ai" class="tab-content">
@@ -282,7 +282,7 @@
                 </div>
                 <div class="form-group">
                     <label for="reg-password">Lösenord</label>
-                    <input type="password" id="reg-password" required minlength="6">
+                    <input type="password" id="reg-password" required minlength="6" autocomplete="new-password">
                 </div>
                 <button type="submit" class="btn btn-primary btn-large">Registrera</button>
             </form>
@@ -295,14 +295,14 @@
         <div class="modal-content modal-small">
             <h3>⚠️ Oops!</h3>
             <p id="error-message"></p>
-            <button class="btn btn-primary" onclick="closeError()">Stäng</button>
+            <button id="error-close-btn" class="btn btn-primary">Stäng</button>
         </div>
     </div>
 
     <div id="join-room-modal" class="modal hidden">
         <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <button class="modal-close">&times;</button>
+        <form class="modal-content" id="join-room-form">
+            <button type="button" class="modal-close">&times;</button>
             <h2>Gå med i bord</h2>
             <div class="join-info">
                 <p>Bord: <span id="join-room-name"></span></p>
@@ -314,10 +314,10 @@
             </div>
             <div id="join-password-group" class="form-group hidden">
                 <label for="join-room-password">Lösenord</label>
-                <input type="password" id="join-room-password" placeholder="Ange lösenord...">
+                <input type="password" id="join-room-password" placeholder="Ange lösenord..." autocomplete="current-password">
             </div>
-            <button id="confirm-join" class="btn btn-primary btn-large">Gå med</button>
-        </div>
+            <button type="submit" id="confirm-join" class="btn btn-primary btn-large">Gå med</button>
+        </form>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>

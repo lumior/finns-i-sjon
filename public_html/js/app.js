@@ -124,6 +124,10 @@ function setupEventListeners() {
         switchTab('ai');
     });
     
+    document.getElementById('create-room-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        createRoom();
+    });
     document.getElementById('create-room-submit').addEventListener('click', createRoom);
     
     document.querySelectorAll('.diff-card').forEach(card => {
@@ -136,7 +140,12 @@ function setupEventListeners() {
     });
     
     document.getElementById('start-ai-game').addEventListener('click', startAIGame);
+    document.getElementById('join-room-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        confirmJoinRoom();
+    });
     document.getElementById('confirm-join').addEventListener('click', confirmJoinRoom);
+    document.getElementById('error-close-btn').addEventListener('click', closeError);
     document.getElementById('room-search').addEventListener('input', filterRooms);
     document.getElementById('room-filter').addEventListener('change', filterRooms);
 }
@@ -468,4 +477,4 @@ function closeError() {
     hideModal('error-modal');
 }
 
-window.closeError = closeError;
+// Event listener for error modal close button is set up in setupEventListeners
