@@ -225,3 +225,10 @@
 .ptt-overlay.hidden {
     display: none;
 }
+
+/* ===== MOBIL: dölj hela panelen ===== */
+@media (max-width: 768px) {
+    .voice-chat-panel {
+        display: none;
+    }
+}
