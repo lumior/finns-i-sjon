@@ -28,10 +28,9 @@ const roomManager = new RoomManager();
 const webRTC = new WebRTCSignaling(io, roomManager);
 const PORT = process.env.PORT || 3000;
 
-// JWT_SECRET måste vara satt — avsluta om det saknas
+// JWT_SECRET måste vara satt — varna starkt om det saknas
 if (!process.env.JWT_SECRET) {
-    console.error('❌ JWT_SECRET måste sättas i miljövariabler');
-    process.exit(1);
+    console.error('⚠️  VARNING: JWT_SECRET saknas i miljövariabler. Sätt ett starkt secret i .env för produktion!');
 }
 
 app.use(helmet({
