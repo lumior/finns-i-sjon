@@ -146,6 +146,15 @@ class Database {
                 )
             `);
 
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS game_snapshots (
+                    id SERIAL PRIMARY KEY,
+                    room_id VARCHAR(20) NOT NULL,
+                    snapshot JSONB NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             // Index för prestanda
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
@@ -250,6 +259,15 @@ class Database {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS game_snapshots (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    room_id VARCHAR(20) NOT NULL,
+                    snapshot JSON NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id)`);
@@ -311,7 +329,8 @@ class Database {
             this.db.run(`CREATE TABLE IF NOT EXISTS game_participants (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id INTEGER, user_id INTEGER, final_pairs INTEGER, final_rank INTEGER, elo_change INTEGER)`);
             this.db.run(`CREATE TABLE IF NOT EXISTS game_events (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id INTEGER, event_type TEXT, player_id INTEGER, target_id INTEGER, rank TEXT, success INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)`);
             this.db.run(`CREATE TABLE IF NOT EXISTS friendships (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, friend_id INTEGER, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, friend_id))`);
-            this.db.run(`CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, achievement_type TEXT, unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, achievement_type))`, () => {
+            this.db.run(`CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, achievement_type TEXT, unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, achievement_type))`);
+            this.db.run(`CREATE TABLE IF NOT EXISTS game_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, snapshot TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`, () => {
                 console.log('✅ SQLite fallback tables initialized');
             });
         });
@@ -372,6 +391,24 @@ class Database {
             id: result.insertId, 
             changes: result.affectedRows 
         };
+    }
+
+    async saveGameSnapshot(roomId, snapshot) {
+        try {
+            if (this.isPostgres) {
+                await this.run(
+                    'INSERT INTO game_snapshots (room_id, snapshot) VALUES ($1, $2)',
+                    [roomId, JSON.stringify(snapshot)]
+                );
+            } else {
+                await this.run(
+                    'INSERT INTO game_snapshots (room_id, snapshot) VALUES (?, ?)',
+                    [roomId, JSON.stringify(snapshot)]
+                );
+            }
+        } catch (err) {
+            console.error('Failed to save game snapshot:', err.message);
+        }
     }
 }
 

@@ -450,6 +450,12 @@ class GameEngine {
                 this.getPublicState(spectatorId)
             );
         });
+        
+        // Spara snapshot asynkront (för crash-recovery)
+        const snapshot = this.saveSnapshot();
+        if (snapshot && this.onStateChange) {
+            this.onStateChange(snapshot);
+        }
     }
 
     handleTurnTimeout() {
@@ -1436,6 +1442,72 @@ class GameEngine {
             } : null,
             events: this.gameEvents
         };
+    }
+
+    /**
+     * Spara snapshot av spelets tillstånd för crash-recovery
+     * Throttlad: max 1 per 30 sekunder under pågående spel
+     */
+    saveSnapshot() {
+        if (this.state !== GAME_STATES.PLAYING) return null;
+        
+        const now = Date.now();
+        if (this._lastSnapshotTime && now - this._lastSnapshotTime < 30000) {
+            return null; // Throttle: max 1 snapshot per 30s
+        }
+        this._lastSnapshotTime = now;
+        
+        const snapshot = {
+            roomId: this.roomId,
+            state: this.state,
+            gameType: this.gameType,
+            currentPlayerIndex: this.currentPlayerIndex,
+            totalTurns: this.totalTurns,
+            startTime: this.startTime,
+            turnTimeout: this.turnTimeout,
+            settings: this.settings,
+            deck: {
+                cards: this.deck.cards,
+                remaining: this.deck.remaining()
+            },
+            pile: this.pile,
+            players: this.players.map(p => ({
+                id: p.id,
+                socketId: p.socketId,
+                name: p.name,
+                hand: p.hand,
+                pairs: p.pairs,
+                connected: p.connected,
+                surrendered: p.surrendered,
+                isAI: p.isAI,
+                aiDifficulty: p.aiDifficulty,
+                userId: p.userId,
+                elo: p.elo,
+                successfulAsks: p.successfulAsks,
+                failedAsks: p.failedAsks,
+                fishings: p.fishings,
+                luckyFishings: p.luckyFishings
+            })),
+            aiPlayers: this.aiPlayers.map(ai => ({
+                id: ai.id,
+                difficulty: ai.difficulty,
+                memory: {
+                    askedCards: Array.from(ai.memory.askedCards.entries()),
+                    givenCards: Array.from(ai.memory.givenCards.entries()),
+                    missingCards: Array.from(ai.memory.missingCards.entries()),
+                    fishedCards: ai.memory.fishedCards,
+                    handSizes: Array.from(ai.memory.handSizes.entries()),
+                    patterns: Array.from(ai.memory.patterns.entries())
+                }
+            })),
+            gameLog: this.gameLog,
+            chatHistory: this.chatHistory,
+            gameEvents: this.gameEvents,
+            pendingAsk: this.pendingAsk,
+            createdAt: new Date().toISOString()
+        };
+        
+        return snapshot;
     }
 }
 

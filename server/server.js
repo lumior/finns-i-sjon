@@ -14,6 +14,7 @@ const Game = require('./models/Game');
 const ELO = require('./utils/elo');
 const { GAME_STATES, AI_DIFFICULTIES } = require('./utils/constants');
 const WebRTCSignaling = require('./webrtc/signaling');
+const db = require('./config/database');
 const { escapeHtml } = require('./utils/sanitize');
 
 const app = express();
@@ -72,6 +73,10 @@ app.use('/api/rooms', readLimiter);
 app.use('/api/users/online', readLimiter);
 app.use('/api/stats/total-games', readLimiter);
 app.use('/api/users/leaderboard', readLimiter);
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.use('/api/', apiLimiter);
 
 app.use(Auth.middleware());
@@ -354,6 +359,11 @@ io.on('connection', (socket) => {
         }
 
         socket.join(result.roomId);
+        
+        // Sätt upp snapshot-sparning för crash-recovery
+        result.game.onStateChange = (snapshot) => {
+            db.saveGameSnapshot(result.roomId, snapshot).catch(() => {});
+        };
         
         socket.emit('room_created', {
             roomId: result.roomId,

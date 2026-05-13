@@ -2204,3 +2204,64 @@ input:checked + .toggle::after {
         font-size: 0.75rem;
     }
 }
+
+/* === Landscape-orientering på mobil === */
+@media (orientation: landscape) and (max-height: 500px) {
+    .game-board {
+        padding-top: 35px;
+        padding-bottom: 45px;
+        grid-template-rows: auto auto 1fr auto;
+    }
+    
+    .game-header {
+        height: 35px;
+        min-height: 35px;
+        padding: 0 6px;
+        padding-top: env(safe-area-inset-top);
+    }
+    
+    .opponents-area {
+        min-height: 30px;
+        padding: 2px 6px;
+    }
+    
+    .opponent-avatar {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .opponent-name {
+        font-size: 0.6rem;
+    }
+    
+    .mobile-video-grid .video-peer-wrapper {
+        width: 70px;
+        height: 52px;
+    }
+    
+    .card {
+        width: 45px;
+        height: 63px;
+        font-size: 1rem;
+        margin-left: -14px;
+    }
+    
+    .hand {
+        min-height: 70px;
+    }
+    
+    .player-actions {
+        padding: 6px 10px;
+        padding-bottom: calc(6px + env(safe-area-inset-bottom));
+    }
+    
+    .start-game-btn {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+    
+    .btn-ready {
+        padding: 4px 10px;
+        font-size: 0.65rem;
+    }
+}
