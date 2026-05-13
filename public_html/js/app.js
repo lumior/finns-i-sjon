@@ -228,17 +228,21 @@ let roomsRefreshInterval = null;
 async function loadRooms() {
     try {
         const response = await fetch('/api/rooms');
+        if (!response.ok) throw new Error('HTTP ' + response.status);
         const rooms = await response.json();
+        console.log('🔄 Polling: fick', rooms.length, 'bord');
         renderRooms(rooms);
     } catch (error) {
-        elements.roomsList.innerHTML = '<p class="empty-state">Kunde inte ladda bord</p>';
+        console.warn('🔄 Polling-fel:', error.message);
     }
 }
 
 function startRoomsPolling() {
     if (roomsRefreshInterval) return;
+    console.log('🔄 Startar bords-polling');
     // Polling var 5:e sekund för realtidsuppdatering av bordslistan
     roomsRefreshInterval = setInterval(() => {
+        console.log('🔄 Polling: hämtar bordslista...');
         loadRooms();
         updateOnlineStats();
     }, 5000);
