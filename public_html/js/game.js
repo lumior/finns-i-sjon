@@ -73,6 +73,10 @@ class GameClient {
             this.handleGameStarted(data);
         });
         
+        gameSocket.on('ready_status_update', (data) => {
+            this.handleReadyStatusUpdate(data.readyStatus);
+        });
+        
         gameSocket.on('game_state_update', (state) => {
             const current = state.players?.find(p => p.isCurrentPlayer);
             console.log('📊 game_state_update:', { currentPlayer: current?.name, isYou: current?.isYou, state: state.state, turn: state.turnCount });
@@ -307,6 +311,10 @@ class GameClient {
         
         document.getElementById('start-game-btn').addEventListener('click', () => {
             gameSocket.emit('start_game');
+        });
+        
+        document.getElementById('ready-btn').addEventListener('click', () => {
+            gameSocket.emit('toggle_ready');
         });
         
         document.getElementById('setting-sound').addEventListener('change', (e) => {
@@ -582,6 +590,34 @@ class GameClient {
         
         this.addLogEntry('Återansluten till spelet!', 'system');
     }
+    
+    handleReadyStatusUpdate(readyStatus) {
+        const readyBtn = document.getElementById('ready-btn');
+        const readyStatusEl = document.getElementById('ready-status');
+        
+        // Uppdatera knappens utseende baserat på egen status
+        const me = readyStatus.find(p => p.id === this.gameState?.players?.find(pl => pl.isYou)?.id);
+        if (me && readyBtn) {
+            readyBtn.classList.toggle('ready-active', me.ready);
+            readyBtn.textContent = me.ready ? '✅ Redo!' : '👍 Redo';
+        }
+        
+        // Uppdatera status-text för host
+        if (readyStatusEl) {
+            const readyCount = readyStatus.filter(p => p.ready).length;
+            const totalCount = readyStatus.length;
+            readyStatusEl.textContent = `Redo: ${readyCount}/${totalCount}`;
+        }
+        
+        // Uppdatera motspelar-visning med ready-indikator
+        if (this.gameState) {
+            this.gameState.players.forEach(p => {
+                const status = readyStatus.find(rs => rs.id === p.id);
+                if (status) p.ready = status.ready;
+            });
+            this.renderOpponents(this.gameState.players);
+        }
+    }
 
     updateGameState(state) {
         this.gameState = state;
@@ -615,10 +651,28 @@ class GameClient {
         const currentPlayer = state.players.find(p => p.isCurrentPlayer);
         const currentPlayerId = currentPlayer?.id;
         
+        const readyBtn = document.getElementById('ready-btn');
+        const readyStatus = document.getElementById('ready-status');
+        
         // Visa/dölj start-knapp för host när spelet väntar
         if (startBtn) {
             const canStart = this.isHost && state.state === 'waiting';
             startBtn.classList.toggle('hidden', !canStart);
+        }
+        
+        // Visa redo-knapp för icke-host, ready-status för host
+        if (state.state === 'waiting') {
+            if (readyBtn) {
+                const showReady = !this.isHost;
+                readyBtn.classList.toggle('hidden', !showReady);
+            }
+            if (readyStatus) {
+                const showStatus = this.isHost;
+                readyStatus.classList.toggle('hidden', !showStatus);
+            }
+        } else {
+            if (readyBtn) readyBtn.classList.add('hidden');
+            if (readyStatus) readyStatus.classList.add('hidden');
         }
         
         if (state.state === 'waiting') {
@@ -708,6 +762,7 @@ class GameClient {
                     `<div class="card-back ${deckBackClass}" style="left: ${i * -8}px; z-index: ${i}; transform: rotate(${i * 3 - 6}deg)"></div>`
                 ).join('');
                 
+                el.classList.toggle('ready', !!p.ready);
                 el.innerHTML = `
                     <div class="opponent-video" data-opponent-video="${p.socketId || p.id}"></div>
                     <img src="${p.avatar || '/assets/images/default-avatar.png'}" class="opponent-avatar" alt="${p.name}">
@@ -715,6 +770,7 @@ class GameClient {
                         ${p.name}
                         ${p.isAI ? `<span class="ai-badge">AI ${p.aiDifficulty}</span>` : ''}
                         ${p.surrendered ? '<span class="surrender-badge">🏳️ Gav upp</span>' : ''}
+                        ${p.ready ? '<span class="ready-badge">✅</span>' : ''}
                     </div>
                     <div class="opponent-cards">${p.surrendered ? '' : cardBacks}</div>
                     <div class="opponent-stats">
@@ -733,6 +789,7 @@ class GameClient {
             el.classList.toggle('disconnected', !p.connected);
             el.classList.toggle('ai-player', !!p.isAI);
             el.classList.toggle('surrendered', !!p.surrendered);
+            el.classList.toggle('ready', !!p.ready);
             el.dataset.socketId = p.socketId || '';
             
             // Avatar
@@ -747,7 +804,8 @@ class GameClient {
             if (nameEl) {
                 const aiBadge = p.isAI ? `<span class="ai-badge">AI ${p.aiDifficulty}</span>` : '';
                 const surrenderBadge = p.surrendered ? '<span class="surrender-badge">🏳️ Gav upp</span>' : '';
-                const newNameHtml = `${p.name} ${aiBadge} ${surrenderBadge}`;
+                const readyBadge = p.ready ? '<span class="ready-badge">✅</span>' : '';
+                const newNameHtml = `${p.name} ${aiBadge} ${surrenderBadge} ${readyBadge}`;
                 if (nameEl.innerHTML.trim() !== newNameHtml.trim()) {
                     nameEl.innerHTML = newNameHtml;
                 }

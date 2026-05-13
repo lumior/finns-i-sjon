@@ -17,28 +17,150 @@ const DB_CONFIG = {
 class Database {
     constructor() {
         this.pool = null;
+        this.db = null;
+        this.isSQLite = false;
+        this.isPostgres = false;
         this.connect();
     }
 
     async connect() {
+        // 1. Försök PostgreSQL (Railway standard)
+        if (process.env.DATABASE_URL) {
+            try {
+                const { Pool } = require('pg');
+                this.pool = new Pool({
+                    connectionString: process.env.DATABASE_URL,
+                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+                });
+                const client = await this.pool.connect();
+                console.log('✅ Connected to PostgreSQL database');
+                client.release();
+                this.isPostgres = true;
+                await this.initPostgresTables();
+                return;
+            } catch (err) {
+                console.error('PostgreSQL connection failed:', err.message);
+            }
+        }
+        
+        // 2. Försök MariaDB
         try {
             this.pool = mysql.createPool(DB_CONFIG);
-            // Testa anslutningen
             const connection = await this.pool.getConnection();
             console.log('✅ Connected to MariaDB database');
             connection.release();
-            await this.initTables();
+            await this.initMariaDBTables();
+            return;
         } catch (err) {
-            console.error('Database connection failed:', err.message);
-            // Fallback till SQLite om MariaDB inte är tillgänglig
-            if (process.env.DB_FALLBACK !== 'false') {
-                console.log('⚠️  Falling back to SQLite...');
-                this.initSQLiteFallback();
-            }
+            console.error('MariaDB connection failed:', err.message);
+        }
+        
+        // 3. Fallback till SQLite
+        if (process.env.DB_FALLBACK !== 'false') {
+            console.log('⚠️  Falling back to SQLite...');
+            this.initSQLiteFallback();
         }
     }
 
-    async initTables() {
+    async initPostgresTables() {
+        try {
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(50) UNIQUE NOT NULL,
+                    email VARCHAR(100) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    display_name VARCHAR(50),
+                    avatar_url VARCHAR(255) DEFAULT '/assets/images/default-avatar.png',
+                    elo_rating INT DEFAULT 1200,
+                    games_played INT DEFAULT 0,
+                    games_won INT DEFAULT 0,
+                    games_lost INT DEFAULT 0,
+                    total_pairs INT DEFAULT 0,
+                    total_fishings INT DEFAULT 0,
+                    total_asks INT DEFAULT 0,
+                    successful_asks INT DEFAULT 0,
+                    longest_streak INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_login TIMESTAMP,
+                    is_online SMALLINT DEFAULT 0
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS games (
+                    id SERIAL PRIMARY KEY,
+                    room_id VARCHAR(20) NOT NULL,
+                    game_type VARCHAR(20) DEFAULT 'standard',
+                    player_count INT,
+                    winner_id INT,
+                    winner_name VARCHAR(50),
+                    duration_seconds INT,
+                    total_turns INT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS game_participants (
+                    id SERIAL PRIMARY KEY,
+                    game_id INT,
+                    user_id INT,
+                    final_pairs INT,
+                    final_rank INT,
+                    elo_change INT
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS game_events (
+                    id SERIAL PRIMARY KEY,
+                    game_id INT,
+                    event_type VARCHAR(30),
+                    player_id INT,
+                    target_id INT,
+                    rank VARCHAR(5),
+                    success SMALLINT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS friendships (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT,
+                    friend_id INT,
+                    status VARCHAR(20) DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, friend_id)
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS achievements (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT,
+                    achievement_type VARCHAR(30),
+                    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, achievement_type)
+                )
+            `);
+
+            // Index för prestanda
+            await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
+            await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
+            await this.run(`CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id)`);
+            await this.run(`CREATE INDEX IF NOT EXISTS idx_games_created ON games(created_at DESC)`);
+            await this.run(`CREATE INDEX IF NOT EXISTS idx_game_participants_user ON game_participants(user_id)`);
+            await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
+
+            console.log('✅ PostgreSQL tables initialized');
+        } catch (err) {
+            console.error('Failed to initialize PostgreSQL tables:', err.message);
+        }
+    }
+
+    async initMariaDBTables() {
         try {
             await this.run(`
                 CREATE TABLE IF NOT EXISTS users (
@@ -128,7 +250,6 @@ class Database {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
-            // Index för prestanda
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id)`);
@@ -136,9 +257,9 @@ class Database {
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_participants_user ON game_participants(user_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
 
-            console.log('✅ Database tables initialized');
+            console.log('✅ MariaDB tables initialized');
         } catch (err) {
-            console.error('Failed to initialize tables:', err.message);
+            console.error('Failed to initialize MariaDB tables:', err.message);
         }
     }
 
@@ -149,7 +270,6 @@ class Database {
         const fs = require('fs');
         const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../database/game.db');
         
-        // Skapa database-mappen om den inte finns (viktigt på Railway m.fl.)
         const dbDir = path.dirname(DB_PATH);
         if (!fs.existsSync(dbDir)) {
             fs.mkdirSync(dbDir, { recursive: true });
@@ -158,7 +278,6 @@ class Database {
         this.db = new sqlite3.Database(DB_PATH);
         this.isSQLite = true;
         
-        // Emulera pool-metoder med sqlite3
         this.query = (sql, params = []) => {
             return new Promise((resolve, reject) => {
                 this.db.all(sql, params, (err, rows) => {
@@ -186,7 +305,6 @@ class Database {
             });
         };
         
-        // Initiera SQLite-tabeller — serialize() säkerställer ordning
         this.db.serialize(() => {
             this.db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, display_name TEXT, avatar_url TEXT DEFAULT '/assets/images/default-avatar.png', elo_rating INTEGER DEFAULT 1200, games_played INTEGER DEFAULT 0, games_won INTEGER DEFAULT 0, games_lost INTEGER DEFAULT 0, total_pairs INTEGER DEFAULT 0, total_fishings INTEGER DEFAULT 0, total_asks INTEGER DEFAULT 0, successful_asks INTEGER DEFAULT 0, longest_streak INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_login DATETIME, is_online INTEGER DEFAULT 0)`);
             this.db.run(`CREATE TABLE IF NOT EXISTS games (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, game_type TEXT DEFAULT 'standard', player_count INTEGER, winner_id INTEGER, winner_name TEXT, duration_seconds INTEGER, total_turns INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
@@ -208,6 +326,10 @@ class Database {
                 });
             });
         }
+        if (this.isPostgres) {
+            const result = await this.pool.query(sql, params);
+            return result.rows;
+        }
         const [rows] = await this.pool.execute(sql, params);
         return rows;
     }
@@ -221,6 +343,10 @@ class Database {
                 });
             });
         }
+        if (this.isPostgres) {
+            const result = await this.pool.query(sql, params);
+            return result.rows[0] || null;
+        }
         const [rows] = await this.pool.execute(sql, params);
         return rows[0];
     }
@@ -233,6 +359,13 @@ class Database {
                     else resolve({ id: this.lastID, changes: this.changes });
                 });
             });
+        }
+        if (this.isPostgres) {
+            const result = await this.pool.query(sql, params);
+            return { 
+                id: result.rows[0]?.id || 0, 
+                changes: result.rowCount 
+            };
         }
         const [result] = await this.pool.execute(sql, params);
         return { 

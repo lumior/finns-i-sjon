@@ -1378,6 +1378,37 @@ input:checked + .toggle::after {
     box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
 }
 
+.btn-ready {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+    font-weight: 600;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-ready.ready-active {
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+}
+
+.btn-ready:hover {
+    transform: scale(1.05);
+}
+
+.ready-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.4);
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
 .host-controls {
     position: relative;
     display: inline-block;
@@ -1538,7 +1569,7 @@ input:checked + .toggle::after {
 @media (max-width: 768px) {
     /* ── Grundlayout ── */
     .game-board {
-        padding-top: 45px;
+        padding-top: calc(45px + env(safe-area-inset-top));
         padding-bottom: 60px; /* Utrymme för fixed bottom-bar */
         gap: 0;
         grid-template-rows: auto auto auto 1fr auto;
@@ -1549,6 +1580,7 @@ input:checked + .toggle::after {
         height: 45px;
         min-height: 45px;
         padding: 0 8px;
+        padding-top: env(safe-area-inset-top);
         grid-template-columns: auto 1fr auto;
         gap: 6px;
     }
@@ -1587,6 +1619,16 @@ input:checked + .toggle::after {
         box-shadow: 0 0 40px rgba(99, 102, 241, 0.5), 0 8px 30px rgba(0, 0, 0, 0.4);
         animation: pulse 1.5s ease-in-out infinite;
         white-space: nowrap;
+    }
+    
+    .btn-ready {
+        padding: 6px 14px;
+        font-size: 0.75rem;
+    }
+    
+    .ready-status {
+        font-size: 0.65rem;
+        padding: 2px 6px;
     }
     
     .turn-indicator {
@@ -1703,6 +1745,10 @@ input:checked + .toggle::after {
     .surrender-badge {
         font-size: 0.55rem;
         padding: 1px 4px;
+    }
+    
+    .ready-badge {
+        font-size: 0.55rem;
     }
     
     /* Dölj kort-baksidor och video på mobil */
@@ -2081,7 +2127,7 @@ input:checked + .toggle::after {
 /* === Extra-kompakt för små skärmar ≤480px === */
 @media (max-width: 480px) {
     .game-board {
-        padding-top: 40px;
+        padding-top: calc(40px + env(safe-area-inset-top));
         padding-bottom: 55px;
     }
     

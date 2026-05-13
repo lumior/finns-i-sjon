@@ -90,7 +90,8 @@ class GameEngine {
             failedAsks: 0,
             fishings: 0,
             luckyFishings: 0,
-            rankHistory: []
+            rankHistory: [],
+            ready: false
         };
 
         this.players.push(player);
@@ -271,6 +272,19 @@ class GameEngine {
         
         this.addLog('system', `${player.name} återanslöt`);
         return player;
+    }
+
+    toggleReady(socketId) {
+        const player = this.players.find(p => p.socketId === socketId);
+        if (!player) return null;
+        player.ready = !player.ready;
+        return { playerId: player.id, name: player.name, ready: player.ready };
+    }
+
+    getReadyStatus() {
+        return this.players
+            .filter(p => !p.isAI)
+            .map(p => ({ id: p.id, name: p.name, ready: p.ready, connected: p.connected }));
     }
 
     canStart() {
@@ -1358,7 +1372,8 @@ class GameEngine {
                 successfulAsks: p.successfulAsks,
                 failedAsks: p.failedAsks,
                 fishings: p.fishings,
-                rankHistory: p.rankHistory
+                rankHistory: p.rankHistory,
+                ready: p.ready || false
             })),
             yourHand: player ? player.hand : (isSpectator ? [] : null),
             yourPairs: player ? player.pairs : [],

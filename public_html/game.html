@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Finns i sjön PRO – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/game.css?v=16">
@@ -35,6 +35,8 @@
                 <span id="turn-text" class="turn-text">Väntar på spelare...</span>
             </div>
             <button id="start-game-btn" class="btn btn-primary start-game-btn hidden">🎴 Starta spelet</button>
+            <button id="ready-btn" class="btn btn-ready hidden">👍 Redo</button>
+            <span id="ready-status" class="ready-status hidden"></span>
         </div>
         
         <div class="header-right">
@@ -287,12 +289,12 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/audio.js?v=13"></script>
-    <script src="/js/animations.js?v=14"></script>
+    <script src="/js/animations.js?v=15"></script>
     <script src="/js/socket-client.js?v=13"></script>
-    <script src="/js/voice-chat.js?v=14"></script>
+    <script src="/js/voice-chat.js?v=15"></script>
     <script src="/js/voice-ui.js?v=13"></script>
-    <script src="/js/video-chat.js?v=15"></script>
+    <script src="/js/video-chat.js?v=16"></script>
     <script src="/js/video-ui.js?v=13"></script>
-    <script src="/js/game.js?v=16"></script>
+    <script src="/js/game.js?v=17"></script>
 </body>
 </html>

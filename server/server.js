@@ -540,6 +540,10 @@ io.on('connection', (socket) => {
         }
 
         game.setIo(io);
+        
+        // Nollställ ready-status för alla spelare när spelet startar
+        game.players.forEach(p => { p.ready = false; });
+        
         game.startGame();
         
         game.players.forEach(player => {
@@ -559,6 +563,21 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('toggle_ready', () => {
+        const room = roomManager.getRoomBySocket(socket.id);
+        if (!room) return;
+        
+        const game = room.game;
+        if (game.state !== GAME_STATES.WAITING) return;
+        
+        const result = game.toggleReady(socket.id);
+        if (result) {
+            io.to(room.game.roomId).emit('ready_status_update', {
+                readyStatus: game.getReadyStatus()
+            });
+        }
+    });
+    
     socket.on('ask_cards', (data) => {
         const { targetId, rank } = data;
         const room = roomManager.getRoomBySocket(socket.id);

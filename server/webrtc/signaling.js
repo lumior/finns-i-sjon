@@ -118,12 +118,27 @@ class WebRTCSignaling {
 
     // Hämta ICE-servrar (STUN/TURN)
     getIceServers() {
-        return {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
-        };
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ];
+        
+        // Custom TURN via miljövariabler
+        if (process.env.TURN_URL) {
+            iceServers.push({
+                urls: process.env.TURN_URL,
+                username: process.env.TURN_USERNAME || '',
+                credential: process.env.TURN_CREDENTIAL || ''
+            });
+        } else {
+            // Gratis fallback-TURN (Open Relay Project)
+            iceServers.push(
+                { urls: 'turn:relay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:relay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
+            );
+        }
+        
+        return { iceServers };
     }
 }
 
