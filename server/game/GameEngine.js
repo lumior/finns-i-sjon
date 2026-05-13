@@ -1,7 +1,14 @@
 const CardDeck = require('./CardDeck');
 const AIPlayer = require('./AIPlayer');
 const { extractPairs } = require('./utils');
-const { MIN_PLAYERS, MAX_PLAYERS, CARDS_PER_PLAYER_2P, CARDS_PER_PLAYER_MULTI, GAME_STATES } = require('../utils/constants');
+const {
+    MIN_PLAYERS,
+    MAX_PLAYERS,
+    CARDS_PER_PLAYER_2P,
+    CARDS_PER_PLAYER_MULTI,
+    GAME_STATES
+} = require('../utils/constants');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -20,19 +27,19 @@ class GameEngine {
         this.turnTimer = null;
         this.turnTimeout = 45000;
         this.maxTurnTime = 60000;
-        
+
         this.startTime = null;
         this.endTime = null;
         this.totalTurns = 0;
         this.gameEvents = [];
-        
+
         this.turnStartTime = null;
         this.turnTimerInterval = null;
-        
+
         this.spectators = [];
         this.io = null;
         this.pendingAsk = null;
-        
+
         this.settings = {
             allowAI: true,
             maxPlayers: 6,
@@ -42,36 +49,51 @@ class GameEngine {
             soundEnabled: true,
             animationsEnabled: true
         };
-        
+
         this.onGameEvent = null;
         this.onStateChange = null;
-        
+
         this.debugLogFile = path.join(__dirname, '..', '..', 'game-debug.log');
     }
-    
+
     debugLog(label, data = {}) {
         // Skriv bara debug-logg till fil i utveckling (inte i produktion)
-        if (process.env.NODE_ENV === 'production') return;
-        
+        if (process.env.NODE_ENV === 'production') {
+            return;
+        }
+
         const timestamp = new Date().toISOString();
         const logLine = `[${timestamp}] [${this.roomId}] ${label}: ${JSON.stringify(data)}\n`;
         // Asynkron loggning för att inte blockera event-loopen
-        fs.appendFile(this.debugLogFile, logLine, (err) => {
-            if (err) console.error('Debug log error:', err.message);
+        fs.appendFile(this.debugLogFile, logLine, err => {
+            if (err) {
+                console.error('Debug log error:', err.message);
+            }
         });
     }
 
     addPlayer(socketId, playerName, userData = null) {
-        console.log('🔍 GE addPlayer:', playerName, 'players:', this.players.length, 'ai:', this.aiPlayers.length, 'max:', this.settings.maxPlayers);
+        console.log(
+            '🔍 GE addPlayer:',
+            playerName,
+            'players:',
+            this.players.length,
+            'ai:',
+            this.aiPlayers.length,
+            'max:',
+            this.settings.maxPlayers
+        );
         if (this.players.length + this.aiPlayers.length >= this.settings.maxPlayers) {
             return { success: false, error: 'Bordet är fullt' };
         }
         if (this.state !== GAME_STATES.WAITING) {
             return { success: false, error: 'Spelet har redan börjat' };
         }
-        
+
         const existing = this.players.find(p => p.socketId === socketId);
-        if (existing) return { success: false, error: 'Du är redan med i bordet' };
+        if (existing) {
+            return { success: false, error: 'Du är redan med i bordet' };
+        }
 
         const player = {
             id: `player-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -91,12 +113,13 @@ class GameEngine {
             fishings: 0,
             luckyFishings: 0,
             rankHistory: [],
-            ready: false
+            ready: false,
+            reconnectToken: crypto.randomBytes(16).toString('hex')
         };
 
         this.players.push(player);
         this.addLog('system', `${playerName} gick med i bordet`);
-        
+
         return { success: true, player };
     }
 
@@ -109,7 +132,9 @@ class GameEngine {
             state: this.state,
             roomId: this.roomId
         });
-        if (!this.settings.allowAI) return { success: false, error: 'AI-spelare är inte tillåtna' };
+        if (!this.settings.allowAI) {
+            return { success: false, error: 'AI-spelare är inte tillåtna' };
+        }
         // Tillåt alltid fler AI-spelare upp till totalt 6 (för debugging med multi-AI)
         const totalPlayers = this.players.length + this.aiPlayers.length;
         if (totalPlayers >= 6) {
@@ -128,10 +153,10 @@ class GameEngine {
 
         const names = aiNames[difficulty] || aiNames.smart;
         const aiName = name || names[Math.floor(Math.random() * names.length)];
-        
+
         const ai = new AIPlayer(difficulty, aiName);
         this.aiPlayers.push(ai);
-        
+
         const aiPlayer = {
             id: ai.id,
             socketId: ai.socketId,
@@ -153,10 +178,10 @@ class GameEngine {
             luckyFishings: 0,
             rankHistory: []
         };
-        
+
         this.players.push(aiPlayer);
         this.addLog('system', `${aiName} (AI - ${difficulty}) gick med i bordet`);
-        
+
         return { success: true, player: aiPlayer, ai };
     }
 
@@ -167,17 +192,19 @@ class GameEngine {
 
     removePlayer(socketId) {
         const index = this.players.findIndex(p => p.socketId === socketId);
-        if (index === -1) return null;
-        
+        if (index === -1) {
+            return null;
+        }
+
         const player = this.players[index];
-        
+
         if (this.state === GAME_STATES.PLAYING) {
             player.connected = false;
             this.addLog('system', `${player.name} kopplade från`);
-            
+
             const connectedPlayers = this.players.filter(p => p.connected && !p.isAI);
             const connectedAI = this.players.filter(p => p.connected && p.isAI);
-            
+
             if (connectedPlayers.length === 0 && connectedAI.length === 0) {
                 this.state = GAME_STATES.FINISHED;
                 this.addLog('system', 'Alla spelare lämnade - spelet avslutas');
@@ -185,7 +212,7 @@ class GameEngine {
                 this.state = GAME_STATES.FINISHED;
                 this.calculateWinner();
             }
-            
+
             return { player, disconnected: true };
         } else {
             // I waiting-läge: markera bara som frånkopplad (inte ta bort)
@@ -195,26 +222,36 @@ class GameEngine {
             return { player, disconnected: true };
         }
     }
-    
+
     forceRemovePlayer(socketId) {
         const index = this.players.findIndex(p => p.socketId === socketId);
-        if (index === -1) return null;
-        
+        if (index === -1) {
+            return null;
+        }
+
         const player = this.players[index];
-        
+
         this.players.splice(index, 1);
         const aiIndex = this.aiPlayers.findIndex(ai => ai.socketId === socketId);
-        if (aiIndex !== -1) this.aiPlayers.splice(aiIndex, 1);
-        
+        if (aiIndex !== -1) {
+            this.aiPlayers.splice(aiIndex, 1);
+        }
+
         this.addLog('system', `${player.name} lämnade bordet`);
         return { player, removed: true };
     }
 
     surrender(socketId) {
         const player = this.players.find(p => p.socketId === socketId);
-        if (!player) return { success: false, error: 'Spelare hittades inte' };
-        if (this.state !== GAME_STATES.PLAYING) return { success: false, error: 'Spelet har inte börjat' };
-        if (player.surrendered) return { success: false, error: 'Du har redan gett upp' };
+        if (!player) {
+            return { success: false, error: 'Spelare hittades inte' };
+        }
+        if (this.state !== GAME_STATES.PLAYING) {
+            return { success: false, error: 'Spelet har inte börjat' };
+        }
+        if (player.surrendered) {
+            return { success: false, error: 'Du har redan gett upp' };
+        }
 
         player.surrendered = true;
         player.connected = false;
@@ -247,36 +284,56 @@ class GameEngine {
 
     removeAI(aiId) {
         const index = this.players.findIndex(p => p.id === aiId && p.isAI);
-        if (index === -1) return false;
-        
+        if (index === -1) {
+            return false;
+        }
+
         const aiPlayer = this.players[index];
         this.players.splice(index, 1);
-        
+
         const aiIndex = this.aiPlayers.findIndex(ai => ai.id === aiId);
-        if (aiIndex !== -1) this.aiPlayers.splice(aiIndex, 1);
-        
+        if (aiIndex !== -1) {
+            this.aiPlayers.splice(aiIndex, 1);
+        }
+
         this.addLog('system', `${aiPlayer.name} lämnade bordet`);
         return true;
     }
 
-    reconnectPlayer(oldSocketId, newSocketId, userData = null) {
-        const player = this.players.find(p => p.socketId === oldSocketId && !p.connected);
-        if (!player) return null;
-        
+    reconnectPlayer(oldSocketId, newSocketId, userData = null, reconnectToken = null) {
+        // Först: försök matcha på oldSocketId (vanligt reconnect)
+        let player = this.players.find(p => p.socketId === oldSocketId && !p.connected);
+
+        // Om inte: försök matcha på reconnectToken (t.ex. ny flik/browser refresh)
+        if (!player && reconnectToken) {
+            player = this.players.find(p => p.reconnectToken === reconnectToken && !p.connected);
+        }
+
+        // Sista chansen: matcha på userId (inloggade användare)
+        if (!player && userData?.id) {
+            player = this.players.find(p => p.userId === userData.id && !p.connected);
+        }
+
+        if (!player) {
+            return null;
+        }
+
         player.socketId = newSocketId;
         player.connected = true;
         if (userData) {
             player.userId = userData.id;
             player.elo = userData.elo;
         }
-        
+
         this.addLog('system', `${player.name} återanslöt`);
         return player;
     }
 
     toggleReady(socketId) {
         const player = this.players.find(p => p.socketId === socketId);
-        if (!player) return null;
+        if (!player) {
+            return null;
+        }
         player.ready = !player.ready;
         return { playerId: player.id, name: player.name, ready: player.ready };
     }
@@ -296,7 +353,11 @@ class GameEngine {
 
     startGame() {
         if (!this.canStart()) {
-            this.debugLog('startGame FAILED', { reason: 'canStart returned false', players: this.players.length, state: this.state });
+            this.debugLog('startGame FAILED', {
+                reason: 'canStart returned false',
+                players: this.players.length,
+                state: this.state
+            });
             return false;
         }
 
@@ -305,15 +366,16 @@ class GameEngine {
         this.startTime = Date.now();
         this.totalTurns = 0;
         this.gameEvents = [];
-        
+
         const humanCount = this.players.filter(p => !p.isAI).length;
-        const cardsPerPlayer = humanCount === 1 && this.aiPlayers.length === 1 
-            ? CARDS_PER_PLAYER_2P 
-            : CARDS_PER_PLAYER_MULTI;
-        
+        const cardsPerPlayer =
+            humanCount === 1 && this.aiPlayers.length === 1 ? CARDS_PER_PLAYER_2P : CARDS_PER_PLAYER_MULTI;
+
         for (const player of this.players) {
-            if (!player.connected) continue;
-            
+            if (!player.connected) {
+                continue;
+            }
+
             player.hand = this.deck.draw(cardsPerPlayer);
             player.pairs = [];
             player.askedThisTurn = false;
@@ -325,10 +387,10 @@ class GameEngine {
             player.rankHistory = [];
             player.chatCount = 0;
             player.wasBehind = false;
-            
+
             extractPairs(player, this.pile);
             this.updateWasBehind();
-            
+
             if (player.isAI) {
                 const ai = this.aiPlayers.find(a => a.id === player.id);
                 if (ai) {
@@ -343,32 +405,39 @@ class GameEngine {
 
         this.state = GAME_STATES.PLAYING;
         this.currentPlayerIndex = 0;
-        
-        this.debugLog('startGame SUCCESS', { 
-            players: this.players.map(p => ({ name: p.name, isAI: p.isAI, handSize: p.hand.length, pairs: p.pairs.length })),
+
+        this.debugLog('startGame SUCCESS', {
+            players: this.players.map(p => ({
+                name: p.name,
+                isAI: p.isAI,
+                handSize: p.hand.length,
+                pairs: p.pairs.length
+            })),
             deckRemaining: this.deck.cards.length
         });
         this.addLog('system', '🎴 Spelet har börjat! Lycka till!');
-        
+
         this.ensureCurrentPlayerHasCards();
         this.startTurnTimer();
-        
+
         return true;
     }
 
     startTurnTimer() {
-        if (!this.settings.turnTimer) return;
-        
+        if (!this.settings.turnTimer) {
+            return;
+        }
+
         this.turnStartTime = Date.now();
-        
+
         if (this.turnTimerInterval) {
             clearInterval(this.turnTimerInterval);
         }
-        
+
         this.turnTimerInterval = setInterval(() => {
             const elapsed = Date.now() - this.turnStartTime;
             const remaining = Math.max(0, this.turnTimeout - elapsed);
-            
+
             if (remaining <= 0) {
                 this.handleTurnTimeout();
             }
@@ -395,7 +464,7 @@ class GameEngine {
         this.startTime = null;
         this.endTime = null;
         this.spectators = [];
-        
+
         // Reset all players (both human and AI)
         for (const player of this.players) {
             player.hand = [];
@@ -409,7 +478,7 @@ class GameEngine {
             player.rankHistory = [];
             player.surrendered = false;
             // Behåll connected-status för mänskliga spelare så att de kan starta om direkt
-            
+
             if (player.isAI) {
                 const ai = this.aiPlayers.find(a => a.id === player.id);
                 if (ai) {
@@ -428,7 +497,7 @@ class GameEngine {
                 }
             }
         }
-        
+
         this.addLog('system', 'Bordet är redo för en ny match!');
     }
 
@@ -437,20 +506,18 @@ class GameEngine {
     }
 
     broadcastGameState() {
-        if (!this.io) return;
+        if (!this.io) {
+            return;
+        }
         this.players.forEach(player => {
             if (player.connected && !player.isAI) {
-                this.io.to(player.socketId).emit('game_state_update',
-                    this.getPublicState(player.socketId)
-                );
+                this.io.to(player.socketId).emit('game_state_update', this.getPublicState(player.socketId));
             }
         });
         this.spectators.forEach(spectatorId => {
-            this.io.to(spectatorId).emit('game_state_update',
-                this.getPublicState(spectatorId)
-            );
+            this.io.to(spectatorId).emit('game_state_update', this.getPublicState(spectatorId));
         });
-        
+
         // Spara snapshot asynkront (för crash-recovery)
         const snapshot = this.saveSnapshot();
         if (snapshot && this.onStateChange) {
@@ -460,12 +527,12 @@ class GameEngine {
 
     handleTurnTimeout() {
         this.stopTurnTimer();
-        
+
         // Om det finns en pending ask, auto-svar "Fisk!"
         if (this.pendingAsk) {
             this.addLog('system', `⏱️ ${this.pendingAsk.targetName} svarade inte i tid — auto-Fisk!`);
             const result = this.respondToAsk(this.pendingAsk.targetSocketId, false, null);
-            
+
             if (result.gameOver) {
                 this.broadcastGameState();
                 this.players.forEach(player => {
@@ -490,7 +557,7 @@ class GameEngine {
                 });
                 return;
             }
-            
+
             this.players.forEach(player => {
                 if (player.connected && !player.isAI) {
                     this.io.to(player.socketId).emit('turn_result', {
@@ -505,7 +572,7 @@ class GameEngine {
                     gameState: this.getSpectatorState()
                 });
             });
-            
+
             // Om nästa spelare är AI, starta dess tur
             const nextPlayer = this.getCurrentPlayer();
             if (nextPlayer?.isAI) {
@@ -513,26 +580,28 @@ class GameEngine {
             }
             return;
         }
-        
+
         const currentPlayer = this.getCurrentPlayer();
-        if (!currentPlayer) return;
-        
+        if (!currentPlayer) {
+            return;
+        }
+
         this.addLog('system', `⏱️ ${currentPlayer.name}s tur gick ut!`);
-        
+
         if (!this.deck.isEmpty()) {
             const drawn = this.deck.draw(1);
             if (drawn) {
                 currentPlayer.hand.push(drawn);
                 this.addLog('action', `${currentPlayer.name} drog automatiskt ett kort`);
-                
+
                 // Kolla om det nya kortet bildar ett par
                 extractPairs(currentPlayer, this.pile);
                 this.updateWasBehind();
             }
         }
-        
+
         this.nextPlayer();
-        
+
         const gameOver = this.checkGameOver();
         if (gameOver) {
             this.broadcastGameState();
@@ -558,9 +627,9 @@ class GameEngine {
             });
             return;
         }
-        
+
         this.broadcastGameState();
-        
+
         // Om nästa spelare är AI, starta dess tur
         const nextPlayer = this.getCurrentPlayer();
         if (nextPlayer?.isAI) {
@@ -569,12 +638,16 @@ class GameEngine {
     }
 
     getCurrentPlayer() {
-        if (this.state !== GAME_STATES.PLAYING) return null;
-        
+        if (this.state !== GAME_STATES.PLAYING) {
+            return null;
+        }
+
         let attempts = 0;
         while (attempts < this.players.length) {
             const player = this.players[this.currentPlayerIndex];
-            if (player && player.connected) return player;
+            if (player && player.connected) {
+                return player;
+            }
             this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
             attempts++;
         }
@@ -584,7 +657,7 @@ class GameEngine {
     askForCards(askerSocketId, targetId, rank) {
         const asker = this.players.find(p => p.socketId === askerSocketId);
         const target = this.players.find(p => p.id === targetId || p.socketId === targetId);
-        
+
         if (!asker || !target) {
             return { success: false, error: 'Spelare inte funnen' };
         }
@@ -603,9 +676,9 @@ class GameEngine {
 
         this.stopTurnTimer();
         this.totalTurns++;
-        
+
         const matchingCards = target.hand.filter(c => c.rank === rank);
-        
+
         this.gameEvents.push({
             type: 'ask',
             turn: this.totalTurns,
@@ -616,7 +689,7 @@ class GameEngine {
             askerHandSize: asker.hand.length,
             targetHandSize: target.hand.length
         });
-        
+
         asker.rankHistory.push(rank);
         this.updateAIMemory('ask', asker.id, target.id, rank, matchingCards.length > 0);
 
@@ -624,39 +697,45 @@ class GameEngine {
             target.hand = target.hand.filter(c => c.rank !== rank);
             asker.hand.push(...matchingCards);
             asker.successfulAsks++;
-            
+
             const newPairs = extractPairs(asker, this.pile);
             this.updateWasBehind();
-            
+
             this.syncAIHand(asker);
             this.syncAIHand(target);
 
-            this.addLog('success', 
-                `🎯 ${asker.name} frågade ${target.name} om ${rank}:an och fick ${matchingCards.length} kort!`);
-            
+            this.addLog(
+                'success',
+                `🎯 ${asker.name} frågade ${target.name} om ${rank}:an och fick ${matchingCards.length} kort!`
+            );
+
             this.checkAchievements(asker, 'successful_ask');
             if (matchingCards.length >= 3) {
                 this.checkAchievements(asker, 'lucky_draw');
             }
 
             const gameOver = this.checkGameOver();
-            
+
             // Om spelaren fick slut på kort efter par-bildning men leken inte är tom, dra ett kort
             if (!gameOver) {
                 this.ensureCurrentPlayerHasCards();
             }
-            
+
             this.debugLog('askForCards SUCCESS', {
-                asker: asker.name, target: target.name, rank,
-                gotCards: matchingCards.length, gameOver,
-                askerHand: asker.hand.length, targetHand: target.hand.length,
+                asker: asker.name,
+                target: target.name,
+                rank,
+                gotCards: matchingCards.length,
+                gameOver,
+                askerHand: asker.hand.length,
+                targetHand: target.hand.length,
                 deckRemaining: this.deck.cards.length
             });
-            
+
             if (!gameOver) {
                 this.startTurnTimer();
             }
-            
+
             return {
                 success: true,
                 gotCards: true,
@@ -670,10 +749,9 @@ class GameEngine {
             };
         } else {
             asker.failedAsks++;
-            
-            this.addLog('fish', 
-                `🌊 ${asker.name} frågade ${target.name} om ${rank}:an... "Finns i sjön!"`);
-            
+
+            this.addLog('fish', `🌊 ${asker.name} frågade ${target.name} om ${rank}:an... "Finns i sjön!"`);
+
             const drawnCard = this.deck.draw(1);
             let newPairs = [];
             let fishedSuccess = false;
@@ -682,7 +760,7 @@ class GameEngine {
             if (drawnCard) {
                 asker.hand.push(drawnCard);
                 asker.fishings++;
-                
+
                 if (drawnCard.rank === rank) {
                     fishedSuccess = true;
                     asker.luckyFishings++;
@@ -698,25 +776,30 @@ class GameEngine {
             } else {
                 this.addLog('system', 'Sjön är tom!');
             }
-            
+
             this.syncAIHand(asker);
 
             const gameOver = this.checkGameOver();
             const nextPlayerId = fishedSuccess ? askerSocketId : this.nextPlayer();
             const nextPlayerObj = this.players.find(p => p.socketId === nextPlayerId || p.id === nextPlayerId);
-            
+
             this.debugLog('askForCards FISH', {
-                asker: asker.name, target: target.name, rank,
-                fishedSuccess, drawnCard: drawnCard?.rank || null,
-                gameOver, nextPlayer: nextPlayerObj?.name || null,
-                askerHand: asker.hand.length, deckRemaining: this.deck.cards.length
+                asker: asker.name,
+                target: target.name,
+                rank,
+                fishedSuccess,
+                drawnCard: drawnCard?.rank || null,
+                gameOver,
+                nextPlayer: nextPlayerObj?.name || null,
+                askerHand: asker.hand.length,
+                deckRemaining: this.deck.cards.length
             });
 
             if (!gameOver) {
                 this.ensureCurrentPlayerHasCards();
                 this.startTurnTimer();
             }
-            
+
             return {
                 success: true,
                 gotCards: false,
@@ -737,7 +820,7 @@ class GameEngine {
     requestAsk(askerSocketId, targetId, rank) {
         const asker = this.players.find(p => p.socketId === askerSocketId);
         const target = this.players.find(p => p.id === targetId || p.socketId === targetId);
-        
+
         if (!asker || !target) {
             return { success: false, error: 'Spelare inte funnen' };
         }
@@ -756,9 +839,9 @@ class GameEngine {
         if (this.pendingAsk) {
             return { success: false, error: 'Det finns redan en aktiv förfrågan' };
         }
-        
+
         this.stopTurnTimer();
-        
+
         this.pendingAsk = {
             askerId: asker.id,
             askerSocketId: asker.socketId,
@@ -769,9 +852,9 @@ class GameEngine {
             rank,
             timestamp: Date.now()
         };
-        
+
         this.debugLog('requestAsk', { asker: asker.name, target: target.name, rank });
-        
+
         return {
             success: true,
             askerName: asker.name,
@@ -784,16 +867,16 @@ class GameEngine {
         if (!this.pendingAsk) {
             return { success: false, error: 'Ingen aktiv förfrågan' };
         }
-        
+
         const { askerId, targetId, rank } = this.pendingAsk;
         const target = this.players.find(p => p.id === targetId || p.socketId === targetId);
         const asker = this.players.find(p => p.id === askerId || p.socketId === askerId);
-        
+
         if (!target || !asker) {
             this.pendingAsk = null;
             return { success: false, error: 'Spelare inte funnen' };
         }
-        
+
         // Vid auto-resolve (t.ex. efter disconnect) hoppar vi över socketId-kontrollen
         // eftersom spelaren kan ha återanslutit med ett nytt socketId
         if (!isAutoResolve) {
@@ -802,47 +885,52 @@ class GameEngine {
                 return { success: false, error: 'Det är inte din förfrågan att svara på' };
             }
         }
-        
+
         this.totalTurns++;
-        
+
         const matchingCards = target.hand.filter(c => c.rank === rank);
-        
+
         if (hasCard && matchingCards.length > 0) {
             // Target har kortet och svarade ärligt
             target.hand = target.hand.filter(c => c.rank !== rank);
             asker.hand.push(...matchingCards);
             asker.successfulAsks++;
-            
+
             const newPairs = extractPairs(asker, this.pile);
             this.updateWasBehind();
             this.syncAIHand(asker);
             this.syncAIHand(target);
-            
-            this.addLog('success', 
-                `🎯 ${asker.name} frågade ${target.name} om ${rank}:an och fick ${matchingCards.length} kort!`);
-            
+
+            this.addLog(
+                'success',
+                `🎯 ${asker.name} frågade ${target.name} om ${rank}:an och fick ${matchingCards.length} kort!`
+            );
+
             this.checkAchievements(asker, 'successful_ask');
             if (matchingCards.length >= 3) {
                 this.checkAchievements(asker, 'lucky_draw');
             }
-            
+
             const gameOver = this.checkGameOver();
-            
+
             if (!gameOver) {
                 this.ensureCurrentPlayerHasCards();
             }
-            
+
             this.debugLog('respondToAsk SUCCESS', {
-                asker: asker.name, target: target.name, rank,
-                gotCards: matchingCards.length, gameOver
+                asker: asker.name,
+                target: target.name,
+                rank,
+                gotCards: matchingCards.length,
+                gameOver
             });
-            
+
             if (!gameOver) {
                 this.startTurnTimer();
             }
-            
+
             this.pendingAsk = null;
-            
+
             return {
                 success: true,
                 gotCards: true,
@@ -859,21 +947,20 @@ class GameEngine {
             if (hasCard && matchingCards.length === 0) {
                 this.addLog('system', `🚫 ${target.name} försökte ljuga men har inte ${rank}:an! Fisk!`);
             }
-            
+
             asker.failedAsks++;
-            
-            this.addLog('fish', 
-                `🌊 ${asker.name} frågade ${target.name} om ${rank}:an... "Finns i sjön!"`);
-            
+
+            this.addLog('fish', `🌊 ${asker.name} frågade ${target.name} om ${rank}:an... "Finns i sjön!"`);
+
             const drawnCard = this.deck.draw(1);
             let newPairs = [];
             let fishedSuccess = false;
             let luckyMessage = '';
-            
+
             if (drawnCard) {
                 asker.hand.push(drawnCard);
                 asker.fishings++;
-                
+
                 if (drawnCard.rank === rank) {
                     fishedSuccess = true;
                     asker.luckyFishings++;
@@ -883,32 +970,36 @@ class GameEngine {
                 } else {
                     this.addLog('draw', `${asker.name} drog ett kort från sjön`);
                 }
-                
+
                 newPairs = extractPairs(asker, this.pile);
                 this.updateWasBehind();
             } else {
                 this.addLog('system', 'Sjön är tom!');
             }
-            
+
             this.syncAIHand(asker);
-            
+
             const gameOver = this.checkGameOver();
-            const nextPlayerId = fishedSuccess ? (asker.socketId || askerId) : this.nextPlayer();
+            const nextPlayerId = fishedSuccess ? asker.socketId || askerId : this.nextPlayer();
             const nextPlayerObj = this.players.find(p => p.socketId === nextPlayerId || p.id === nextPlayerId);
-            
+
             this.debugLog('respondToAsk FISH', {
-                asker: asker.name, target: target.name, rank,
-                fishedSuccess, drawnCard: drawnCard?.rank || null,
-                gameOver, nextPlayer: nextPlayerObj?.name || null
+                asker: asker.name,
+                target: target.name,
+                rank,
+                fishedSuccess,
+                drawnCard: drawnCard?.rank || null,
+                gameOver,
+                nextPlayer: nextPlayerObj?.name || null
             });
-            
+
             if (!gameOver) {
                 this.ensureCurrentPlayerHasCards();
                 this.startTurnTimer();
             }
-            
+
             this.pendingAsk = null;
-            
+
             return {
                 success: true,
                 gotCards: false,
@@ -927,7 +1018,9 @@ class GameEngine {
     }
 
     autoResolvePendingAsk() {
-        if (!this.pendingAsk) return null;
+        if (!this.pendingAsk) {
+            return null;
+        }
         // Använd isAutoResolve=true så att socketId-kontrollen hoppas över
         // Detta behövs när target har återanslutit med ett nytt socketId
         const result = this.respondToAsk(this.pendingAsk.targetSocketId, false, null, true);
@@ -939,42 +1032,40 @@ class GameEngine {
             this.debugLog('makeAIMove ABORT', { reason: 'game finished' });
             return;
         }
-        
+
         const currentPlayer = this.getCurrentPlayer();
         if (!currentPlayer || !currentPlayer.isAI) {
             this.debugLog('makeAIMove ABORT', { reason: 'not AI turn', currentPlayer: currentPlayer?.name || null });
             return;
         }
-        
+
         this.debugLog('makeAIMove START', { ai: currentPlayer.name, handSize: currentPlayer.hand.length });
-        
+
         const ai = this.aiPlayers.find(a => a.id === currentPlayer.id);
-        if (!ai) return;
-        
+        if (!ai) {
+            return;
+        }
+
         const delay = 1000 + Math.random() * 2000;
         await new Promise(resolve => setTimeout(resolve, delay));
-        
+
         const gameState = this.getPublicState(currentPlayer.socketId);
         const allPlayers = this.players.filter(p => p.id !== currentPlayer.id);
-        
+
         // Synkronisera AI:ns hand innan beslut
         this.syncAIHand(currentPlayer);
-        
+
         const decision = ai.makeDecision(gameState, allPlayers);
         if (!decision) {
             this.debugLog('makeAIMove NO_DECISION', { ai: currentPlayer.name, handSize: currentPlayer.hand.length });
             this.nextPlayer();
             this.players.forEach(player => {
                 if (player.connected && !player.isAI) {
-                    io.to(player.socketId).emit('game_state_update', 
-                        this.getPublicState(player.socketId)
-                    );
+                    io.to(player.socketId).emit('game_state_update', this.getPublicState(player.socketId));
                 }
             });
             this.spectators.forEach(spectatorId => {
-                io.to(spectatorId).emit('game_state_update', 
-                    this.getPublicState(spectatorId)
-                );
+                io.to(spectatorId).emit('game_state_update', this.getPublicState(spectatorId));
             });
             const nextPlayer = this.getCurrentPlayer();
             if (nextPlayer?.isAI) {
@@ -982,11 +1073,15 @@ class GameEngine {
             }
             return;
         }
-        
-        this.debugLog('makeAIMove DECISION', { ai: currentPlayer.name, target: decision.targetId, rank: decision.rank });
-        
+
+        this.debugLog('makeAIMove DECISION', {
+            ai: currentPlayer.name,
+            target: decision.targetId,
+            rank: decision.rank
+        });
+
         const result = this.askForCards(currentPlayer.socketId, decision.targetId, decision.rank);
-        
+
         this.players.forEach(player => {
             if (player.connected && !player.isAI) {
                 io.to(player.socketId).emit('turn_result', {
@@ -1005,7 +1100,7 @@ class GameEngine {
                 aiConfidence: decision.confidence
             });
         });
-        
+
         if (result.gameOver) {
             this.debugLog('makeAIMove GAME_OVER', { ai: currentPlayer.name });
             this.players.forEach(player => {
@@ -1030,22 +1125,18 @@ class GameEngine {
             });
             return;
         }
-        
+
         if (!result.success) {
             // AI:n gjorde ett ogiltigt drag - gå vidare till nästa spelare
             this.debugLog('makeAIMove INVALID', { ai: currentPlayer.name, error: result.error });
             this.nextPlayer();
             this.players.forEach(player => {
                 if (player.connected && !player.isAI) {
-                    io.to(player.socketId).emit('game_state_update', 
-                        this.getPublicState(player.socketId)
-                    );
+                    io.to(player.socketId).emit('game_state_update', this.getPublicState(player.socketId));
                 }
             });
             this.spectators.forEach(spectatorId => {
-                io.to(spectatorId).emit('game_state_update', 
-                    this.getPublicState(spectatorId)
-                );
+                io.to(spectatorId).emit('game_state_update', this.getPublicState(spectatorId));
             });
             const nextPlayer = this.getCurrentPlayer();
             if (nextPlayer?.isAI) {
@@ -1059,15 +1150,11 @@ class GameEngine {
             this.debugLog('makeAIMove END', { ai: currentPlayer.name, result: 'success' });
             this.players.forEach(player => {
                 if (player.connected && !player.isAI) {
-                    io.to(player.socketId).emit('game_state_update', 
-                        this.getPublicState(player.socketId)
-                    );
+                    io.to(player.socketId).emit('game_state_update', this.getPublicState(player.socketId));
                 }
             });
             this.spectators.forEach(spectatorId => {
-                io.to(spectatorId).emit('game_state_update', 
-                    this.getPublicState(spectatorId)
-                );
+                io.to(spectatorId).emit('game_state_update', this.getPublicState(spectatorId));
             });
             // Om nästa spelare också är AI, starta dess tur
             const nextPlayer = this.getCurrentPlayer();
@@ -1082,17 +1169,17 @@ class GameEngine {
         const startIndex = this.currentPlayerIndex;
         let iterations = 0;
         const maxIterations = this.players.length * 2;
-        
-        this.debugLog('nextPlayer START', { 
-            currentIndex: startIndex, 
+
+        this.debugLog('nextPlayer START', {
+            currentIndex: startIndex,
             players: this.players.map(p => ({ name: p.name, connected: p.connected, hand: p.hand.length })),
             deckEmpty: this.deck.isEmpty()
         });
-        
+
         do {
             this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
             iterations++;
-            
+
             // Säkerhetsventil: om vi gått igenom alla utan att hitta en giltig spelare
             if (iterations > maxIterations) {
                 this.debugLog('nextPlayer SAFETY_EXIT', { iterations, message: 'Inga giltiga spelare' });
@@ -1101,39 +1188,46 @@ class GameEngine {
                 return null;
             }
         } while (
-            this.players[this.currentPlayerIndex] && 
-            (!this.players[this.currentPlayerIndex].connected || 
-             this.players[this.currentPlayerIndex].surrendered ||
-             (this.players[this.currentPlayerIndex].hand.length === 0 && this.deck.isEmpty()))
+            this.players[this.currentPlayerIndex] &&
+            (!this.players[this.currentPlayerIndex].connected ||
+                this.players[this.currentPlayerIndex].surrendered ||
+                (this.players[this.currentPlayerIndex].hand.length === 0 && this.deck.isEmpty()))
         );
-        
+
         this.ensureCurrentPlayerHasCards();
         this.startTurnTimer();
-        
+
         const nextPlayer = this.players[this.currentPlayerIndex];
-        this.debugLog('nextPlayer RESULT', { 
-            nextPlayer: nextPlayer?.name || null, 
+        this.debugLog('nextPlayer RESULT', {
+            nextPlayer: nextPlayer?.name || null,
             nextIndex: this.currentPlayerIndex,
-            iterations 
+            iterations
         });
-        return nextPlayer ? (nextPlayer.socketId || nextPlayer.id) : null;
+        return nextPlayer ? nextPlayer.socketId || nextPlayer.id : null;
     }
 
     syncAIHand(player) {
-        if (!player || !player.isAI) return;
+        if (!player || !player.isAI) {
+            return;
+        }
         const ai = this.aiPlayers.find(a => a.id === player.id);
         if (ai) {
             ai.hand = [...player.hand];
             ai.pairs = [...player.pairs];
         }
     }
-    
+
     ensureCurrentPlayerHasCards() {
         const player = this.players[this.currentPlayerIndex];
-        if (!player || !player.connected) return;
-        
+        if (!player || !player.connected) {
+            return;
+        }
+
         if (player.hand.length === 0 && !this.deck.isEmpty()) {
-            this.debugLog('ensureCurrentPlayerHasCards DRAW', { player: player.name, deckRemaining: this.deck.cards.length });
+            this.debugLog('ensureCurrentPlayerHasCards DRAW', {
+                player: player.name,
+                deckRemaining: this.deck.cards.length
+            });
             const drawn = this.deck.draw(1);
             if (drawn) {
                 player.hand.push(drawn);
@@ -1142,7 +1236,7 @@ class GameEngine {
                 this.addLog('system', `${player.name} fick ett nytt kort när handen var tom`);
             }
         }
-        
+
         if (player.isAI) {
             const ai = this.aiPlayers.find(a => a.id === player.id);
             if (ai) {
@@ -1152,25 +1246,33 @@ class GameEngine {
         }
     }
 
-
     checkGameOver() {
         const activePlayers = this.players.filter(p => p.connected && !p.surrendered);
         const allHandsEmpty = activePlayers.every(p => p.hand.length === 0);
         const deckEmpty = this.deck.isEmpty();
         const anyHandEmpty = activePlayers.some(p => p.hand.length === 0);
-        
+
         this.debugLog('checkGameOver', {
             activePlayers: activePlayers.map(p => ({ name: p.name, hand: p.hand.length })),
-            allHandsEmpty, deckEmpty, totalPlayers: this.players.length
+            allHandsEmpty,
+            deckEmpty,
+            totalPlayers: this.players.length
         });
-        
+
         // Spelet är slut när:
         // 1. Alla händer är tomma och leken är tom
         // 2. För få spelare (mindre än 2 aktiva)
         // 3. Leken är tom och minst en spelare har 0 kort (inga drag kan göras)
         // 4. Alla utom en har gett upp
         if ((allHandsEmpty && deckEmpty) || activePlayers.length < 2 || (deckEmpty && anyHandEmpty)) {
-            this.debugLog('checkGameOver GAME_OVER', { reason: allHandsEmpty && deckEmpty ? 'all empty' : activePlayers.length < 2 ? 'too few players' : 'deck empty with empty hand' });
+            this.debugLog('checkGameOver GAME_OVER', {
+                reason:
+                    allHandsEmpty && deckEmpty
+                        ? 'all empty'
+                        : activePlayers.length < 2
+                          ? 'too few players'
+                          : 'deck empty with empty hand'
+            });
             this.state = GAME_STATES.FINISHED;
             this.endTime = Date.now();
             this.stopTurnTimer();
@@ -1184,7 +1286,7 @@ class GameEngine {
         const activePlayers = this.players
             .filter(p => p.connected || p.pairs.length > 0)
             .sort((a, b) => b.pairs.length - a.pairs.length);
-        
+
         // Assign ranks with tie handling (same pairs = same rank)
         let currentRank = 1;
         let previousPairs = -1;
@@ -1195,11 +1297,11 @@ class GameEngine {
             }
             return { player: p, rank: currentRank };
         });
-        
+
         // Detect tie for first place
         const firstPlaceCount = rankedPlayers.filter(rp => rp.rank === 1).length;
         this.winner = firstPlaceCount === 1 ? rankedPlayers[0].player : null;
-        
+
         this.finalStandings = rankedPlayers.map(rp => ({
             rank: rp.rank,
             id: rp.player.id,
@@ -1215,51 +1317,72 @@ class GameEngine {
             elo: rp.player.elo,
             userId: rp.player.userId
         }));
-        
-        this.duration = this.endTime && this.startTime 
-            ? Math.round((this.endTime - this.startTime) / 1000) 
-            : 0;
-        
+
+        this.duration = this.endTime && this.startTime ? Math.round((this.endTime - this.startTime) / 1000) : 0;
+
         if (this.winner) {
             this.addLog('system', `🏆 Spelet är slut! Vinnare: ${this.winner.name}`);
         } else if (firstPlaceCount > 1) {
-            const tiedNames = rankedPlayers.filter(rp => rp.rank === 1).map(rp => rp.player.name).join(', ');
+            const tiedNames = rankedPlayers
+                .filter(rp => rp.rank === 1)
+                .map(rp => rp.player.name)
+                .join(', ');
             this.addLog('system', `🏆 Spelet är slut! Oavgjort mellan: ${tiedNames}`);
         } else {
             this.addLog('system', `🏆 Spelet är slut! Ingen vinnare`);
         }
-        
+
         return this.finalStandings;
     }
 
     checkAchievements(player, event, options = {}) {
         const achievements = [];
-        
+
         if (event === 'successful_ask') {
-            if (player.successfulAsks >= 5) achievements.push('fisherman');
-            if (player.successfulAsks >= 10) achievements.push('master_fisherman');
-        }
-        
-        if (event === 'lucky_fish') {
-            if (player.luckyFishings >= 3) achievements.push('lucky_star');
-        }
-        
-        if (event === 'chat') {
-            if (player.chatCount >= 50) achievements.push('chat_master');
-        }
-        
-        if (event === 'game_end') {
-            if (player.pairs.length >= 5) achievements.push('pair_master');
-            if (this.totalTurns <= 10) achievements.push('speed_demon');
-            
-            if (options.isWinner) {
-                if (options.isFirstWin) achievements.push('first_win');
-                if (options.hasAI) achievements.push('ai_slayer');
-                if (player.wasBehind) achievements.push('comeback_kid');
-                if (options.opponentCount >= 3) achievements.push('solo_victory');
+            if (player.successfulAsks >= 5) {
+                achievements.push('fisherman');
+            }
+            if (player.successfulAsks >= 10) {
+                achievements.push('master_fisherman');
             }
         }
-        
+
+        if (event === 'lucky_fish') {
+            if (player.luckyFishings >= 3) {
+                achievements.push('lucky_star');
+            }
+        }
+
+        if (event === 'chat') {
+            if (player.chatCount >= 50) {
+                achievements.push('chat_master');
+            }
+        }
+
+        if (event === 'game_end') {
+            if (player.pairs.length >= 5) {
+                achievements.push('pair_master');
+            }
+            if (this.totalTurns <= 10) {
+                achievements.push('speed_demon');
+            }
+
+            if (options.isWinner) {
+                if (options.isFirstWin) {
+                    achievements.push('first_win');
+                }
+                if (options.hasAI) {
+                    achievements.push('ai_slayer');
+                }
+                if (player.wasBehind) {
+                    achievements.push('comeback_kid');
+                }
+                if (options.opponentCount >= 3) {
+                    achievements.push('solo_victory');
+                }
+            }
+        }
+
         return achievements;
     }
 
@@ -1280,10 +1403,12 @@ class GameEngine {
 
     addChatMessage(socketId, message) {
         const player = this.players.find(p => p.socketId === socketId);
-        if (!player) return null;
-        
+        if (!player) {
+            return null;
+        }
+
         const filtered = this.filterChat(message);
-        
+
         const chatMsg = {
             id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             player: player.name,
@@ -1292,12 +1417,14 @@ class GameEngine {
             timestamp: new Date().toISOString(),
             isSystem: false
         };
-        
+
         this.chatHistory.push(chatMsg);
-        if (this.chatHistory.length > 100) this.chatHistory.shift();
-        
+        if (this.chatHistory.length > 100) {
+            this.chatHistory.shift();
+        }
+
         player.chatCount = (player.chatCount || 0) + 1;
-        
+
         return chatMsg;
     }
 
@@ -1310,7 +1437,7 @@ class GameEngine {
             timestamp: new Date().toISOString(),
             isSystem: true
         };
-        
+
         this.chatHistory.push(chatMsg);
         return chatMsg;
     }
@@ -1332,30 +1459,38 @@ class GameEngine {
             message,
             timestamp: new Date().toISOString()
         };
-        
+
         this.gameLog.push(entry);
-        if (this.gameLog.length > 50) this.gameLog.shift();
-        
+        if (this.gameLog.length > 50) {
+            this.gameLog.shift();
+        }
+
         return entry;
     }
 
     addSpectator(socketId) {
-        if (!this.settings.spectatorMode) return false;
-        if (this.spectators.includes(socketId)) return false;
-        
+        if (!this.settings.spectatorMode) {
+            return false;
+        }
+        if (this.spectators.includes(socketId)) {
+            return false;
+        }
+
         this.spectators.push(socketId);
         return true;
     }
 
     removeSpectator(socketId) {
         const index = this.spectators.indexOf(socketId);
-        if (index !== -1) this.spectators.splice(index, 1);
+        if (index !== -1) {
+            this.spectators.splice(index, 1);
+        }
     }
 
     getPublicState(socketId) {
         const player = this.players.find(p => p.socketId === socketId);
         const isSpectator = this.spectators.includes(socketId);
-        
+
         return {
             roomId: this.roomId,
             state: this.state,
@@ -1381,7 +1516,7 @@ class GameEngine {
                 rankHistory: p.rankHistory,
                 ready: p.ready || false
             })),
-            yourHand: player ? player.hand : (isSpectator ? [] : null),
+            yourHand: player ? player.hand : isSpectator ? [] : null,
             yourPairs: player ? player.pairs : [],
             currentPlayer: this.getCurrentPlayer()?.name || null,
             currentPlayerId: this.getCurrentPlayer()?.id || null,
@@ -1392,9 +1527,10 @@ class GameEngine {
             winner: this.winner || null,
             finalStandings: this.finalStandings || null,
             isSpectator: isSpectator,
-            turnTimeRemaining: this.settings.turnTimer && this.turnStartTime 
-                ? Math.max(0, this.turnTimeout - (Date.now() - this.turnStartTime))
-                : null,
+            turnTimeRemaining:
+                this.settings.turnTimer && this.turnStartTime
+                    ? Math.max(0, this.turnTimeout - (Date.now() - this.turnStartTime))
+                    : null,
             totalTurns: this.totalTurns,
             duration: this.duration || 0
         };
@@ -1435,11 +1571,13 @@ class GameEngine {
                 failedAsks: p.failedAsks,
                 elo: p.elo
             })),
-            winner: this.winner ? {
-                id: this.winner.id,
-                name: this.winner.name,
-                pairs: this.winner.pairs.length
-            } : null,
+            winner: this.winner
+                ? {
+                      id: this.winner.id,
+                      name: this.winner.name,
+                      pairs: this.winner.pairs.length
+                  }
+                : null,
             events: this.gameEvents
         };
     }
@@ -1449,14 +1587,16 @@ class GameEngine {
      * Throttlad: max 1 per 30 sekunder under pågående spel
      */
     saveSnapshot() {
-        if (this.state !== GAME_STATES.PLAYING) return null;
-        
+        if (this.state !== GAME_STATES.PLAYING) {
+            return null;
+        }
+
         const now = Date.now();
         if (this._lastSnapshotTime && now - this._lastSnapshotTime < 30000) {
             return null; // Throttle: max 1 snapshot per 30s
         }
         this._lastSnapshotTime = now;
-        
+
         const snapshot = {
             roomId: this.roomId,
             state: this.state,
@@ -1506,7 +1646,7 @@ class GameEngine {
             pendingAsk: this.pendingAsk,
             createdAt: new Date().toISOString()
         };
-        
+
         return snapshot;
     }
 }

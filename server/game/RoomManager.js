@@ -21,16 +21,18 @@ class RoomManager {
 
         const roomId = uuidv4().substr(0, 8).toUpperCase();
         const game = new GameEngine(roomId, gameType);
-        
+
         game.settings.maxPlayers = maxPlayers;
         game.settings.allowAI = allowAI;
         game.settings.turnTimer = turnTimer;
         game.settings.spectatorMode = spectatorMode;
-        
+
         console.log('🔍 DEBUG createRoom:', roomId, 'maxPlayers:', maxPlayers, 'allowAI:', allowAI);
-        
+
         const result = game.addPlayer(hostSocketId, hostName);
-        if (!result.success) return { success: false, error: result.error };
+        if (!result.success) {
+            return { success: false, error: result.error };
+        }
 
         this.rooms.set(roomId, {
             game,
@@ -41,49 +43,51 @@ class RoomManager {
             isPrivate: !!password,
             bannedPlayers: new Set()
         });
-        
+
         this.playerRooms.set(hostSocketId, roomId);
-        
+
         return { success: true, roomId, game };
     }
 
     joinRoom(roomId, playerName, socketId, password = null, userData = null) {
         console.log('🔍 RM joinRoom:', roomId, 'name:', playerName, 'socket:', socketId, 'rooms:', this.rooms.size);
         const room = this.rooms.get(roomId.toUpperCase());
-        if (!room) return { success: false, error: 'Rummet finns inte' };
-        
+        if (!room) {
+            return { success: false, error: 'Rummet finns inte' };
+        }
+
         if (room.bannedPlayers.has(socketId)) {
             return { success: false, error: 'Du är bannad från detta rum' };
         }
-        
+
         if (room.password && room.password !== password) {
             return { success: false, error: 'Fel lösenord' };
         }
-        
+
         const game = room.game;
-        
+
         // Om spelet är avslutat, återställ för ny match
         if (game.state === 'finished') {
             game.resetGame();
         }
-        
+
         if (game.state !== 'waiting') {
             const existingPlayer = game.players.find(p => p.name === playerName && !p.connected);
             if (existingPlayer) {
                 return { success: false, error: 'Spelet pågår - använd återanslutning' };
             }
-            
+
             if (game.settings.spectatorMode) {
                 game.addSpectator(socketId);
                 this.playerRooms.set(socketId, roomId);
-                return { 
-                    success: true, 
-                    game, 
+                return {
+                    success: true,
+                    game,
                     isSpectator: true,
-                    roomName: room.name 
+                    roomName: room.name
                 };
             }
-            
+
             return { success: false, error: 'Spelet har redan börjat' };
         }
 
@@ -105,48 +109,58 @@ class RoomManager {
         }
 
         const result = game.addPlayer(socketId, playerName, userData);
-        if (!result.success) return { success: false, error: result.error };
+        if (!result.success) {
+            return { success: false, error: result.error };
+        }
 
         this.playerRooms.set(socketId, roomId.toUpperCase());
-        
+
         if (userData?.id) {
             this.userRooms.set(userData.id, roomId.toUpperCase());
         }
-        
+
         return { success: true, game, roomName: room.name };
     }
 
     addAIToRoom(roomId, difficulty = 'smart') {
         console.log('🔍 DEBUG addAIToRoom:', roomId, 'rooms:', this.rooms.size);
         const room = this.rooms.get(roomId.toUpperCase());
-        if (!room) return { success: false, error: 'Rummet finns inte' };
-        
+        if (!room) {
+            return { success: false, error: 'Rummet finns inte' };
+        }
+
         const game = room.game;
         const result = game.addAI(difficulty);
-        
+
         return result;
     }
 
     removeAIFromRoom(roomId, aiId) {
         const room = this.rooms.get(roomId.toUpperCase());
-        if (!room) return { success: false, error: 'Rummet finns inte' };
-        
+        if (!room) {
+            return { success: false, error: 'Rummet finns inte' };
+        }
+
         const game = room.game;
         const removed = game.removeAI(aiId);
-        
+
         return { success: removed };
     }
 
     leaveRoom(socketId, forceRemove = false) {
         const roomId = this.playerRooms.get(socketId);
-        if (!roomId) return null;
-        
+        if (!roomId) {
+            return null;
+        }
+
         const room = this.rooms.get(roomId);
-        if (!room) return null;
-        
+        if (!room) {
+            return null;
+        }
+
         const game = room.game;
         let result;
-        
+
         if (forceRemove) {
             // Användaren aktivt lämnade (t.ex. klickade "Lämna rum")
             result = game.forceRemovePlayer(socketId);
@@ -156,16 +170,18 @@ class RoomManager {
             // Ta INTE bort från playerRooms så att återanslutning/reconnect fungerar
             result = game.removePlayer(socketId);
         }
-        
-        if (!result) return null;
-        
+
+        if (!result) {
+            return null;
+        }
+
         if (room.hostSocketId === socketId && game.players.length > 0) {
             const newHost = game.players.find(p => p.connected && !p.isAI);
             if (newHost) {
                 room.hostSocketId = newHost.socketId;
             }
         }
-        
+
         const connectedHumans = game.players.filter(p => p.connected && !p.isAI).length;
         if (connectedHumans === 0 || game.state === 'finished') {
             setTimeout(() => {
@@ -179,14 +195,14 @@ class RoomManager {
                 }
             }, 300000);
         }
-        
+
         return { room, player: result?.player, roomId, disconnected: result?.disconnected };
     }
 
-    reconnect(oldSocketId, newSocketId, userData = null) {
+    reconnect(oldSocketId, newSocketId, userData = null, reconnectToken = null) {
         for (const [roomId, room] of this.rooms) {
             const game = room.game;
-            const reconnected = game.reconnectPlayer(oldSocketId, newSocketId, userData);
+            const reconnected = game.reconnectPlayer(oldSocketId, newSocketId, userData, reconnectToken);
             if (reconnected) {
                 this.playerRooms.delete(oldSocketId);
                 this.playerRooms.set(newSocketId, roomId);
@@ -231,30 +247,36 @@ class RoomManager {
 
     kickPlayer(roomId, targetSocketId, requesterSocketId) {
         const room = this.rooms.get(roomId.toUpperCase());
-        if (!room) return { success: false, error: 'Rummet finns inte' };
+        if (!room) {
+            return { success: false, error: 'Rummet finns inte' };
+        }
         if (room.hostSocketId !== requesterSocketId) {
             return { success: false, error: 'Endast värden kan kicka spelare' };
         }
-        
+
         const targetPlayer = room.game.players.find(p => p.socketId === targetSocketId);
-        if (!targetPlayer) return { success: false, error: 'Spelare inte funnen' };
+        if (!targetPlayer) {
+            return { success: false, error: 'Spelare inte funnen' };
+        }
         if (targetPlayer.socketId === requesterSocketId) {
             return { success: false, error: 'Du kan inte kicka dig själv' };
         }
-        
+
         room.game.removePlayer(targetSocketId);
         this.playerRooms.delete(targetSocketId);
-        
+
         return { success: true, playerName: targetPlayer.name };
     }
 
     banPlayer(roomId, targetSocketId, requesterSocketId) {
         const result = this.kickPlayer(roomId, targetSocketId, requesterSocketId);
-        if (!result.success) return result;
-        
+        if (!result.success) {
+            return result;
+        }
+
         const room = this.rooms.get(roomId.toUpperCase());
         room.bannedPlayers.add(targetSocketId);
-        
+
         return { success: true, playerName: result.playerName, banned: true };
     }
 }

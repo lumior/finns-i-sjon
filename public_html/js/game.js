@@ -403,6 +403,11 @@ class GameClient {
             const localVideoLabel = document.getElementById('local-video-label');
             if (localVideoLabel) localVideoLabel.textContent = me.name;
             document.getElementById('my-name').textContent = me.name;
+            
+            // Spara reconnectToken för framtida återanslutning
+            if (data.reconnectToken || me.reconnectToken) {
+                localStorage.setItem('reconnectToken', data.reconnectToken || me.reconnectToken);
+            }
         }
         
         if (this.isHost) {

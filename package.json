@@ -6,7 +6,14 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "nodemon server/server.js",
-    "init-db": "node -e \"require('./server/config/database')\""
+    "init-db": "node -e \"require('./server/config/database')\"",
+    "test": "jest --forceExit",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --forceExit",
+    "lint": "eslint server/ tests/",
+    "lint:fix": "eslint server/ tests/ --fix",
+    "format": "prettier --write \"server/**/*.js\" \"tests/**/*.js\"",
+    "format:check": "prettier --check \"server/**/*.js\" \"tests/**/*.js\""
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -23,6 +30,12 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.6.0",
+    "jest": "^30.4.2",
+    "nodemon": "^3.0.1",
+    "prettier": "^3.8.3"
   }
 }

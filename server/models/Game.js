@@ -37,8 +37,10 @@ class Game {
 
     static async getGameDetails(gameId) {
         const game = await db.get('SELECT * FROM games WHERE id = ?', [gameId]);
-        if (!game) return null;
-        
+        if (!game) {
+            return null;
+        }
+
         const participants = await db.query(
             `SELECT gp.*, u.username, u.display_name, u.avatar_url
              FROM game_participants gp
@@ -47,12 +49,9 @@ class Game {
              ORDER BY gp.final_rank`,
             [gameId]
         );
-        
-        const events = await db.query(
-            'SELECT * FROM game_events WHERE game_id = ? ORDER BY timestamp',
-            [gameId]
-        );
-        
+
+        const events = await db.query('SELECT * FROM game_events WHERE game_id = ? ORDER BY timestamp', [gameId]);
+
         return { ...game, participants, events };
     }
 

@@ -30,17 +30,14 @@ class User {
     static async updateStats(userId, stats) {
         const fields = [];
         const values = [];
-        
+
         for (const [key, value] of Object.entries(stats)) {
             fields.push(`${key} = ${key} + ?`);
             values.push(value);
         }
-        
+
         if (fields.length > 0) {
-            await db.run(
-                `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
-                [...values, userId]
-            );
+            await db.run(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, [...values, userId]);
         }
     }
 
@@ -49,8 +46,10 @@ class User {
     }
 
     static async setOnlineStatus(userId, isOnline) {
-        await db.run('UPDATE users SET is_online = ?, last_login = CURRENT_TIMESTAMP WHERE id = ?', 
-            [isOnline ? 1 : 0, userId]);
+        await db.run('UPDATE users SET is_online = ?, last_login = CURRENT_TIMESTAMP WHERE id = ?', [
+            isOnline ? 1 : 0,
+            userId
+        ]);
     }
 
     static async getPublicProfile(userId) {
@@ -59,9 +58,7 @@ class User {
             [userId]
         );
         if (user) {
-            user.winRate = user.games_played > 0 
-                ? ((user.games_won / user.games_played) * 100).toFixed(1) 
-                : 0;
+            user.winRate = user.games_played > 0 ? ((user.games_won / user.games_played) * 100).toFixed(1) : 0;
         }
         return user;
     }
@@ -83,10 +80,10 @@ class User {
 
     static async addAchievement(userId, achievementType) {
         try {
-            await db.run(
-                'INSERT INTO achievements (user_id, achievement_type) VALUES (?, ?)',
-                [userId, achievementType]
-            );
+            await db.run('INSERT INTO achievements (user_id, achievement_type) VALUES (?, ?)', [
+                userId,
+                achievementType
+            ]);
             return true;
         } catch (e) {
             return false;

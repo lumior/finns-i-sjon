@@ -10,7 +10,7 @@ class AIPlayer {
         this.hand = [];
         this.pairs = [];
         this.connected = true;
-        
+
         this.memory = {
             askedCards: new Map(),
             givenCards: new Map(),
@@ -19,33 +19,46 @@ class AIPlayer {
             handSizes: new Map(),
             patterns: new Map()
         };
-        
+
+        // Begränsa AI-minnet: mänskliga spelare kommer inte ihåg allt
+        this.memoryCapacity =
+            difficulty === 'master' ? 25 : difficulty === 'expert' ? 18 : difficulty === 'smart' ? 12 : 6;
+
         this.turnCount = 0;
         this.consecutiveAsks = 0;
     }
 
     makeDecision(gameState, allPlayers) {
         this.turnCount++;
-        
+
         const opponents = allPlayers.filter(p => p.id !== this.id && p.connected);
-        if (opponents.length === 0) return null;
-        
+        if (opponents.length === 0) {
+            return null;
+        }
+
         const myRanks = [...new Set(this.hand.map(c => c.rank))];
-        if (myRanks.length === 0) return null;
+        if (myRanks.length === 0) {
+            return null;
+        }
 
         switch (this.difficulty) {
-            case 'naive': return this.naiveStrategy(opponents, myRanks);
-            case 'smart': return this.smartStrategy(opponents, myRanks, gameState);
-            case 'expert': return this.expertStrategy(opponents, myRanks, gameState);
-            case 'master': return this.masterStrategy(opponents, myRanks, gameState);
-            default: return this.smartStrategy(opponents, myRanks, gameState);
+            case 'naive':
+                return this.naiveStrategy(opponents, myRanks);
+            case 'smart':
+                return this.smartStrategy(opponents, myRanks, gameState);
+            case 'expert':
+                return this.expertStrategy(opponents, myRanks, gameState);
+            case 'master':
+                return this.masterStrategy(opponents, myRanks, gameState);
+            default:
+                return this.smartStrategy(opponents, myRanks, gameState);
         }
     }
 
     naiveStrategy(opponents, myRanks) {
         const target = opponents[Math.floor(Math.random() * opponents.length)];
         const rank = myRanks[Math.floor(Math.random() * myRanks.length)];
-        
+
         return {
             targetId: target.id,
             targetSocketId: target.socketId || target.id,
@@ -63,24 +76,32 @@ class AIPlayer {
             for (const opponent of opponents) {
                 let score = 0;
                 const oppId = opponent.id;
-                
+
                 const asked = this.memory.askedCards.get(oppId);
                 if (asked && asked[rank]) {
                     score += asked[rank].count * 15;
-                    if (asked[rank].count >= 2) score += 25;
+                    if (asked[rank].count >= 2) {
+                        score += 25;
+                    }
                 }
-                
+
                 const missing = this.memory.missingCards.get(oppId);
-                if (missing && missing.has(rank)) score -= 50;
-                
+                if (missing && missing.has(rank)) {
+                    score -= 50;
+                }
+
                 const given = this.memory.givenCards.get(oppId);
-                if (given && given.has(rank)) score -= 30;
-                
+                if (given && given.has(rank)) {
+                    score -= 30;
+                }
+
                 score += opponent.cardCount * 2;
-                
+
                 const myCount = this.hand.filter(c => c.rank === rank).length;
-                if (myCount === 3) score += 40;
-                
+                if (myCount === 3) {
+                    score += 40;
+                }
+
                 if (score > bestScore) {
                     bestScore = score;
                     bestChoice = {
@@ -93,14 +114,14 @@ class AIPlayer {
                 }
             }
         }
-        
+
         return bestChoice || this.naiveStrategy(opponents, myRanks);
     }
 
     expertStrategy(opponents, myRanks, gameState) {
         const deckRemaining = gameState.deckRemaining;
         const totalCardsInPlay = opponents.reduce((sum, o) => sum + o.cardCount, 0) + this.hand.length;
-        
+
         let bestChoice = null;
         let bestProbability = -1;
 
@@ -110,18 +131,24 @@ class AIPlayer {
             const myPairs = this.pairs.filter(p => p[0].rank === rank).length * 2;
             const observed = this.countObservedCards(rank);
             const remainingOfRank = totalOfRank - myCount - myPairs - observed;
-            
-            if (remainingOfRank <= 0) continue;
+
+            if (remainingOfRank <= 0) {
+                continue;
+            }
 
             for (const opponent of opponents) {
                 let probability = this.calculateProbability(
-                    opponent, rank, remainingOfRank, totalCardsInPlay, deckRemaining
+                    opponent,
+                    rank,
+                    remainingOfRank,
+                    totalCardsInPlay,
+                    deckRemaining
                 );
-                
+
                 probability = this.adjustProbabilityWithMemory(opponent.id, rank, probability);
-                
+
                 const expectedValue = probability * (1 + (opponent.cardCount > 3 ? 1 : 0));
-                
+
                 if (expectedValue > bestProbability) {
                     bestProbability = expectedValue;
                     bestChoice = {
@@ -134,19 +161,23 @@ class AIPlayer {
                 }
             }
         }
-        
+
         return bestChoice || this.smartStrategy(opponents, myRanks, gameState);
     }
 
     masterStrategy(opponents, myRanks, gameState) {
         let choice = this.expertStrategy(opponents, myRanks, gameState);
-        if (!choice) return null;
-        
+        if (!choice) {
+            return null;
+        }
+
         if (this.turnCount > 5 && Math.random() < 0.15 && this.consecutiveAsks > 2) {
             const baitRank = myRanks.find(r => this.hand.filter(c => c.rank === r).length === 1);
             if (baitRank) {
-                const baitTarget = opponents.reduce((best, o) => 
-                    (!best || o.cardCount > best.cardCount) ? o : best, null);
+                const baitTarget = opponents.reduce(
+                    (best, o) => (!best || o.cardCount > best.cardCount ? o : best),
+                    null
+                );
                 if (baitTarget) {
                     choice = {
                         targetId: baitTarget.id,
@@ -159,7 +190,7 @@ class AIPlayer {
                 }
             }
         }
-        
+
         const exactKnowledge = this.getExactKnowledge();
         if (exactKnowledge.length > 0) {
             const exact = exactKnowledge.find(k => myRanks.includes(k.rank));
@@ -176,16 +207,19 @@ class AIPlayer {
                 }
             }
         }
-        
+
         if (gameState.deckRemaining < 10) {
-            const richestOpponent = opponents.reduce((best, o) => 
-                (!best || o.cardCount > best.cardCount) ? o : best, null);
+            const richestOpponent = opponents.reduce(
+                (best, o) => (!best || o.cardCount > best.cardCount ? o : best),
+                null
+            );
             if (richestOpponent && richestOpponent.cardCount > 3) {
-                const bestRank = myRanks.find(r => {
-                    const missing = this.memory.missingCards.get(richestOpponent.id);
-                    return !missing || !missing.has(r);
-                }) || myRanks[0];
-                
+                const bestRank =
+                    myRanks.find(r => {
+                        const missing = this.memory.missingCards.get(richestOpponent.id);
+                        return !missing || !missing.has(r);
+                    }) || myRanks[0];
+
                 choice = {
                     targetId: richestOpponent.id,
                     targetSocketId: richestOpponent.socketId || richestOpponent.id,
@@ -195,39 +229,47 @@ class AIPlayer {
                 };
             }
         }
-        
+
         if (this.consecutiveAsks >= 3) {
             choice.confidence *= 1.1;
         }
-        
+
         return choice;
     }
 
     calculateProbability(opponent, rank, remainingOfRank, totalCardsInPlay, deckRemaining) {
         const opponentCards = opponent.cardCount;
         const unknownCards = totalCardsInPlay - this.hand.length + deckRemaining;
-        
-        if (unknownCards <= 0) return 0;
-        
+
+        if (unknownCards <= 0) {
+            return 0;
+        }
+
         let probability = (remainingOfRank / unknownCards) * Math.min(opponentCards, 3);
         probability = Math.min(probability, 0.95);
         probability = Math.max(probability, 0.05);
-        
+
         return probability;
     }
 
     adjustProbabilityWithMemory(playerId, rank, baseProbability) {
         let adjusted = baseProbability;
-        
+
         const asked = this.memory.askedCards.get(playerId);
-        if (asked && asked[rank]) adjusted += 0.2 * asked[rank].count;
-        
+        if (asked && asked[rank]) {
+            adjusted += 0.2 * asked[rank].count;
+        }
+
         const missing = this.memory.missingCards.get(playerId);
-        if (missing && missing.has(rank)) adjusted *= 0.1;
-        
+        if (missing && missing.has(rank)) {
+            adjusted *= 0.1;
+        }
+
         const given = this.memory.givenCards.get(playerId);
-        if (given && given.has(rank)) adjusted = 0;
-        
+        if (given && given.has(rank)) {
+            adjusted = 0;
+        }
+
         return Math.min(Math.max(adjusted, 0), 0.98);
     }
 
@@ -235,7 +277,9 @@ class AIPlayer {
         let count = 0;
         count += this.memory.fishedCards.filter(c => c === rank).length;
         for (const given of this.memory.givenCards.values()) {
-            if (given.has(rank)) count++;
+            if (given.has(rank)) {
+                count++;
+            }
         }
         return count;
     }
@@ -254,16 +298,18 @@ class AIPlayer {
 
     updateMemory(event) {
         const { type, playerId, targetId, rank, success, cards } = event;
-        
+
         if (type === 'ask') {
             if (!this.memory.askedCards.has(playerId)) {
                 this.memory.askedCards.set(playerId, {});
             }
             const asked = this.memory.askedCards.get(playerId);
-            if (!asked[rank]) asked[rank] = { count: 0, lastAsked: Date.now() };
+            if (!asked[rank]) {
+                asked[rank] = { count: 0, lastAsked: Date.now() };
+            }
             asked[rank].count++;
             asked[rank].lastAsked = Date.now();
-            
+
             if (success) {
                 this.consecutiveAsks++;
                 if (!this.memory.givenCards.has(targetId)) {
@@ -276,17 +322,60 @@ class AIPlayer {
                     this.memory.missingCards.set(targetId, new Set());
                 }
                 this.memory.missingCards.get(targetId).add(rank);
-                
+
                 if (cards && cards.length > 0) {
                     this.memory.fishedCards.push(...cards.map(c => c.rank));
                 }
             }
         }
-        
+
         if (!this.memory.handSizes.has(playerId)) {
             this.memory.handSizes.set(playerId, []);
         }
         this.memory.handSizes.get(playerId).push(event.handSize || 0);
+
+        // Glöm gamla minnen — mänskliga spelare kommer inte ihåg allt
+        this._pruneMemory();
+    }
+
+    _pruneMemory() {
+        // Räkna totala antalet "minnesposter"
+        let total = this.memory.fishedCards.length;
+        for (const asked of this.memory.askedCards.values()) {
+            total += Object.keys(asked).length;
+        }
+        for (const given of this.memory.givenCards.values()) {
+            total += given.size;
+        }
+        for (const missing of this.memory.missingCards.values()) {
+            total += missing.size;
+        }
+
+        if (total <= this.memoryCapacity) {
+            return;
+        }
+
+        // Glöm äldsta fiskade kort
+        const excess = total - this.memoryCapacity;
+        if (this.memory.fishedCards.length > 0) {
+            const toForget = Math.min(excess, this.memory.fishedCards.length);
+            this.memory.fishedCards.splice(0, toForget);
+        }
+
+        // Om fortfarande för mycket, glöm äldsta asked-entries
+        if (total > this.memoryCapacity) {
+            for (const [playerId, asked] of this.memory.askedCards) {
+                const entries = Object.entries(asked);
+                if (entries.length > 3) {
+                    // Sortera efter lastAsked och glöm de äldsta
+                    entries.sort((a, b) => a[1].lastAsked - b[1].lastAsked);
+                    const toRemove = Math.ceil(entries.length / 4); // glöm 25%
+                    for (let i = 0; i < toRemove; i++) {
+                        delete asked[entries[i][0]];
+                    }
+                }
+            }
+        }
     }
 
     addCards(cards) {
@@ -310,9 +399,11 @@ class AIPlayer {
     checkInitialPairs() {
         const pairs = [];
         const byRank = {};
-        
+
         this.hand.forEach(card => {
-            if (!byRank[card.rank]) byRank[card.rank] = [];
+            if (!byRank[card.rank]) {
+                byRank[card.rank] = [];
+            }
             byRank[card.rank].push(card);
         });
 
@@ -322,21 +413,23 @@ class AIPlayer {
                 pairs.push([cards.pop(), cards.pop()]);
             }
         }
-        
+
         pairs.forEach(pair => {
             this.pairs.push(pair);
             this.hand = this.hand.filter(c => !pair.includes(c));
         });
-        
+
         return pairs;
     }
 
     findPairs() {
         const pairs = [];
         const byRank = {};
-        
+
         this.hand.forEach(card => {
-            if (!byRank[card.rank]) byRank[card.rank] = [];
+            if (!byRank[card.rank]) {
+                byRank[card.rank] = [];
+            }
             byRank[card.rank].push(card);
         });
 
@@ -346,7 +439,7 @@ class AIPlayer {
                 pairs.push([cards.pop(), cards.pop()]);
             }
         }
-        
+
         return pairs;
     }
 

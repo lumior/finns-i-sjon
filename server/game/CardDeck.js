@@ -23,7 +23,7 @@ class CardDeck {
     }
 
     getCardValue(rank) {
-        const values = { 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
+        const values = { J: 11, Q: 12, K: 13, A: 14 };
         return values[rank] || parseInt(rank);
     }
 

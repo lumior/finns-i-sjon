@@ -13,8 +13,10 @@ const entityMap = {
 };
 
 function escapeHtml(str) {
-    if (typeof str !== 'string') return '';
-    return str.replace(/[&<>"'\/]/g, (s) => entityMap[s]);
+    if (typeof str !== 'string') {
+        return '';
+    }
+    return str.replace(new RegExp('[&<>"\'/]', 'g'), s => entityMap[s]);
 }
 
 module.exports = { escapeHtml };

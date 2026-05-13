@@ -41,11 +41,12 @@ class GameSocket {
             localStorage.setItem('socketId', this.socket.id);
             
             const oldSocketId = localStorage.getItem('previousSocketId');
+            const reconnectToken = localStorage.getItem('reconnectToken');
             const currentRoom = localStorage.getItem('currentRoom');
             
             if (oldSocketId && currentRoom && oldSocketId !== this.socket.id) {
                 console.log('🔄 Försöker återansluta...');
-                this.socket.emit('reconnect_attempt', { oldSocketId });
+                this.socket.emit('reconnect_attempt', { oldSocketId, reconnectToken });
             }
             
             localStorage.setItem('previousSocketId', this.socket.id);

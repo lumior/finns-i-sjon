@@ -42,7 +42,7 @@ class Database {
                 console.error('PostgreSQL connection failed:', err.message);
             }
         }
-        
+
         // 2. Försök MariaDB
         try {
             this.pool = mysql.createPool(DB_CONFIG);
@@ -54,7 +54,7 @@ class Database {
         } catch (err) {
             console.error('MariaDB connection failed:', err.message);
         }
-        
+
         // 3. Fallback till SQLite
         if (process.env.DB_FALLBACK !== 'false') {
             console.log('⚠️  Falling back to SQLite...');
@@ -287,52 +287,76 @@ class Database {
         const path = require('path');
         const fs = require('fs');
         const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../database/game.db');
-        
+
         const dbDir = path.dirname(DB_PATH);
         if (!fs.existsSync(dbDir)) {
             fs.mkdirSync(dbDir, { recursive: true });
         }
-        
+
         this.db = new sqlite3.Database(DB_PATH);
         this.isSQLite = true;
-        
+
         this.query = (sql, params = []) => {
             return new Promise((resolve, reject) => {
                 this.db.all(sql, params, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(rows);
+                    }
                 });
             });
         };
-        
+
         this.get = (sql, params = []) => {
             return new Promise((resolve, reject) => {
                 this.db.get(sql, params, (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(row);
+                    }
                 });
             });
         };
-        
+
         this.run = (sql, params = []) => {
             return new Promise((resolve, reject) => {
-                this.db.run(sql, params, function(err) {
-                    if (err) reject(err);
-                    else resolve({ id: this.lastID, changes: this.changes });
+                this.db.run(sql, params, function (err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve({ id: this.lastID, changes: this.changes });
+                    }
                 });
             });
         };
-        
+
         this.db.serialize(() => {
-            this.db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, display_name TEXT, avatar_url TEXT DEFAULT '/assets/images/default-avatar.png', elo_rating INTEGER DEFAULT 1200, games_played INTEGER DEFAULT 0, games_won INTEGER DEFAULT 0, games_lost INTEGER DEFAULT 0, total_pairs INTEGER DEFAULT 0, total_fishings INTEGER DEFAULT 0, total_asks INTEGER DEFAULT 0, successful_asks INTEGER DEFAULT 0, longest_streak INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_login DATETIME, is_online INTEGER DEFAULT 0)`);
-            this.db.run(`CREATE TABLE IF NOT EXISTS games (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, game_type TEXT DEFAULT 'standard', player_count INTEGER, winner_id INTEGER, winner_name TEXT, duration_seconds INTEGER, total_turns INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
-            this.db.run(`CREATE TABLE IF NOT EXISTS game_participants (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id INTEGER, user_id INTEGER, final_pairs INTEGER, final_rank INTEGER, elo_change INTEGER)`);
-            this.db.run(`CREATE TABLE IF NOT EXISTS game_events (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id INTEGER, event_type TEXT, player_id INTEGER, target_id INTEGER, rank TEXT, success INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)`);
-            this.db.run(`CREATE TABLE IF NOT EXISTS friendships (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, friend_id INTEGER, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, friend_id))`);
-            this.db.run(`CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, achievement_type TEXT, unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, achievement_type))`);
-            this.db.run(`CREATE TABLE IF NOT EXISTS game_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, snapshot TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`, () => {
-                console.log('✅ SQLite fallback tables initialized');
-            });
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, display_name TEXT, avatar_url TEXT DEFAULT '/assets/images/default-avatar.png', elo_rating INTEGER DEFAULT 1200, games_played INTEGER DEFAULT 0, games_won INTEGER DEFAULT 0, games_lost INTEGER DEFAULT 0, total_pairs INTEGER DEFAULT 0, total_fishings INTEGER DEFAULT 0, total_asks INTEGER DEFAULT 0, successful_asks INTEGER DEFAULT 0, longest_streak INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_login DATETIME, is_online INTEGER DEFAULT 0)`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS games (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, game_type TEXT DEFAULT 'standard', player_count INTEGER, winner_id INTEGER, winner_name TEXT, duration_seconds INTEGER, total_turns INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS game_participants (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id INTEGER, user_id INTEGER, final_pairs INTEGER, final_rank INTEGER, elo_change INTEGER)`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS game_events (id INTEGER PRIMARY KEY AUTOINCREMENT, game_id INTEGER, event_type TEXT, player_id INTEGER, target_id INTEGER, rank TEXT, success INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS friendships (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, friend_id INTEGER, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, friend_id))`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, achievement_type TEXT, unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, achievement_type))`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS game_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, snapshot TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+                () => {
+                    console.log('✅ SQLite fallback tables initialized');
+                }
+            );
         });
     }
 
@@ -340,8 +364,11 @@ class Database {
         if (this.isSQLite) {
             return new Promise((resolve, reject) => {
                 this.db.all(sql, params, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(rows);
+                    }
                 });
             });
         }
@@ -357,8 +384,11 @@ class Database {
         if (this.isSQLite) {
             return new Promise((resolve, reject) => {
                 this.db.get(sql, params, (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(row);
+                    }
                 });
             });
         }
@@ -373,38 +403,41 @@ class Database {
     async run(sql, params = []) {
         if (this.isSQLite) {
             return new Promise((resolve, reject) => {
-                this.db.run(sql, params, function(err) {
-                    if (err) reject(err);
-                    else resolve({ id: this.lastID, changes: this.changes });
+                this.db.run(sql, params, function (err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve({ id: this.lastID, changes: this.changes });
+                    }
                 });
             });
         }
         if (this.isPostgres) {
             const result = await this.pool.query(sql, params);
-            return { 
-                id: result.rows[0]?.id || 0, 
-                changes: result.rowCount 
+            return {
+                id: result.rows[0]?.id || 0,
+                changes: result.rowCount
             };
         }
         const [result] = await this.pool.execute(sql, params);
-        return { 
-            id: result.insertId, 
-            changes: result.affectedRows 
+        return {
+            id: result.insertId,
+            changes: result.affectedRows
         };
     }
 
     async saveGameSnapshot(roomId, snapshot) {
         try {
             if (this.isPostgres) {
-                await this.run(
-                    'INSERT INTO game_snapshots (room_id, snapshot) VALUES ($1, $2)',
-                    [roomId, JSON.stringify(snapshot)]
-                );
+                await this.run('INSERT INTO game_snapshots (room_id, snapshot) VALUES ($1, $2)', [
+                    roomId,
+                    JSON.stringify(snapshot)
+                ]);
             } else {
-                await this.run(
-                    'INSERT INTO game_snapshots (room_id, snapshot) VALUES (?, ?)',
-                    [roomId, JSON.stringify(snapshot)]
-                );
+                await this.run('INSERT INTO game_snapshots (room_id, snapshot) VALUES (?, ?)', [
+                    roomId,
+                    JSON.stringify(snapshot)
+                ]);
             }
         } catch (err) {
             console.error('Failed to save game snapshot:', err.message);

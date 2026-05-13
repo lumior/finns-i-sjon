@@ -13,7 +13,9 @@ function findPairs(hand) {
     const byRank = {};
 
     hand.forEach(card => {
-        if (!byRank[card.rank]) byRank[card.rank] = [];
+        if (!byRank[card.rank]) {
+            byRank[card.rank] = [];
+        }
         byRank[card.rank].push(card);
     });
 
@@ -41,7 +43,9 @@ function extractPairs(player, pile = null) {
     const newPairs = findPairs(player.hand);
     newPairs.forEach(pair => {
         player.pairs.push(pair);
-        if (pile) pile.push(...pair);
+        if (pile) {
+            pile.push(...pair);
+        }
         player.hand = player.hand.filter(c => !pair.some(p => p.id === c.id));
     });
     return newPairs;

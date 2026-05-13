@@ -6,10 +6,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
 class Auth {
     static generateToken(user) {
         return jwt.sign(
-            { 
-                userId: user.id, 
+            {
+                userId: user.id,
                 username: user.username,
-                displayName: user.display_name 
+                displayName: user.display_name
             },
             JWT_SECRET,
             { expiresIn: '7d' }
@@ -26,10 +26,8 @@ class Auth {
 
     static middleware() {
         return async (req, res, next) => {
-            const token = req.headers.authorization?.replace('Bearer ', '') || 
-                         req.cookies?.token ||
-                         req.query?.token;
-            
+            const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.token || req.query?.token;
+
             if (!token) {
                 req.user = null;
                 return next();
@@ -59,9 +57,8 @@ class Auth {
     }
 
     static socketAuth(socket, next) {
-        const token = socket.handshake.auth.token || 
-                       socket.handshake.query.token;
-        
+        const token = socket.handshake.auth.token || socket.handshake.query.token;
+
         if (!token) {
             socket.user = null;
             return next();
@@ -73,21 +70,23 @@ class Auth {
             return next();
         }
 
-        User.findById(decoded.userId).then(user => {
-            if (user) {
-                socket.user = {
-                    id: user.id,
-                    username: user.username,
-                    displayName: user.display_name,
-                    avatarUrl: user.avatar_url,
-                    elo: user.elo_rating
-                };
-            }
-            next();
-        }).catch(() => {
-            socket.user = null;
-            next();
-        });
+        User.findById(decoded.userId)
+            .then(user => {
+                if (user) {
+                    socket.user = {
+                        id: user.id,
+                        username: user.username,
+                        displayName: user.display_name,
+                        avatarUrl: user.avatar_url,
+                        elo: user.elo_rating
+                    };
+                }
+                next();
+            })
+            .catch(() => {
+                socket.user = null;
+                next();
+            });
     }
 }
 
