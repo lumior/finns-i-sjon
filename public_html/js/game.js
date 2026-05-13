@@ -1148,10 +1148,16 @@ class GameClient {
         
         // Kolla om vi har kortet
         const hasCard = this.gameState?.yourHand?.some(c => c.rank === rank);
+        const giveBtn = document.getElementById('card-request-give');
+        
         if (hasCard) {
-            subtitle.textContent = 'Klicka på det gröna kortet i din hand för att ge det!';
+            subtitle.textContent = 'Du har det kortet! Klicka för att ge det.';
+            if (giveBtn) giveBtn.classList.remove('hidden');
+            fiskBtn.classList.add('hidden');
         } else {
-            subtitle.textContent = 'Du har inte det kortet. Klicka på Fisk!'; 
+            subtitle.textContent = 'Du har inte det kortet.';
+            if (giveBtn) giveBtn.classList.add('hidden');
+            fiskBtn.classList.remove('hidden');
         }
         
         overlay.classList.remove('hidden');
@@ -1159,6 +1165,13 @@ class GameClient {
         // Re-rendera handen för att få fram highlight
         if (this.gameState) {
             this.renderHand(this.gameState.yourHand, this.gameState.yourPairs);
+        }
+        
+        // Ge-knapp handler (primär på mobil)
+        if (giveBtn) {
+            giveBtn.onclick = () => {
+                this.respondToAskClick(true, rank);
+            };
         }
         
         // Fisk!-knapp handler

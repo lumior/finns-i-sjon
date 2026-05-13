@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finns i sjön PRO – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/game.css?v=14">
+    <link rel="stylesheet" href="/css/game.css?v=15">
     <link rel="stylesheet" href="/css/animations.css">
     <link rel="stylesheet" href="/css/voice-chat.css?v=13">
     <link rel="stylesheet" href="/css/video-chat.css?v=13">
@@ -101,7 +101,10 @@
                     <div class="card-request-icon">🎣</div>
                     <h3 id="card-request-title">Någon frågar efter ett kort!</h3>
                     <p id="card-request-subtitle">Klicka på kortet i din hand om du har det</p>
-                    <button id="card-request-fisk" class="btn btn-fisk hidden">🌊 Fisk!</button>
+                    <div class="card-request-actions">
+                        <button id="card-request-give" class="btn btn-give hidden">✅ Ge kortet</button>
+                        <button id="card-request-fisk" class="btn btn-fisk hidden">🌊 Fisk!</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -287,6 +290,6 @@
     <script src="/js/voice-ui.js?v=13"></script>
     <script src="/js/video-chat.js?v=14"></script>
     <script src="/js/video-ui.js?v=13"></script>
-    <script src="/js/game.js?v=14"></script>
+    <script src="/js/game.js?v=15"></script>
 </body>
 </html>
