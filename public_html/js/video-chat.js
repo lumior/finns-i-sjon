@@ -91,6 +91,34 @@ class VideoChatManager extends VoiceChatManager {
         
         // Sätt upp en MutationObserver som flyttar videor till opponent så snart de dyker upp
         this._setupOpponentObserver();
+        
+        // Sätt upp resize-lyssnare för att flytta videor mellan mobil/desktop
+        this._boundHandleResize = this._handleResize.bind(this);
+        window.addEventListener('resize', this._boundHandleResize);
+    }
+    
+    /**
+     * Hantera resize – flytta videor mellan mobil-grid och opponent containers
+     */
+    _handleResize() {
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        const wrappers = document.querySelectorAll('.video-peer-wrapper');
+        
+        wrappers.forEach(wrapper => {
+            const peerId = wrapper.dataset.videoPeer;
+            if (!peerId) return;
+            
+            const targetContainer = this.findOpponentVideoContainer(peerId);
+            if (targetContainer && wrapper.parentElement !== targetContainer) {
+                targetContainer.appendChild(wrapper);
+            }
+        });
+        
+        // Uppdatera synlighet på mobile-video-grid
+        const mobileGrid = document.getElementById('mobile-video-grid');
+        if (mobileGrid) {
+            mobileGrid.classList.toggle('has-videos', mobileGrid.children.length > 0);
+        }
     }
     
     /**
@@ -174,6 +202,12 @@ class VideoChatManager extends VoiceChatManager {
             if (grid.children.length === 0) {
                 this.videoContainer.classList.remove('has-videos');
             }
+        }
+        
+        // Uppdatera mobile-video-grid synlighet
+        const mobileGrid = document.getElementById('mobile-video-grid');
+        if (mobileGrid) {
+            mobileGrid.classList.toggle('has-videos', mobileGrid.children.length > 0);
         }
     }
 
@@ -310,6 +344,31 @@ class VideoChatManager extends VoiceChatManager {
     findOpponentVideoContainer(peerId, userName = null) {
         console.log(`🔍 findOpponentVideoContainer: söker efter peerId=${peerId}, userName=${userName}`);
         
+        // På mobil: placera alla videor i mobile-video-grid
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (isMobile) {
+            let mobileGrid = document.getElementById('mobile-video-grid');
+            if (!mobileGrid) {
+                // Skapa dynamiskt om den inte finns (cachad HTML)
+                mobileGrid = document.createElement('div');
+                mobileGrid.id = 'mobile-video-grid';
+                mobileGrid.className = 'mobile-video-grid';
+                const centerArea = document.querySelector('.center-area');
+                if (centerArea) {
+                    const gameLog = centerArea.querySelector('.game-log');
+                    if (gameLog && gameLog.nextElementSibling) {
+                        centerArea.insertBefore(mobileGrid, gameLog.nextElementSibling);
+                    } else {
+                        centerArea.appendChild(mobileGrid);
+                    }
+                } else {
+                    document.body.appendChild(mobileGrid);
+                }
+            }
+            console.log(`🔍 På mobil – returnerar mobile-video-grid`);
+            return mobileGrid;
+        }
+        
         // Försök hitta via data-opponent-video direkt
         let container = document.querySelector(`[data-opponent-video="${peerId}"]`);
         if (container) {
@@ -431,6 +490,12 @@ class VideoChatManager extends VoiceChatManager {
             console.log(`📹 Flyttar video för ${peerId} från fallback till opponent`);
             opponentContainer.appendChild(wrapper);
         }
+        
+        // Uppdatera mobile-video-grid synlighet
+        const mobileGrid = document.getElementById('mobile-video-grid');
+        if (mobileGrid) {
+            mobileGrid.classList.toggle('has-videos', mobileGrid.children.length > 0);
+        }
     }
 
     /**
@@ -509,6 +574,11 @@ class VideoChatManager extends VoiceChatManager {
      * Överskugd: Koppla från
      */
     disconnect() {
+        if (this._boundHandleResize) {
+            window.removeEventListener('resize', this._boundHandleResize);
+            this._boundHandleResize = null;
+        }
+        
         if (this.localVideoStream) {
             this.localVideoStream.getTracks().forEach(track => track.stop());
             this.localVideoStream = null;

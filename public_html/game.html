@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finns i sjön PRO – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/game.css?v=15">
+    <link rel="stylesheet" href="/css/game.css?v=16">
     <link rel="stylesheet" href="/css/animations.css">
     <link rel="stylesheet" href="/css/voice-chat.css?v=13">
-    <link rel="stylesheet" href="/css/video-chat.css?v=13">
+    <link rel="stylesheet" href="/css/video-chat.css?v=14">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
 </head>
@@ -70,6 +70,9 @@
             <div id="game-log" class="game-log">
                 <div class="log-entry system">Välkommen till Finns i sjön PRO! 🎣</div>
             </div>
+            
+            <!-- Video-thumbnails på mobil (synliga under motspelar-raden) -->
+            <div id="mobile-video-grid" class="mobile-video-grid"></div>
             
             <div id="animation-area" class="animation-area"></div>
             
@@ -288,7 +291,7 @@
     <script src="/js/socket-client.js?v=13"></script>
     <script src="/js/voice-chat.js?v=14"></script>
     <script src="/js/voice-ui.js?v=13"></script>
-    <script src="/js/video-chat.js?v=14"></script>
+    <script src="/js/video-chat.js?v=15"></script>
     <script src="/js/video-ui.js?v=13"></script>
     <script src="/js/game.js?v=15"></script>
 </body>
