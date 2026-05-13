@@ -30,13 +30,18 @@ const elements = {
 document.addEventListener('DOMContentLoaded', async () => {
     await checkAuth();
     setupEventListeners();
-    loadRooms();
+    await loadRooms();
     loadLeaderboard();
     updateOnlineStats();
+    startRoomsPolling();
     
     if (window.socket) {
         localStorage.setItem('socketId', window.socket.id);
     }
+});
+
+window.addEventListener('beforeunload', () => {
+    stopRoomsPolling();
 });
 
 async function checkAuth() {
@@ -218,6 +223,8 @@ async function logout() {
     showAuthButtons();
 }
 
+let roomsRefreshInterval = null;
+
 async function loadRooms() {
     try {
         const response = await fetch('/api/rooms');
@@ -228,7 +235,27 @@ async function loadRooms() {
     }
 }
 
+function startRoomsPolling() {
+    if (roomsRefreshInterval) return;
+    // Polling var 5:e sekund för realtidsuppdatering av bordslistan
+    roomsRefreshInterval = setInterval(() => {
+        loadRooms();
+        updateOnlineStats();
+    }, 5000);
+}
+
+function stopRoomsPolling() {
+    if (roomsRefreshInterval) {
+        clearInterval(roomsRefreshInterval);
+        roomsRefreshInterval = null;
+    }
+}
+
 function renderRooms(rooms) {
+    // Bevara sökterm och filter så användarens vy inte återställs
+    const searchValue = document.getElementById('room-search')?.value || '';
+    const filterValue = document.getElementById('room-filter')?.value || 'all';
+    
     if (rooms.length === 0) {
         elements.roomsList.innerHTML = `
             <div class="empty-state">
@@ -265,6 +292,15 @@ function renderRooms(rooms) {
             }
         });
     });
+    
+    // Återställ filter/sökning om användaren hade aktivt filter
+    if (searchValue || filterValue !== 'all') {
+        const searchInput = document.getElementById('room-search');
+        const filterSelect = document.getElementById('room-filter');
+        if (searchInput) searchInput.value = searchValue;
+        if (filterSelect) filterSelect.value = filterValue;
+        filterRooms();
+    }
 }
 
 function filterRooms() {
