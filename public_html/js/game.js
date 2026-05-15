@@ -57,8 +57,18 @@ class GameClient {
     connectSocket() {
         gameSocket.connect();
         
-        gameSocket.on('connected', () => {
-            this.joinRoom();
+        gameSocket.on('connected', (data) => {
+            if (data?.isReconnect) {
+                // Vid reconnect: skicka inte join_room direkt.
+                // Vänta på 'reconnected' från servern. Om den inte kommer
+                // inom 3 sekunder, skicka join_room som fallback.
+                this.reconnectTimeout = setTimeout(() => {
+                    this.reconnectTimeout = null;
+                    this.joinRoom();
+                }, 3000);
+            } else {
+                this.joinRoom();
+            }
         });
         
         gameSocket.on('room_joined', (data) => {
@@ -147,7 +157,20 @@ class GameClient {
         });
         
         gameSocket.on('reconnected', (data) => {
+            if (this.reconnectTimeout) {
+                clearTimeout(this.reconnectTimeout);
+                this.reconnectTimeout = null;
+            }
             this.handleReconnection(data);
+        });
+        
+        gameSocket.on('reconnect_failed', () => {
+            if (this.reconnectTimeout) {
+                clearTimeout(this.reconnectTimeout);
+                this.reconnectTimeout = null;
+            }
+            // reconnect_attempt misslyckades, försök gå med som ny spelare
+            this.joinRoom();
         });
         
         gameSocket.on('spectator_joined', (data) => {

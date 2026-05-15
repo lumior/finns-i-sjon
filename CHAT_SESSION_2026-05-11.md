@@ -156,3 +156,155 @@ Användaren frågade vad **ELO** står för. Svar: Det är **inte en förkortnin
 - Slå någon med högre ELO → får många poäng
 - Slå någon med lägre ELO → får få poäng
 - Används i schack, League of Legends, Fortnite, mm.
+
+---
+
+# Fortsatt session 2026-05-11 — Refaktorisering, tester & CI
+
+## Översikt
+Denna fortsatta session behandlade de tre sista punkterna från ANALYS.md:
+1. Refaktorisering av `server.js` till route-moduler
+2. Jest-tester för core game logic
+3. Prettier/ESLint i CI via GitHub Actions
+
+Dessutom implementerades reconnect-via-token och strukturerad loggning.
+
+---
+
+## 6. Reconnect via token
+
+### Problem
+Tidigare krävdes exakt samma `playerName` för att återansluta. Om användaren bytte flik eller browser refreshade byttes socket-id och spelaren kunde inte hittas.
+
+### Lösning
+- **Server (`server/game/GameEngine.js`):** Varje spelare får en unik `reconnectToken` vid inloggning. `reconnectPlayer()` matchar nu i tre steg:
+  1. Primär: via `oldSocketId`
+  2. Sekundär: via `reconnectToken` (t.ex. ny flik/browser refresh)
+  3. Tertiär: via `userId` (för inloggade användare)
+- **Klient (`public_html/js/socket-client.js`):** Skickar `reconnectToken` från `localStorage` vid varje reconnect-försök.
+- **Klient (`public_html/js/game.js`):** Sparar `reconnectToken` i `localStorage` när spelaren går med i ett rum.
+- **Server (`server/server.js` + `server/game/RoomManager.js`):** Tar emot och vidarebefordrar `reconnectToken`.
+
+### Tester
+- ✅ Match via `oldSocketId`
+- ✅ Match via `reconnectToken` (olika socketId)
+- ✅ Match via `userId` (inloggad användare)
+- ✅ Korrekt misslyckas när inget matchar
+
+---
+
+## 7. Strukturerad loggning
+
+### Skapat
+- **`server/utils/logger.js`** — Logger-klass med `info/warn/error/debug` och korrelations-ID:n.
+- Tyst i testmiljö (`process.env.NODE_ENV === 'test'`).
+
+---
+
+## 8. Refaktorisering av `server.js`
+
+### Före
+1070 rader i en enda fil med allt:
+- Middleware-setup
+- 4 HTTP-endpoint-grupper
+- ~20 Socket.IO-handlers
+- `handleGameEnd` (~130 rader)
+
+### Efter
+~130 rader bootstrap + 10 moduler:
+
+| Ny fil | Rader | Innehåll |
+|--------|-------|----------|
+| `server/server.js` | ~130 | Bootstrapping only |
+| `server/routes/auth.js` | ~120 | POST /register, /login, /me, /logout |
+| `server/routes/users.js` | ~70 | GET /leaderboard, /online, /search, /:id/profile |
+| `server/routes/games.js` | ~35 | GET /history, /:id |
+| `server/routes/rooms.js` | ~30 | GET /, /:id |
+| `server/routes/stats.js` | ~20 | GET /total-games |
+| `server/sockets/handlers.js` | ~500 | Alla `socket.on(...)` handlers |
+| `server/sockets/game-end.js` | ~130 | `handleGameEnd` flyttad hit |
+| `server/sockets/index.js` | ~15 | Kopplar ihop handlers + auth-middleware |
+
+### Designprinciper
+- **routes/** följer Express-konvention — varje fil exporterar en `Router()`
+- **sockets/** separerar Socket.IO från HTTP
+- Dependencies skickas via factory-funktioner — inga globala variabler
+- `roomManager` och `io` injectas i route/socket-moduler
+
+---
+
+## 9. Jest-tester
+
+### Installation
+```bash
+npm install --save-dev jest
+```
+
+### Konfiguration
+- **`jest.config.js`:** `testEnvironment: 'node'`, matchar `tests/**/*.test.js`
+
+### Testsuiter
+
+| Testfil | Tester | Vad som testas |
+|---------|--------|----------------|
+| `tests/game/CardDeck.test.js` | 6 | `shuffle()`, `draw()`, `isEmpty()`, `remaining()` |
+| `tests/game/GameEngine.test.js` | 12 | `addPlayer()`, `startGame()`, `toggleReady()`, `reconnectPlayer()`, `calculateWinner()` |
+| `tests/game/AIPlayer.test.js` | 9 | `makeDecision()`, `updateMemory()`, memory pruning, alla svårighetsgrader |
+| `tests/utils/elo.test.js` | 4 | Rating change, upset win, 3+ players, sum conservation |
+
+### Resultat
+```
+Test Suites: 4 passed, 4 total
+Tests:       31 passed, 31 total
+```
+
+### Nya npm-scripts
+```json
+"test": "jest --forceExit",
+"test:watch": "jest --watch",
+"test:coverage": "jest --coverage --forceExit"
+```
+
+---
+
+## 10. Prettier/ESLint + GitHub Actions CI
+
+### Skapat
+- **`.github/workflows/ci.yml`** — kör `lint`, `format:check`, `test` på push/PR till `main`
+- **`eslint.config.js`** — Flat config för ESLint 10 (migrerat från `.eslintrc.json`)
+- **`.prettierrc`** — `semi: true`, `singleQuote: true`, `tabWidth: 4`, `printWidth: 120`
+
+### Kodkvalitetsstatus
+- ✅ 0 ESLint-fel (18 varningar kvar — oanvända catch-variabler, medvetet)
+- ✅ Alla filer Prettier-formaterade
+- ✅ 31/31 Jest-tester gröna
+
+### Nya npm-scripts
+```json
+"lint": "eslint server/ tests/",
+"lint:fix": "eslint server/ tests/ --fix",
+"format": "prettier --write \"server/**/*.js\" \"tests/**/*.js\"",
+"format:check": "prettier --check \"server/**/*.js\" \"tests/**/*.js\""
+```
+
+---
+
+## Commit & deploy
+
+```bash
+git add -A
+git commit -m "refactor: split server.js into routes and socket modules + add Jest tests + CI"
+git push origin main
+```
+
+Pushat till `https://github.com/lumior/finns-i-sjon.git`. Railway auto-deployar inom 30–60 sekunder.
+
+---
+
+## Kvarstående infrastruktur (kräver Railway Dashboard)
+
+| Sak | Vad som behövs |
+|-----|----------------|
+| **PostgreSQL** | Lägg till PostgreSQL-tjänst i Railway Dashboard → `DATABASE_URL` injiceras automatiskt |
+| **JWT_SECRET** | Sätt `JWT_SECRET` som miljövariabel i Railway Dashboard |
+| **Node-version** | Sätt `NODE_VERSION=20` om Railway kör < Node 18 (Jest 30 kräver 18+) |

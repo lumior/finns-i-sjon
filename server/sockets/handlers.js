@@ -26,6 +26,8 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 });
 
                 io.to(result.roomId).emit('game_state_update', result.game.getPublicState(socket.id));
+            } else {
+                socket.emit('reconnect_failed');
             }
         });
 

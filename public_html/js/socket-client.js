@@ -44,14 +44,16 @@ class GameSocket {
             const reconnectToken = localStorage.getItem('reconnectToken');
             const currentRoom = localStorage.getItem('currentRoom');
             
-            if (oldSocketId && currentRoom && oldSocketId !== this.socket.id) {
+            const isReconnect = oldSocketId && currentRoom && oldSocketId !== this.socket.id;
+            
+            if (isReconnect) {
                 console.log('🔄 Försöker återansluta...');
                 this.socket.emit('reconnect_attempt', { oldSocketId, reconnectToken });
             }
             
             localStorage.setItem('previousSocketId', this.socket.id);
             
-            this.trigger('connected', { socketId: this.socket.id });
+            this.trigger('connected', { socketId: this.socket.id, isReconnect });
         });
 
         this.socket.on('disconnect', (reason) => {
