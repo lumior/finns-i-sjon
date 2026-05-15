@@ -534,27 +534,9 @@ class GameEngine {
             const result = this.respondToAsk(this.pendingAsk.targetSocketId, false, null);
 
             if (result.gameOver) {
-                this.broadcastGameState();
-                this.players.forEach(player => {
-                    if (player.connected) {
-                        this.io.to(player.socketId).emit('game_over', {
-                            gameState: this.getPublicState(player.socketId),
-                            winner: this.winner,
-                            standings: this.finalStandings,
-                            duration: this.duration,
-                            totalTurns: this.totalTurns
-                        });
-                    }
-                });
-                this.spectators.forEach(spectatorId => {
-                    this.io.to(spectatorId).emit('game_over', {
-                        gameState: this.getSpectatorState(),
-                        winner: this.winner,
-                        standings: this.finalStandings,
-                        duration: this.duration,
-                        totalTurns: this.totalTurns
-                    });
-                });
+                if (this.onGameEnd) {
+                    this.onGameEnd();
+                }
                 return;
             }
 
@@ -604,27 +586,9 @@ class GameEngine {
 
         const gameOver = this.checkGameOver();
         if (gameOver) {
-            this.broadcastGameState();
-            this.players.forEach(player => {
-                if (player.connected) {
-                    this.io.to(player.socketId).emit('game_over', {
-                        gameState: this.getPublicState(player.socketId),
-                        winner: this.winner,
-                        standings: this.finalStandings,
-                        duration: this.duration,
-                        totalTurns: this.totalTurns
-                    });
-                }
-            });
-            this.spectators.forEach(spectatorId => {
-                this.io.to(spectatorId).emit('game_over', {
-                    gameState: this.getSpectatorState(),
-                    winner: this.winner,
-                    standings: this.finalStandings,
-                    duration: this.duration,
-                    totalTurns: this.totalTurns
-                });
-            });
+            if (this.onGameEnd) {
+                this.onGameEnd();
+            }
             return;
         }
 
@@ -1103,26 +1067,9 @@ class GameEngine {
 
         if (result.gameOver) {
             this.debugLog('makeAIMove GAME_OVER', { ai: currentPlayer.name });
-            this.players.forEach(player => {
-                if (player.connected && !player.isAI) {
-                    io.to(player.socketId).emit('game_over', {
-                        gameState: this.getPublicState(player.socketId),
-                        winner: this.winner,
-                        standings: this.finalStandings,
-                        duration: this.duration,
-                        totalTurns: this.totalTurns
-                    });
-                }
-            });
-            this.spectators.forEach(spectatorId => {
-                io.to(spectatorId).emit('game_over', {
-                    gameState: this.getPublicState(spectatorId),
-                    winner: this.winner,
-                    standings: this.finalStandings,
-                    duration: this.duration,
-                    totalTurns: this.totalTurns
-                });
-            });
+            if (this.onGameEnd) {
+                this.onGameEnd();
+            }
             return;
         }
 

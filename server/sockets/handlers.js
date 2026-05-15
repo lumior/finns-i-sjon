@@ -243,6 +243,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 p.ready = false;
             });
             game.startGame();
+            game.onGameEnd = () => handleGameEnd(game, room);
 
             game.players.forEach(player => {
                 const state = game.getPublicState(player.socketId);
