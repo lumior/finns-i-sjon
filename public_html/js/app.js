@@ -371,7 +371,8 @@ async function createRoom() {
     const allowAI = document.getElementById('create-allow-ai').checked;
     const turnTimer = document.getElementById('create-turn-timer').checked;
     const spectatorMode = document.getElementById('create-spectator').checked;
-    const deckTheme = document.getElementById('create-deck-theme').value;
+    const deckThemeEl = document.getElementById('create-deck-theme');
+    const deckTheme = deckThemeEl ? deckThemeEl.value : 'standard';
     
     if (!playerName) {
         showError('Ange ditt namn');
