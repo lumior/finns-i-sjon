@@ -448,6 +448,7 @@ class GameClient {
     }
 
     handleRoomJoined(data) {
+        console.log('🎮 handleRoomJoined:', { isHost: data.isHost, hasGameState: !!data.gameState, settings: data.settings });
         this.gameState = data.gameState;
         this.isHost = data.isHost;
         
@@ -737,6 +738,7 @@ class GameClient {
         // Visa/dölj start-knapp för host när spelet väntar
         if (startBtn) {
             const canStart = this.isHost && state.state === 'waiting';
+            console.log('🎮 updateTurnIndicator:', { isHost: this.isHost, state: state.state, canStart });
             startBtn.classList.toggle('hidden', !canStart);
         }
         
