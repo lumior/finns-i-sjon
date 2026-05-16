@@ -267,7 +267,16 @@ class GameClient {
         }
         
         document.getElementById('deck-toggle').addEventListener('click', () => {
+            const isAIMode = new URLSearchParams(window.location.search).get('ai');
             const newTheme = this.settings.deckTheme === 'standard' ? 'vegetable' : 'standard';
+            
+            // I multiplayer-rum: värden skickar till server så alla får samma tema
+            if (!isAIMode && this.isHost) {
+                gameSocket.emit('update_settings', { deckTheme: newTheme });
+                return;
+            }
+            
+            // I AI-läge eller om man inte är värd: ändra lokalt
             this.settings.deckTheme = newTheme;
             localStorage.setItem('deckTheme', newTheme);
             document.getElementById('setting-deck-theme').value = newTheme;
@@ -379,6 +388,15 @@ class GameClient {
         });
         
         document.getElementById('setting-deck-theme').addEventListener('change', (e) => {
+            const isAIMode = new URLSearchParams(window.location.search).get('ai');
+            
+            // I multiplayer-rum: värden skickar till server så alla får samma tema
+            if (!isAIMode && this.isHost) {
+                gameSocket.emit('update_settings', { deckTheme: e.target.value });
+                return;
+            }
+            
+            // I AI-läge eller om man inte är värd: ändra lokalt
             this.settings.deckTheme = e.target.value;
             localStorage.setItem('deckTheme', e.target.value);
             const deckToggle = document.getElementById('deck-toggle');
@@ -445,8 +463,9 @@ class GameClient {
                 deckToggle.textContent = serverTheme === 'standard' ? '🥗' : '🎴';
                 deckToggle.title = serverTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
             }
-            // Dölj temaväljaren i inställningar om värden bestämmer
-            if (!new URLSearchParams(window.location.search).get('ai')) {
+            // Dölj temaväljaren för icke-värdar i multiplayer-rum
+            const isAIMode = new URLSearchParams(window.location.search).get('ai');
+            if (!isAIMode && !this.isHost) {
                 const deckThemeGroup = document.getElementById('setting-deck-theme')?.closest('.form-group');
                 if (deckThemeGroup) deckThemeGroup.style.display = 'none';
                 if (deckToggle) deckToggle.style.display = 'none';
