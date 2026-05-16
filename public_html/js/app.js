@@ -283,6 +283,7 @@ function renderRooms(rooms) {
                 ${room.aiCount > 0 ? `<span class="badge badge-ai">🤖 ${room.aiCount}</span>` : ''}
                 ${room.hasPassword ? `<span class="badge badge-private">🔒</span>` : ''}
                 ${room.gameType === 'tournament' ? `<span class="badge badge-tournament">🏆</span>` : ''}
+                ${room.deckTheme === 'vegetable' ? `<span class="badge badge-vegetable">🥗</span>` : ''}
             </div>
             <button class="join-room-btn">Gå med</button>
         </div>
@@ -370,6 +371,7 @@ async function createRoom() {
     const allowAI = document.getElementById('create-allow-ai').checked;
     const turnTimer = document.getElementById('create-turn-timer').checked;
     const spectatorMode = document.getElementById('create-spectator').checked;
+    const deckTheme = document.getElementById('create-deck-theme').value;
     
     if (!playerName) {
         showError('Ange ditt namn');
@@ -387,7 +389,7 @@ async function createRoom() {
             roomName,
             password,
             gameType,
-            settings: { maxPlayers, allowAI, turnTimer, spectatorMode }
+            settings: { maxPlayers, allowAI, turnTimer, spectatorMode, deckTheme }
         });
     });
     
@@ -425,7 +427,7 @@ async function startAIGame() {
         socket.emit('create_room', {
             playerName,
             roomName: `vs AI (${difficulty})`,
-            settings: { maxPlayers: 2, allowAI: true, turnTimer: true }
+            settings: { maxPlayers: 2, allowAI: true, turnTimer: true, deckTheme: localStorage.getItem('deckTheme') || 'standard' }
         });
     });
     

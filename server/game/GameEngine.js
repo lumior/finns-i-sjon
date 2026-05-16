@@ -47,7 +47,8 @@ class GameEngine {
             chatEnabled: true,
             spectatorMode: true,
             soundEnabled: true,
-            animationsEnabled: true
+            animationsEnabled: true,
+            deckTheme: 'standard'
         };
 
         this.onGameEvent = null;

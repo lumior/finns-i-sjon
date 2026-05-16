@@ -154,6 +154,19 @@ class GameClient {
         
         gameSocket.on('settings_updated', (settings) => {
             this.addLogEntry('Inställningar uppdaterade', 'system');
+            if (settings.deckTheme) {
+                this.settings.deckTheme = settings.deckTheme;
+                localStorage.setItem('deckTheme', settings.deckTheme);
+                const settingSelect = document.getElementById('setting-deck-theme');
+                if (settingSelect) settingSelect.value = settings.deckTheme;
+                const deckToggle = document.getElementById('deck-toggle');
+                if (deckToggle) {
+                    deckToggle.textContent = settings.deckTheme === 'standard' ? '🥗' : '🎴';
+                    deckToggle.title = settings.deckTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
+                }
+                this.renderHand();
+                this.renderOpponents(this.gameState?.players || []);
+            }
         });
         
         gameSocket.on('reconnected', (data) => {
@@ -419,6 +432,26 @@ class GameClient {
     handleRoomJoined(data) {
         this.gameState = data.gameState;
         this.isHost = data.isHost;
+        
+        // Använd serverns kortlekstem om det finns (värden bestämmer för alla)
+        const serverTheme = data.settings?.deckTheme || data.gameState?.settings?.deckTheme;
+        if (serverTheme) {
+            this.settings.deckTheme = serverTheme;
+            localStorage.setItem('deckTheme', serverTheme);
+            const settingSelect = document.getElementById('setting-deck-theme');
+            if (settingSelect) settingSelect.value = serverTheme;
+            const deckToggle = document.getElementById('deck-toggle');
+            if (deckToggle) {
+                deckToggle.textContent = serverTheme === 'standard' ? '🥗' : '🎴';
+                deckToggle.title = serverTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
+            }
+            // Dölj temaväljaren i inställningar om värden bestämmer
+            if (!new URLSearchParams(window.location.search).get('ai')) {
+                const deckThemeGroup = document.getElementById('setting-deck-theme')?.closest('.form-group');
+                if (deckThemeGroup) deckThemeGroup.style.display = 'none';
+                if (deckToggle) deckToggle.style.display = 'none';
+            }
+        }
         
         // Uppdatera videorutans namn med spelarens riktiga namn från game state
         const me = this.gameState?.players?.find(p => p.isYou);

@@ -16,7 +16,8 @@ class RoomManager {
             maxPlayers = 6,
             allowAI = true,
             turnTimer = true,
-            spectatorMode = true
+            spectatorMode = true,
+            deckTheme = 'standard'
         } = options;
 
         const roomId = uuidv4().substr(0, 8).toUpperCase();
@@ -26,6 +27,7 @@ class RoomManager {
         game.settings.allowAI = allowAI;
         game.settings.turnTimer = turnTimer;
         game.settings.spectatorMode = spectatorMode;
+        game.settings.deckTheme = deckTheme;
 
         console.log('🔍 DEBUG createRoom:', roomId, 'maxPlayers:', maxPlayers, 'allowAI:', allowAI);
 
@@ -238,6 +240,7 @@ class RoomManager {
                     hostName: room.game.players[0]?.name || 'Okänd',
                     hasPassword: !!room.password,
                     gameType: room.game.gameType,
+                    deckTheme: room.game.settings.deckTheme,
                     createdAt: room.createdAt
                 });
             }
