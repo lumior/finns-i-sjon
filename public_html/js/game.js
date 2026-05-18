@@ -951,7 +951,9 @@ class GameClient {
     }
 
     renderHand(hand = [], pairs = []) {
-        console.log('🃏 renderHand called:', { handLength: hand?.length, deckTheme: this.settings.deckTheme, useImageDeck: this.settings.deckTheme !== 'standard', pairsLength: pairs?.length });
+        hand = hand || [];
+        pairs = pairs || [];
+        console.log('🃏 renderHand called:', { handLength: hand.length, deckTheme: this.settings.deckTheme, useImageDeck: this.settings.deckTheme !== 'standard', pairsLength: pairs.length });
         const container = document.getElementById('my-hand');
         const suits = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
         
