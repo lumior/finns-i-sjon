@@ -589,7 +589,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                         console.log(`🗑️ Spelare ${forceResult.player.name} togs bort efter timeout`);
                         io.emit('lobby_update', roomManager.getPublicRoomList());
                     }
-                }, 5000);
+                }, 60000);
             }
         });
 
