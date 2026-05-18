@@ -164,7 +164,7 @@ class GameClient {
                     deckToggle.textContent = settings.deckTheme === 'standard' ? '🥗' : '🎴';
                     deckToggle.title = settings.deckTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
                 }
-                this.renderHand();
+                this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
                 this.renderOpponents(this.gameState?.players || []);
             }
         });
@@ -282,7 +282,7 @@ class GameClient {
             document.getElementById('setting-deck-theme').value = newTheme;
             document.getElementById('deck-toggle').textContent = newTheme === 'standard' ? '🥗' : '🎴';
             document.getElementById('deck-toggle').title = newTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
-            this.renderHand();
+            this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
             this.renderOpponents(this.gameState?.players || []);
         });
         
@@ -385,7 +385,7 @@ class GameClient {
         document.getElementById('setting-card-style').addEventListener('change', (e) => {
             this.settings.cardStyle = e.target.value;
             localStorage.setItem('cardStyle', e.target.value);
-            this.renderHand();
+            this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
         });
         
         document.getElementById('setting-deck-theme').addEventListener('change', (e) => {
@@ -405,7 +405,7 @@ class GameClient {
                 deckToggle.textContent = e.target.value === 'standard' ? '🥗' : '🎴';
                 deckToggle.title = e.target.value === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
             }
-            this.renderHand();
+            this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
             this.renderOpponents(this.gameState?.players || []);
         });
         
