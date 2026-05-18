@@ -932,7 +932,7 @@
 }
 
 .card-deck-image {
-    background: transparent;
+    background: linear-gradient(135deg, #ffffff, #f1f5f9);
     border: none;
     padding: 0;
     overflow: hidden;
