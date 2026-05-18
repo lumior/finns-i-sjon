@@ -293,6 +293,7 @@ class GameClient {
             });
         });
         
+        document.getElementById('settings-btn').addEventListener('click', () => this.showSettings());
         document.getElementById('leave-btn').addEventListener('click', () => this.leaveGame());
         document.getElementById('surrender-btn').addEventListener('click', () => {
             this.showModal('Ge upp?', 'Är du säker på att du vill ge upp? Dina kort återgår till leken.', 'Ja, ge upp', () => {
