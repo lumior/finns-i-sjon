@@ -24,12 +24,12 @@ const statsRoutes = require('./routes/stats');
 const registerSocketHandlers = require('./sockets');
 
 const app = express();
-app.set('trust proxy', 1);  // Krävs för korrekt rate limiting bakom Railway's proxy
+app.set('trust proxy', 1); // Krävs för korrekt rate limiting bakom Railway's proxy
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: { origin: true, methods: ['GET', 'POST'], credentials: true },
     pingTimeout: 60000,
-    pingInterval: 10000  // Kortare ping för att hålla Android-anslutningar vid liv
+    pingInterval: 10000 // Kortare ping för att hålla Android-anslutningar vid liv
 });
 
 const roomManager = new RoomManager();
