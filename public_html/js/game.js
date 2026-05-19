@@ -89,7 +89,17 @@ class GameClient {
         
         gameSocket.on('game_state_update', (state) => {
             const current = state.players?.find(p => p.isCurrentPlayer);
-            console.log('📊 game_state_update:', { currentPlayer: current?.name, isYou: current?.isYou, state: state.state, turn: state.turnCount });
+            const you = state.players?.find(p => p.isYou);
+            console.log('📊 [GAME_STATE]', {
+                currentPlayer: current?.name,
+                isYourTurn: current?.isYou,
+                state: state.state,
+                turn: state.turnCount,
+                yourHand: state.yourHand?.length,
+                yourPairs: state.yourPairs?.length,
+                deck: state.deckRemaining,
+                players: state.players?.map(p => `${p.name}(conn=${p.connected},host=${p.isHost})`).join(', ')
+            });
             this.updateGameState(state);
         });
         
@@ -170,6 +180,7 @@ class GameClient {
         });
         
         gameSocket.on('reconnected', (data) => {
+            console.log('✅ [GAME_RECONNECTED]', { roomId: data.roomId, hasGameState: !!data.gameState, players: data.gameState?.players?.length });
             if (this.reconnectTimeout) {
                 clearTimeout(this.reconnectTimeout);
                 this.reconnectTimeout = null;
@@ -178,6 +189,7 @@ class GameClient {
         });
         
         gameSocket.on('reconnect_failed', () => {
+            console.log('❌ [GAME_RECONNECT_FAILED] Kunde inte återansluta till servern.');
             if (this.reconnectTimeout) {
                 clearTimeout(this.reconnectTimeout);
                 this.reconnectTimeout = null;

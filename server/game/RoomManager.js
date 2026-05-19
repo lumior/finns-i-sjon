@@ -52,7 +52,7 @@ class RoomManager {
     }
 
     joinRoom(roomId, playerName, socketId, password = null, userData = null) {
-        console.log('🔍 RM joinRoom:', roomId, 'name:', playerName, 'socket:', socketId, 'rooms:', this.rooms.size);
+        console.log(`🔍 [JOIN] ${playerName} → ${roomId}, socket=${socketId}, rooms=${this.rooms.size}`);
         const room = this.rooms.get(roomId.toUpperCase());
         if (!room) {
             return { success: false, error: 'Rummet finns inte' };

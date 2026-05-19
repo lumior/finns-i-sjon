@@ -10,9 +10,16 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
         socket.on('reconnect_attempt', data => {
             const { oldSocketId, reconnectToken } = data;
+            console.log(
+                `🔄 [RECONNECT_ATTEMPT] Ny socket: ${socket.id} | Gammal: ${oldSocketId} | Token: ${reconnectToken ? 'ja' : 'nej'}`
+            );
             const result = roomManager.reconnect(oldSocketId, socket.id, socket.user, reconnectToken);
 
             if (result) {
+                const playersInfo = result.game.players.map(p => `${p.name}(conn=${p.connected})`).join(', ');
+                console.log(
+                    `✅ [RECONNECT_OK] ${result.player.name} återanslöt till ${result.roomId}. Spelare: [${playersInfo}]`
+                );
                 socket.join(result.roomId);
                 socket.emit('reconnected', {
                     roomId: result.roomId,
@@ -27,6 +34,9 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
                 io.to(result.roomId).emit('game_state_update', result.game.getPublicState(socket.id));
             } else {
+                console.log(
+                    `❌ [RECONNECT_FAIL] ${socket.id} kunde inte återansluta (oldSocketId=${oldSocketId}). Spelare finns inte kvar i något rum.`
+                );
                 socket.emit('reconnect_failed');
             }
         });
@@ -525,14 +535,23 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
             io.to(room.game.roomId).emit('settings_updated', game.settings);
         });
 
-        socket.on('disconnect', async () => {
-            console.log(`🔌 Frånkoppling: ${socket.id}`);
+        socket.on('disconnect', async reason => {
+            console.log(`🔌 Frånkoppling: ${socket.id}, orsak: ${reason}`);
 
             if (socket.user) {
                 await User.setOnlineStatus(socket.user.id, false);
             }
 
             const result = roomManager.leaveRoom(socket.id);
+            if (result?.room) {
+                const game = result.room.game;
+                const playersInfo = game.players
+                    .map(p => `${p.name}(connected=${p.connected},socket=${p.socketId?.substr(-4)})`)
+                    .join(', ');
+                console.log(
+                    `📊 [DISCONNECT] Rum ${result.roomId} | Spelare: ${result.player?.name || 'okänd'} | State: ${game.state} | Spelare i rum: [${playersInfo}]`
+                );
+            }
 
             if (result && result.room) {
                 const { roomId, player } = result;
@@ -583,11 +602,18 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                     io.to(roomId).emit('game_state_update', game.getPublicState(socket.id));
                 }
 
+                console.log(`⏱️ [TIMEOUT-START] ${result.player?.name || socket.id}: force-remove schemalagt om 60s`);
                 setTimeout(() => {
                     const forceResult = roomManager.leaveRoom(socket.id, true);
                     if (forceResult && forceResult.player) {
-                        console.log(`🗑️ Spelare ${forceResult.player.name} togs bort efter timeout`);
+                        const game = forceResult.room?.game;
+                        const remainingHumans = game?.players.filter(p => p.connected && !p.isAI).length || 0;
+                        console.log(
+                            `🗑️ [TIMEOUT-EXEC] ${forceResult.player.name} togs bort. Återstående mänskliga spelare: ${remainingHumans}. Rum state: ${game?.state || 'n/a'}`
+                        );
                         io.emit('lobby_update', roomManager.getPublicRoomList());
+                    } else {
+                        console.log(`🗑️ [TIMEOUT-EXEC] ${socket.id}: Spelaren redan borttagen eller hittades ej`);
                     }
                 }, 60000);
             }

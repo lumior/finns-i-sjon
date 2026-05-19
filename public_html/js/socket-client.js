@@ -36,7 +36,8 @@ class GameSocket {
 
     setupBaseListeners() {
         this.socket.on('connect', () => {
-            console.log('✅ Ansluten till servern');
+            const transport = this.socket.io.engine?.transport?.name || 'unknown';
+            console.log(`✅ [CLIENT_CONNECT] socket=${this.socket.id}, transport=${transport}`);
             this.connected = true;
             this.reconnectAttempts = 0;
             
@@ -49,7 +50,7 @@ class GameSocket {
             const isReconnect = oldSocketId && currentRoom && oldSocketId !== this.socket.id;
             
             if (isReconnect) {
-                console.log('🔄 Försöker återansluta...');
+                console.log(`🔄 [CLIENT_RECONNECT] old=${oldSocketId} → new=${this.socket.id}, room=${currentRoom}`);
                 this.socket.emit('reconnect_attempt', { oldSocketId, reconnectToken });
             }
             
@@ -59,13 +60,26 @@ class GameSocket {
         });
 
         this.socket.on('disconnect', (reason) => {
-            console.log('❌ Frånkopplad:', reason);
+            const wasConnected = this.connected;
+            console.log(`❌ [CLIENT_DISCONNECT] reason=${reason}, wasConnected=${wasConnected}, socket=${this.socket.id}`);
             this.connected = false;
             this.trigger('disconnected', { reason });
         });
 
+        this.socket.io.on('reconnect_attempt', (attempt) => {
+            console.log(`🔄 [CLIENT_RECONNECT_ATTEMPT] försök ${attempt}, socket=${this.socket.id}`);
+        });
+
+        this.socket.io.on('reconnect', (attempt) => {
+            console.log(`✅ [CLIENT_RECONNECT_SUCCESS] efter ${attempt} försök`);
+        });
+
+        this.socket.io.on('reconnect_error', (error) => {
+            console.error(`🔴 [CLIENT_RECONNECT_ERROR] ${error.message}`);
+        });
+
         this.socket.on('connect_error', (error) => {
-            console.error('🔴 Anslutningsfel:', error.message);
+            console.error(`🔴 [CLIENT_CONNECT_ERROR] ${error.message}, attempts=${this.reconnectAttempts}`);
             this.reconnectAttempts++;
             this.trigger('error', { message: error.message, attempt: this.reconnectAttempts });
         });
