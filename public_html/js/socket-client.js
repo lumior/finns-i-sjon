@@ -12,10 +12,12 @@ class GameSocket {
 
     connect() {
         const options = {
+            transports: ['polling', 'websocket'],  // Polling primärt = stabilare på mobil/Safari
             reconnection: true,
             reconnectionAttempts: this.maxReconnectAttempts,
-            reconnectionDelay: this.reconnectDelay,
-            reconnectionDelayMax: 5000,
+            reconnectionDelay: 500,                // Snabbare återanslutning
+            reconnectionDelayMax: 3000,
+            timeout: 20000,
             auth: {}
         };
         
