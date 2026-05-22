@@ -1944,7 +1944,7 @@ input:checked + .toggle::after {
     }
     
     /* Nyckelknappar i headern behålls synliga */
-    .header-actions .btn-icon:not(#host-menu-btn):not(#settings-btn):not(#sound-toggle) {
+    .header-actions .btn-icon:not(#host-menu-btn):not(#settings-btn):not(#sound-toggle):not(#deck-toggle) {
         display: none;
     }
 }
@@ -2045,8 +2045,8 @@ input:checked + .toggle::after {
         gap: 8px;
     }
     
-    /* Dölj header-knappar, behåll bara deck-info, chat och host */
-    .header-actions .btn-icon:not(#host-menu-btn):not(#settings-btn) {
+    /* Dölj header-knappar, behåll deck-toggle, sound, host och settings */
+    .header-actions .btn-icon:not(#host-menu-btn):not(#settings-btn):not(#deck-toggle):not(#sound-toggle) {
         display: none;
     }
     
