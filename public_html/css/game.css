@@ -1891,10 +1891,6 @@ input:checked + .toggle::after {
 
 /* === Surfplatta: 768–1024px === */
 @media (max-width: 1024px) {
-    .mobile-only {
-        display: flex !important;
-    }
-    
     .game-board {
         padding-right: var(--space-md);
         padding-bottom: 0;
@@ -1951,6 +1947,10 @@ input:checked + .toggle::after {
 
 /* === Huvudmobilbreakpoint: allt ≤768px === */
 @media (max-width: 768px) {
+    .mobile-only {
+        display: flex !important;
+    }
+    
     /* ── Grundlayout ── */
     .game-board {
         padding-top: calc(48px + env(safe-area-inset-top));
