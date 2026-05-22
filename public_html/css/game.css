@@ -2266,15 +2266,25 @@ input:checked + .toggle::after {
         margin-left: -22px;
         border-radius: 12px;
         flex-shrink: 0;
-        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.35);
+        background: #ffffff;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8);
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
-        border: 1.5px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(0, 0, 0, 0.08);
     }
     
     .card:first-child {
         margin-left: 0;
+    }
+    
+    /* Standardkort på mobil — skarp kontrast */
+    .card.red {
+        color: #dc2626;
+    }
+    
+    .card.black {
+        color: #0f172a;
     }
     
     /* Ta bort hover på touch-enheter */
@@ -2622,6 +2632,16 @@ input:checked + .toggle::after {
         font-size: 1.35rem;
         margin-left: -20px;
         border-radius: 10px;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    
+    .card.red {
+        color: #dc2626;
+    }
+    
+    .card.black {
+        color: #0f172a;
     }
     
     .card .suit {
@@ -2730,6 +2750,16 @@ input:checked + .toggle::after {
         font-size: 1.25rem;
         margin-left: -18px;
         border-radius: 10px;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    
+    .card.red {
+        color: #dc2626;
+    }
+    
+    .card.black {
+        color: #0f172a;
     }
     
     .hand {
