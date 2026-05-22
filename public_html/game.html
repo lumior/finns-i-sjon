@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Finns i sjön PRO – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/game.css?v=16">
+    <link rel="stylesheet" href="/css/game.css?v=17">
     <link rel="stylesheet" href="/css/animations.css">
     <link rel="stylesheet" href="/css/voice-chat.css?v=14">
     <link rel="stylesheet" href="/css/video-chat.css?v=14">
@@ -45,6 +45,7 @@
                 <span id="deck-count" class="deck-count">0</span>
                 <span class="deck-label">kort i sjön</span>
             </div>
+            <button id="mobile-chat-btn" class="btn btn-icon mobile-only" title="Öppna chatt">💬</button>
             <div class="header-actions">
                 <div id="host-controls" class="host-controls hidden">
                     <button id="host-menu-btn" class="btn btn-host" title="Host-meny">👑</button>
@@ -70,6 +71,7 @@
 
         <section class="center-area">
             <div id="game-log" class="game-log">
+                <button id="expand-log-btn" class="log-expand-btn mobile-only" title="Visa spellogg">📜</button>
                 <div class="log-entry system">Välkommen till Finns i sjön PRO! 🎣</div>
             </div>
             
@@ -162,8 +164,44 @@
                     <span>par</span>
                 </div>
             </div>
+            
+            <!-- Mobil FAB (Floating Action Button) för primär action -->
+            <button id="mobile-fab" class="mobile-fab mobile-only hidden" title="Fråga om kort">
+                <span class="fab-icon">🎣</span>
+            </button>
+            
+            <!-- Modern mobil action-bar -->
+            <div id="mobile-action-bar" class="mobile-action-bar mobile-only">
+                <button class="action-bar-btn" id="mobile-chat-toggle" title="Chatt">💬</button>
+                <button class="action-bar-btn" id="mobile-sound-toggle" title="Ljud">🔊</button>
+                <div class="action-bar-center">
+                    <span id="mobile-pairs-display">🏆 <strong>0</strong> par</span>
+                </div>
+                <button class="action-bar-btn" id="mobile-settings-toggle" title="Inställningar">⚙️</button>
+                <button class="action-bar-btn" id="mobile-leave" title="Lämna">←</button>
+            </div>
         </section>
     </main>
+
+    <!-- Mobil bottom sheet för chatt och spellogg -->
+    <div id="mobile-sheet" class="mobile-sheet mobile-only">
+        <div class="mobile-sheet-backdrop"></div>
+        <div class="mobile-sheet-container">
+            <div class="mobile-sheet-handle"></div>
+            <div class="mobile-sheet-tabs">
+                <button data-tab="chat" class="sheet-tab active">💬 Chatt</button>
+                <button data-tab="log" class="sheet-tab">📜 Logg</button>
+            </div>
+            <div class="mobile-sheet-content">
+                <div id="mobile-chat-messages" class="sheet-messages active"></div>
+                <div id="mobile-log-messages" class="sheet-messages"></div>
+            </div>
+            <div class="mobile-sheet-input">
+                <input type="text" id="mobile-chat-input" maxlength="200" placeholder="Skriv ett meddelande..." autocomplete="off">
+                <button id="mobile-send-chat" class="btn btn-small">📤</button>
+            </div>
+        </div>
+    </div>
 
     <aside id="chat-panel" class="chat-panel">
         <div class="chat-header">

@@ -1551,17 +1551,384 @@ input:checked + .toggle::after {
 
 
 /* ================================================================
+   MOBIL-KOMPONENTER — Dolda på desktop, aktiveras i media queries
+   ================================================================ */
+
+.mobile-only {
+    display: none !important;
+}
+
+/* ── Mobil bottom sheet ── */
+.mobile-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.mobile-sheet.open {
+    pointer-events: auto;
+    opacity: 1;
+}
+
+.mobile-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.mobile-sheet-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 75vh;
+    background: rgba(15, 23, 42, 0.97);
+    border-radius: 24px 24px 0 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-sheet.open .mobile-sheet-container {
+    transform: translateY(0);
+}
+
+.mobile-sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    margin: 12px auto 8px;
+    flex-shrink: 0;
+}
+
+.mobile-sheet-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 16px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+}
+
+.sheet-tab {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: var(--font-body);
+}
+
+.sheet-tab.active {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--primary-light);
+}
+
+.mobile-sheet-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 8px 16px;
+}
+
+.sheet-messages {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sheet-messages.active {
+    display: flex;
+}
+
+.sheet-messages .log-entry {
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.sheet-messages .log-entry.system {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.sheet-messages .log-entry.chat {
+    color: var(--text-secondary);
+}
+
+.sheet-messages .log-entry.chat .chat-sender {
+    color: var(--primary-light);
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.mobile-sheet-input {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+    background: rgba(15, 23, 42, 0.98);
+}
+
+.mobile-sheet-input input {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+    outline: none;
+}
+
+.mobile-sheet-input input:focus {
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.mobile-sheet-input input::placeholder {
+    color: var(--text-muted);
+}
+
+.mobile-sheet-input button {
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: var(--font-body);
+}
+
+/* ── Mobil FAB ── */
+.mobile-fab {
+    position: fixed;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    right: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: none;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    z-index: 90;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.mobile-fab:active {
+    transform: scale(0.92);
+    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+}
+
+.mobile-fab.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8);
+}
+
+.mobile-fab.pulse {
+    animation: fabPulse 2s ease-in-out infinite;
+}
+
+@keyframes fabPulse {
+    0%, 100% { box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5); }
+    50% { box-shadow: 0 4px 30px rgba(99, 102, 241, 0.8), 0 0 40px rgba(99, 102, 241, 0.3); }
+}
+
+/* ── Modern mobil action-bar ── */
+.mobile-action-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: none; /* Aktiveras i media query */
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 8px;
+}
+
+.action-bar-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    flex-shrink: 0;
+}
+
+.action-bar-btn:active {
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(0.95);
+}
+
+.action-bar-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: rgba(245, 158, 11, 0.1);
+    padding: 8px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(245, 158, 11, 0.15);
+    white-space: nowrap;
+}
+
+.action-bar-center strong {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+/* ── Expandable game-log ── */
+.log-expand-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    display: none; /* Aktiveras i media query */
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.log-expand-btn:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Chat overlay för surfplatta ── */
+.chat-overlay-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 150;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.chat-overlay-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ================================================================
    MOBIL-LAYOUT — Kompakt, läsbar, touch-vänlig
    ================================================================ */
 
+/* ================================================================
+   SURFPLATTA & MOBIL — Adaptiv, modern, touch-vänlig
+   ================================================================ */
+
+/* === Surfplatta: 768–1024px === */
 @media (max-width: 1024px) {
+    .mobile-only {
+        display: flex !important;
+    }
+    
     .game-board {
         padding-right: var(--space-md);
         padding-bottom: 0;
     }
     
+    /* Chat-panel blir slide-in overlay, inte helt dold */
     .chat-panel {
-        display: none; /* Dölj chatten helt på mobil */
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 320px;
+        z-index: 160;
+        transform: translateX(100%);
+        transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 0;
+    }
+    
+    .chat-panel.open {
+        transform: translateX(0);
+    }
+    
+    /* Chat-knapp i headern visas */
+    #mobile-chat-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    #mobile-chat-btn:active {
+        background: rgba(255, 255, 255, 0.12);
+        transform: scale(0.95);
+    }
+    
+    /* Overlay-backdrop för chat (läggs till via JS) */
+    .chat-overlay-backdrop {
+        display: block;
+    }
+    
+    /* Nyckelknappar i headern behålls synliga */
+    .header-actions .btn-icon:not(#host-menu-btn):not(#settings-btn):not(#sound-toggle) {
+        display: none;
     }
 }
 
@@ -1569,29 +1936,34 @@ input:checked + .toggle::after {
 @media (max-width: 768px) {
     /* ── Grundlayout ── */
     .game-board {
-        padding-top: calc(45px + env(safe-area-inset-top));
-        padding-bottom: 60px; /* Utrymme för fixed bottom-bar */
+        padding-top: calc(48px + env(safe-area-inset-top));
+        padding-bottom: 64px; /* Utrymme för modern action-bar */
         gap: 0;
         grid-template-rows: auto auto auto 1fr auto;
     }
     
-    /* ── Header: kompakt 45px ── */
+    /* ── Header: modern glassmorphism 48px ── */
     .game-header {
-        height: 45px;
-        min-height: 45px;
-        padding: 0 8px;
+        height: 48px;
+        min-height: 48px;
+        padding: 0 12px;
         padding-top: env(safe-area-inset-top);
         grid-template-columns: auto 1fr auto;
-        gap: 6px;
+        gap: 8px;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
     
     .header-left {
-        gap: 6px;
+        gap: 8px;
     }
     
     .room-title {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         white-space: nowrap;
+        font-weight: 600;
     }
     
     /* Dölj sekundär info i header */
@@ -1614,9 +1986,10 @@ input:checked + .toggle::after {
         left: 50%;
         transform: translate(-50%, -50%);
         z-index: 150;
-        padding: 16px 32px;
+        padding: 18px 36px;
         font-size: 1.2rem;
-        box-shadow: 0 0 40px rgba(99, 102, 241, 0.5), 0 8px 30px rgba(0, 0, 0, 0.4);
+        border-radius: var(--radius-xl);
+        box-shadow: 0 0 50px rgba(99, 102, 241, 0.5), 0 8px 30px rgba(0, 0, 0, 0.4);
         animation: pulse 1.5s ease-in-out infinite;
         white-space: nowrap;
     }
@@ -1624,6 +1997,7 @@ input:checked + .toggle::after {
     .btn-ready {
         padding: 6px 14px;
         font-size: 0.75rem;
+        border-radius: var(--radius-md);
     }
     
     .ready-status {
@@ -1632,53 +2006,67 @@ input:checked + .toggle::after {
     }
     
     .turn-indicator {
-        padding: 2px 8px;
-        background: transparent;
-        gap: 4px;
+        padding: 4px 10px;
+        background: rgba(0, 0, 0, 0.2);
+        gap: 6px;
+        border-radius: var(--radius-full);
     }
     
     .turn-text {
-        font-size: 0.75rem;
+        font-size: 0.8rem;
         white-space: nowrap;
+        font-weight: 600;
     }
     
     .turn-text.active {
         animation: none;
         color: var(--accent);
+        text-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
     }
     
     .header-right {
-        gap: 6px;
+        gap: 8px;
     }
     
-    /* Dölj header-knappar, behåll bara deck-info och host */
+    /* Dölj header-knappar, behåll bara deck-info, chat och host */
     .header-actions .btn-icon:not(#host-menu-btn):not(#settings-btn) {
         display: none;
     }
     
     .deck-info {
-        padding: 2px 8px;
-        font-size: 0.75rem;
-        gap: 2px;
+        padding: 4px 10px;
+        font-size: 0.8rem;
+        gap: 4px;
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: var(--radius-full);
     }
     
     .deck-icon {
+        font-size: 1rem;
+    }
+    
+    .deck-count {
         font-size: 0.9rem;
     }
     
     /* Host-meny kompakt */
     .btn-host {
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         font-size: 1rem;
+        border-radius: 10px;
     }
     
     .host-menu {
-        top: 40px;
-        min-width: 180px;
+        top: 44px;
+        min-width: 190px;
+        border-radius: var(--radius-lg);
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }
     
-    /* ── Motspelare: horisontell rad ── */
+    /* ── Motspelare: horisontell rad med modern styling ── */
     .opponents-area {
         display: flex;
         flex-direction: row;
@@ -1686,12 +2074,13 @@ input:checked + .toggle::after {
         overflow-x: auto;
         overflow-y: hidden;
         min-height: auto;
-        padding: 4px 8px;
-        gap: 8px;
+        padding: 6px 12px;
+        gap: 10px;
         align-items: center;
-        /* Dölj scrollbar */
         scrollbar-width: none;
         -ms-overflow-style: none;
+        background: rgba(0, 0, 0, 0.15);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     }
     
     .opponents-area::-webkit-scrollbar {
@@ -1699,23 +2088,24 @@ input:checked + .toggle::after {
     }
     
     .opponent {
-        background: transparent;
-        border: none;
-        padding: 0;
-        border-radius: 0;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 6px 10px;
+        border-radius: var(--radius-md);
         min-width: auto;
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         flex-shrink: 0;
         text-align: left;
+        transition: all 0.2s ease;
     }
     
     .opponent.current-turn {
-        border-color: transparent;
-        box-shadow: none;
-        animation: none;
+        border-color: rgba(245, 158, 11, 0.4);
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+        background: rgba(245, 158, 11, 0.06);
     }
     
     .opponent.current-turn .opponent-name {
@@ -1724,31 +2114,35 @@ input:checked + .toggle::after {
     }
     
     .opponent-avatar {
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         margin: 0;
-        border-width: 1px;
+        border-width: 2px;
+        border-radius: 50%;
     }
     
     .opponent-name {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         margin: 0;
-        gap: 2px;
+        gap: 4px;
         white-space: nowrap;
+        font-weight: 500;
     }
     
     .ai-badge {
-        font-size: 0.55rem;
-        padding: 1px 4px;
+        font-size: 0.6rem;
+        padding: 2px 6px;
+        border-radius: 4px;
     }
     
     .surrender-badge {
-        font-size: 0.55rem;
-        padding: 1px 4px;
+        font-size: 0.6rem;
+        padding: 2px 6px;
+        border-radius: 4px;
     }
     
     .ready-badge {
-        font-size: 0.55rem;
+        font-size: 0.6rem;
     }
     
     /* Dölj kort-baksidor och video på mobil */
@@ -1761,33 +2155,48 @@ input:checked + .toggle::after {
     .opponent-stats {
         display: flex;
         flex-direction: row;
-        gap: 4px;
-        font-size: 0.6rem;
+        gap: 6px;
+        font-size: 0.65rem;
         white-space: nowrap;
+        color: var(--text-muted);
     }
     
-    /* ── Center-area: minimal ── */
+    /* ── Center-area ── */
     .center-area {
         min-height: auto;
         padding: 0;
     }
     
-    /* ── Game-log: en rad, senaste synlig ── */
+    /* ── Game-log: expandable med modern styling ── */
     .game-log {
-        max-height: 28px;
-        padding: 2px 8px;
-        font-size: 0.7rem;
-        background: transparent;
+        position: relative;
+        max-height: 32px;
+        min-height: 32px;
+        padding: 4px 36px 4px 12px;
+        font-size: 0.75rem;
+        background: rgba(0, 0, 0, 0.2);
         border: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         border-radius: 0;
         overflow: hidden;
         display: flex;
         flex-direction: column-reverse;
+        transition: max-height 0.3s ease, background 0.3s ease;
+    }
+    
+    .game-log.expanded {
+        max-height: 140px;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.35);
+        scrollbar-width: none;
+    }
+    
+    .game-log.expanded::-webkit-scrollbar {
+        display: none;
     }
     
     .game-log .log-entry {
-        padding: 2px 0;
+        padding: 3px 0;
         border-bottom: none;
         white-space: nowrap;
         overflow: hidden;
@@ -1795,7 +2204,11 @@ input:checked + .toggle::after {
         flex-shrink: 0;
     }
     
-    /* ── Player-area: dölj info, fokusera på korten ── */
+    .log-expand-btn {
+        display: flex;
+    }
+    
+    /* ── Player-area: fokusera på korten ── */
     .player-area {
         padding: 8px;
         border-radius: 0;
@@ -1809,19 +2222,18 @@ input:checked + .toggle::after {
         display: none;
     }
     
-    /* ── Hand: större kort, horisontell scroll ── */
+    /* ── Hand: moderna kort med bättre touch ── */
     .hand {
         display: flex;
         flex-wrap: nowrap;
         overflow-x: auto;
         overflow-y: hidden;
         min-height: auto;
-        margin: 4px 0;
+        margin: 6px 0;
         gap: 0;
         justify-content: flex-start;
-        padding: 0 4px;
+        padding: 4px;
         align-items: flex-end;
-        /* Dölj scrollbar */
         scrollbar-width: none;
         -ms-overflow-style: none;
     }
@@ -1831,103 +2243,75 @@ input:checked + .toggle::after {
     }
     
     .card {
-        width: 55px;
-        height: 77px;
-        font-size: 1.2rem;
-        margin-left: -16px;
-        border-radius: var(--space-sm);
+        width: 58px;
+        height: 81px;
+        font-size: 1.25rem;
+        margin-left: -18px;
+        border-radius: 10px;
         flex-shrink: 0;
-        box-shadow: 1px 1px 8px rgba(0, 0, 0, 0.4);
-        /* Touch-optimering */
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }
     
     .card:first-child {
         margin-left: 0;
     }
     
-    /* Inget hover på touch-enheter */
-    .card:hover {
-        transform: translateY(-10px) rotate(0deg) !important;
+    /* Ta bort hover på touch-enheter */
+    @media (hover: none) {
+        .card:hover {
+            transform: none !important;
+        }
     }
     
     .card:active {
-        transform: scale(0.95) translateY(-5px) !important;
+        transform: scale(0.94) translateY(-4px) !important;
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.3), 0 4px 15px rgba(0, 0, 0, 0.4);
     }
     
     .card .suit {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
     }
     
     .card .rank-top {
-        top: 3px;
-        left: 5px;
-        font-size: 0.8rem;
+        top: 4px;
+        left: 6px;
+        font-size: 0.85rem;
+        font-weight: 700;
     }
     
     .card .rank-bottom {
-        bottom: 3px;
-        right: 5px;
-        font-size: 0.8rem;
+        bottom: 4px;
+        right: 6px;
+        font-size: 0.85rem;
+        font-weight: 700;
     }
     
     /* Highlight för card-request mer synlig */
     .card.card-request-highlight {
-        box-shadow: 0 0 15px rgba(34, 197, 94, 0.9), 0 0 30px rgba(34, 197, 94, 0.5);
-        border: 3px solid #22c55e;
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.8), 0 0 40px rgba(34, 197, 94, 0.3);
+        border: 2px solid #22c55e;
+        animation: cardGlow 1.5s ease-in-out infinite;
     }
     
-    /* ── Fixed bottom action-bar ── */
+    @keyframes cardGlow {
+        0%, 100% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.8); }
+        50% { box-shadow: 0 0 30px rgba(34, 197, 94, 1), 0 0 50px rgba(34, 197, 94, 0.3); }
+    }
+    
+    /* ── Ersätt gammal action-bar med modern mobil action-bar ── */
     .player-actions {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        padding: 8px 12px;
-        padding-bottom: calc(8px + env(safe-area-inset-bottom));
-        background: rgba(0, 0, 0, 0.85);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: none !important;
+    }
+    
+    .mobile-action-bar {
         display: flex;
-        gap: 8px;
-        justify-content: center;
-        align-items: center;
     }
     
-    .btn-action {
-        flex: 1;
-        padding: 12px;
-        font-size: 1rem;
-        min-height: 44px;
-        min-width: 44px;
-        -webkit-tap-highlight-color: transparent;
-        touch-action: manipulation;
-    }
-    
-    .waiting-message {
-        width: 100%;
-        text-align: center;
-        padding: 8px;
-        font-size: 0.8rem;
-        color: var(--text-muted);
-    }
-    
-    /* Par-badge i bottom-bar */
-    .mobile-pairs-badge {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        background: rgba(245, 158, 11, 0.2);
-        padding: 4px 8px;
-        border-radius: var(--radius-full);
-        font-size: 0.75rem;
-        white-space: nowrap;
-    }
-    
-    /* ── Mobil video-grid (små thumbnails) ── */
+    /* ── Mobil video-grid ── */
     .mobile-video-grid {
         display: none;
     }
@@ -1988,34 +2372,37 @@ input:checked + .toggle::after {
         opacity: 1;
     }
     
-    /* Ask-pending banner ovanför bottom-bar */
+    /* Ask-pending banner ovanför action-bar */
     .ask-pending-banner {
         position: fixed;
-        bottom: 55px;
-        bottom: calc(55px + env(safe-area-inset-bottom));
+        bottom: 64px;
+        bottom: calc(64px + env(safe-area-inset-bottom));
         left: 0;
         right: 0;
         margin: 0;
-        border-radius: 0;
-        padding: 6px 12px;
-        font-size: 0.8rem;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: 8px 16px;
+        font-size: 0.85rem;
         z-index: 99;
+        background: rgba(99, 102, 241, 0.15);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(99, 102, 241, 0.2);
     }
     
-    /* ── Card-request overlay: banner på mobil ── */
+    /* ── Card-request overlay: modern banner ── */
     .card-request-overlay {
         position: fixed;
         top: auto;
         left: 0;
         right: 0;
-        bottom: 60px;
-        bottom: calc(60px + env(safe-area-inset-bottom));
-        background: rgba(0, 0, 0, 0.6);
+        bottom: 64px;
+        bottom: calc(64px + env(safe-area-inset-bottom));
+        background: rgba(0, 0, 0, 0.5);
         z-index: 95;
         border-radius: var(--radius-xl) var(--radius-xl) 0 0;
         align-items: flex-end;
-        padding: 8px;
-        pointer-events: none; /* Låt klick passera genom bakgrunden */
+        padding: 12px;
+        pointer-events: none;
     }
     
     .card-request-overlay .card-request-content {
@@ -2023,22 +2410,26 @@ input:checked + .toggle::after {
         width: 100%;
         padding: var(--space-md);
         border-radius: var(--radius-lg);
-        pointer-events: auto; /* Fånga klick på innehållet */
+        pointer-events: auto;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }
     
     .card-request-overlay .card-request-icon {
-        font-size: 2rem;
+        font-size: 2.2rem;
         margin-bottom: var(--space-xs);
     }
     
     .card-request-overlay .card-request-content h3 {
-        font-size: 1rem;
+        font-size: 1.05rem;
         margin-bottom: var(--space-xs);
     }
     
     .card-request-overlay .card-request-content p {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         margin-bottom: var(--space-sm);
+        color: var(--text-secondary);
     }
     
     .card-request-overlay .card-request-actions {
@@ -2049,9 +2440,10 @@ input:checked + .toggle::after {
     .card-request-overlay .btn-fisk {
         font-size: 1rem;
         padding: var(--space-sm) var(--space-md);
-        min-height: 44px;
+        min-height: 48px;
         min-width: 120px;
         flex: 1;
+        border-radius: var(--radius-md);
     }
     
     .ask-dialog {
@@ -2065,11 +2457,16 @@ input:checked + .toggle::after {
     
     /* ── Ask-dialog mobil-optimering ── */
     .ask-dialog {
-        max-width: 95%;
-        width: 95%;
-        padding: var(--space-md);
-        max-height: 80vh;
+        max-width: 92%;
+        width: 92%;
+        padding: var(--space-lg);
+        max-height: 85vh;
         overflow-y: auto;
+        border-radius: var(--radius-xl);
+        background: rgba(15, 23, 42, 0.97);
+        backdrop-filter: blur(30px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     }
     
     .target-players {
@@ -2079,12 +2476,28 @@ input:checked + .toggle::after {
     
     .target-player-btn {
         padding: var(--space-sm);
-        min-width: 80px;
+        min-width: 85px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        transition: all 0.2s ease;
+    }
+    
+    .target-player-btn:active {
+        transform: scale(0.96);
+        background: rgba(99, 102, 241, 0.1);
+        border-color: rgba(99, 102, 241, 0.3);
+    }
+    
+    .target-player-btn.selected {
+        background: rgba(99, 102, 241, 0.2);
+        border-color: var(--primary);
+        box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
     }
     
     .target-player-btn .tp-avatar {
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
     }
     
     .rank-selector {
@@ -2092,12 +2505,26 @@ input:checked + .toggle::after {
     }
     
     .rank-btn {
-        width: 40px;
-        height: 56px;
+        width: 44px;
+        height: 62px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        transition: all 0.2s ease;
+    }
+    
+    .rank-btn:active {
+        transform: scale(0.95);
+    }
+    
+    .rank-btn.selected {
+        background: rgba(99, 102, 241, 0.2);
+        border-color: var(--primary);
+        box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
     }
     
     .rc-suit {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
     }
     
     /* ── Game-over mobil ── */
@@ -2111,6 +2538,7 @@ input:checked + .toggle::after {
     
     .game-over-actions {
         flex-direction: column;
+        gap: var(--space-sm);
     }
     
     /* ── Animation-area på mobil ── */
@@ -2120,37 +2548,149 @@ input:checked + .toggle::after {
     
     /* ── Spectator-notice ── */
     .spectator-notice {
-        top: 50px;
+        top: 56px;
+        border-radius: var(--radius-md);
+        padding: 6px 14px;
+        font-size: 0.8rem;
     }
 }
 
 /* === Extra-kompakt för små skärmar ≤480px === */
 @media (max-width: 480px) {
     .game-board {
-        padding-top: calc(40px + env(safe-area-inset-top));
-        padding-bottom: 55px;
+        padding-top: calc(42px + env(safe-area-inset-top));
+        padding-bottom: 58px;
     }
     
     .game-header {
-        height: 40px;
-        min-height: 40px;
+        height: 42px;
+        min-height: 42px;
+        padding: 0 10px;
     }
     
     .room-title {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
     }
     
     .turn-text {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
     }
     
     .opponents-area {
-        padding: 2px 6px;
-        gap: 6px;
+        padding: 4px 8px;
+        gap: 8px;
     }
     
     .opponent {
-        gap: 4px;
+        gap: 6px;
+        padding: 4px 8px;
+    }
+    
+    .opponent-avatar {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .opponent-name {
+        font-size: 0.7rem;
+    }
+    
+    .opponent-stats {
+        font-size: 0.6rem;
+    }
+    
+    .card {
+        width: 52px;
+        height: 73px;
+        font-size: 1.15rem;
+        margin-left: -16px;
+        border-radius: 9px;
+    }
+    
+    .card .suit {
+        font-size: 1.4rem;
+    }
+    
+    .card .rank-top,
+    .card .rank-bottom {
+        font-size: 0.8rem;
+    }
+    
+    .game-log {
+        font-size: 0.7rem;
+        max-height: 28px;
+        min-height: 28px;
+    }
+    
+    .game-log.expanded {
+        max-height: 120px;
+    }
+    
+    .mobile-action-bar {
+        padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+    }
+    
+    .action-bar-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        font-size: 1rem;
+    }
+    
+    .action-bar-center {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+    
+    .mobile-fab {
+        width: 52px;
+        height: 52px;
+        bottom: calc(72px + env(safe-area-inset-bottom));
+        right: 14px;
+        font-size: 1.4rem;
+    }
+    
+    .ask-pending-banner {
+        bottom: 58px;
+        bottom: calc(58px + env(safe-area-inset-bottom));
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+    
+    .card-request-overlay {
+        bottom: 58px;
+        bottom: calc(58px + env(safe-area-inset-bottom));
+    }
+    
+    .ask-dialog {
+        padding: var(--space-md);
+    }
+    
+    .rank-btn {
+        width: 40px;
+        height: 56px;
+    }
+}
+
+/* === Landskapsorientering på mobil === */
+@media (orientation: landscape) and (max-height: 500px) {
+    .game-board {
+        padding-top: 38px;
+        padding-bottom: 50px;
+        grid-template-rows: auto auto 1fr auto;
+    }
+    
+    .game-header {
+        height: 38px;
+        min-height: 38px;
+        padding: 0 8px;
+        padding-top: env(safe-area-inset-top);
+    }
+    
+    .opponents-area {
+        min-height: 34px;
+        padding: 3px 8px;
+        gap: 8px;
     }
     
     .opponent-avatar {
@@ -2162,106 +2702,52 @@ input:checked + .toggle::after {
         font-size: 0.65rem;
     }
     
-    .opponent-stats {
-        font-size: 0.55rem;
-    }
-    
-    .card {
-        width: 50px;
-        height: 70px;
-        font-size: 1.1rem;
-        margin-left: -14px;
-    }
-    
-    .card .suit {
-        font-size: 1.3rem;
-    }
-    
-    .card .rank-top,
-    .card .rank-bottom {
-        font-size: 0.7rem;
-    }
-    
-    .game-log {
-        font-size: 0.65rem;
-        max-height: 24px;
-    }
-    
-    .player-actions {
-        padding: 6px 10px;
-        padding-bottom: calc(6px + env(safe-area-inset-bottom));
-    }
-    
-    .btn-action {
-        padding: 10px;
-        font-size: 0.9rem;
-    }
-    
-    .ask-pending-banner {
-        bottom: 50px;
-        bottom: calc(50px + env(safe-area-inset-bottom));
-        padding: 4px 10px;
-        font-size: 0.75rem;
-    }
-}
-
-/* === Landscape-orientering på mobil === */
-@media (orientation: landscape) and (max-height: 500px) {
-    .game-board {
-        padding-top: 35px;
-        padding-bottom: 45px;
-        grid-template-rows: auto auto 1fr auto;
-    }
-    
-    .game-header {
-        height: 35px;
-        min-height: 35px;
-        padding: 0 6px;
-        padding-top: env(safe-area-inset-top);
-    }
-    
-    .opponents-area {
-        min-height: 30px;
-        padding: 2px 6px;
-    }
-    
-    .opponent-avatar {
-        width: 16px;
-        height: 16px;
-    }
-    
-    .opponent-name {
-        font-size: 0.6rem;
-    }
-    
     .mobile-video-grid .video-peer-wrapper {
         width: 70px;
         height: 52px;
     }
     
     .card {
-        width: 45px;
-        height: 63px;
-        font-size: 1rem;
+        width: 48px;
+        height: 67px;
+        font-size: 1.05rem;
         margin-left: -14px;
+        border-radius: 8px;
     }
     
     .hand {
-        min-height: 70px;
+        min-height: 75px;
     }
     
-    .player-actions {
-        padding: 6px 10px;
-        padding-bottom: calc(6px + env(safe-area-inset-bottom));
+    .mobile-action-bar {
+        padding: 5px 10px calc(5px + env(safe-area-inset-bottom));
+    }
+    
+    .action-bar-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 0.95rem;
+    }
+    
+    .mobile-fab {
+        width: 48px;
+        height: 48px;
+        bottom: calc(62px + env(safe-area-inset-bottom));
+        font-size: 1.3rem;
     }
     
     .start-game-btn {
-        padding: 10px 20px;
-        font-size: 0.9rem;
+        padding: 12px 24px;
+        font-size: 1rem;
     }
     
     .btn-ready {
-        padding: 4px 10px;
-        font-size: 0.65rem;
+        padding: 5px 12px;
+        font-size: 0.7rem;
+    }
+    
+    .ask-dialog {
+        max-height: 90vh;
+        padding: var(--space-md);
     }
 }

@@ -458,6 +458,163 @@ class GameClient {
                 }
             }
         });
+        
+        // ── Mobil UI: bottom sheet, FAB, expandable log, action-bar ──
+        this.setupMobileUI();
+    }
+    
+    setupMobileUI() {
+        // Expandable game-log
+        const expandLogBtn = document.getElementById('expand-log-btn');
+        if (expandLogBtn) {
+            expandLogBtn.addEventListener('click', () => {
+                const log = document.getElementById('game-log');
+                log.classList.toggle('expanded');
+                expandLogBtn.textContent = log.classList.contains('expanded') ? '✕' : '📜';
+            });
+        }
+        
+        // Chat-knapp i header (surfplatta + mobil)
+        const mobileChatBtn = document.getElementById('mobile-chat-btn');
+        if (mobileChatBtn) {
+            mobileChatBtn.addEventListener('click', () => {
+                const chatPanel = document.getElementById('chat-panel');
+                const isMobile = window.innerWidth <= 768;
+                if (isMobile) {
+                    this.openMobileSheet('chat');
+                } else {
+                    // Surfplatta: slide-in overlay
+                    chatPanel.classList.toggle('open');
+                    const backdrop = document.querySelector('.chat-overlay-backdrop');
+                    if (backdrop) backdrop.classList.toggle('open', chatPanel.classList.contains('open'));
+                }
+            });
+        }
+        
+        // Chat overlay backdrop (stänger chat på surfplatta)
+        const chatBackdrop = document.querySelector('.chat-overlay-backdrop');
+        if (chatBackdrop) {
+            chatBackdrop.addEventListener('click', () => {
+                document.getElementById('chat-panel').classList.remove('open');
+                chatBackdrop.classList.remove('open');
+            });
+        }
+        
+        // Bottom sheet tabs
+        document.querySelectorAll('.sheet-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.sheet-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.sheet-messages').forEach(m => m.classList.remove('active'));
+                document.getElementById(`mobile-${tab.dataset.tab}-messages`)?.classList.add('active');
+            });
+        });
+        
+        // Bottom sheet backdrop och handle (stäng)
+        const mobileSheet = document.getElementById('mobile-sheet');
+        if (mobileSheet) {
+            const backdrop = mobileSheet.querySelector('.mobile-sheet-backdrop');
+            const handle = mobileSheet.querySelector('.mobile-sheet-handle');
+            if (backdrop) backdrop.addEventListener('click', () => this.closeMobileSheet());
+            if (handle) handle.addEventListener('click', () => this.closeMobileSheet());
+            
+            // Swipe-to-dismiss
+            let sheetTouchStartY = 0;
+            const sheetContainer = mobileSheet.querySelector('.mobile-sheet-container');
+            if (sheetContainer) {
+                sheetContainer.addEventListener('touchstart', (e) => {
+                    sheetTouchStartY = e.touches[0].clientY;
+                }, { passive: true });
+                sheetContainer.addEventListener('touchend', (e) => {
+                    const diff = e.changedTouches[0].clientY - sheetTouchStartY;
+                    if (diff > 80) this.closeMobileSheet();
+                }, { passive: true });
+            }
+        }
+        
+        // Mobil chatt-input
+        const mobileSendBtn = document.getElementById('mobile-send-chat');
+        const mobileChatInput = document.getElementById('mobile-chat-input');
+        if (mobileSendBtn) {
+            mobileSendBtn.addEventListener('click', () => this.sendMobileChat());
+        }
+        if (mobileChatInput) {
+            mobileChatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.sendMobileChat();
+            });
+        }
+        
+        // FAB (Floating Action Button)
+        const mobileFab = document.getElementById('mobile-fab');
+        if (mobileFab) {
+            mobileFab.addEventListener('click', () => this.showAskDialog());
+        }
+        
+        // Mobil action-bar knappar
+        const mobileChatToggle = document.getElementById('mobile-chat-toggle');
+        if (mobileChatToggle) {
+            mobileChatToggle.addEventListener('click', () => this.openMobileSheet('chat'));
+        }
+        
+        const mobileSoundToggle = document.getElementById('mobile-sound-toggle');
+        if (mobileSoundToggle) {
+            mobileSoundToggle.addEventListener('click', () => {
+                const enabled = audioManager.toggleSound();
+                mobileSoundToggle.textContent = enabled ? '🔊' : '🔇';
+                // Synka med desktop-knapp
+                const desktopSoundBtn = document.getElementById('sound-toggle');
+                if (desktopSoundBtn) {
+                    desktopSoundBtn.textContent = enabled ? '🔊' : '🔇';
+                    desktopSoundBtn.classList.toggle('muted', !enabled);
+                }
+            });
+            mobileSoundToggle.textContent = this.settings.soundEnabled ? '🔊' : '🔇';
+        }
+        
+        const mobileSettingsToggle = document.getElementById('mobile-settings-toggle');
+        if (mobileSettingsToggle) {
+            mobileSettingsToggle.addEventListener('click', () => this.showSettings());
+        }
+        
+        const mobileLeave = document.getElementById('mobile-leave');
+        if (mobileLeave) {
+            mobileLeave.addEventListener('click', () => this.leaveGame());
+        }
+    }
+    
+    openMobileSheet(tab = 'chat') {
+        const sheet = document.getElementById('mobile-sheet');
+        if (!sheet) return;
+        
+        // Sätt aktiv flik
+        document.querySelectorAll('.sheet-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.tab === tab);
+        });
+        document.querySelectorAll('.sheet-messages').forEach(m => {
+            m.classList.toggle('active', m.id === `mobile-${tab}-messages`);
+        });
+        
+        sheet.classList.add('open');
+        
+        // Fokusera input om chatt-fliken
+        if (tab === 'chat') {
+            setTimeout(() => document.getElementById('mobile-chat-input')?.focus(), 350);
+        }
+    }
+    
+    closeMobileSheet() {
+        const sheet = document.getElementById('mobile-sheet');
+        if (sheet) sheet.classList.remove('open');
+    }
+    
+    sendMobileChat() {
+        const input = document.getElementById('mobile-chat-input');
+        const message = input?.value.trim();
+        
+        if (message) {
+            gameSocket.emit('chat_message', { message });
+            input.value = '';
+        }
     }
 
     handleRoomJoined(data) {
@@ -770,12 +927,16 @@ class GameClient {
             if (readyStatus) readyStatus.classList.add('hidden');
         }
         
+        // Mobil FAB: pulsera när det är spelarens tur
+        const mobileFab = document.getElementById('mobile-fab');
+        
         if (state.state === 'waiting') {
             turnText.textContent = 'Väntar på fler spelare...';
             turnIndicator.classList.remove('active');
             timerText.textContent = '--';
             timerProgress.style.strokeDasharray = '0, 100';
             this.lastTurnSoundId = null;
+            if (mobileFab) mobileFab.classList.remove('pulse');
         } else if (state.state === 'playing') {
             if (currentPlayer?.isYou) {
                 turnText.textContent = 'Din tur! 🎣';
@@ -790,6 +951,8 @@ class GameClient {
                     this.lastTurnSoundId = currentPlayerId;
                     audioManager.playTurnStart();
                 }
+                
+                if (mobileFab) mobileFab.classList.add('pulse');
             } else {
                 turnText.textContent = `${currentPlayer?.name || 'Någon'}s tur...`;
                 turnIndicator.classList.remove('active');
@@ -798,6 +961,8 @@ class GameClient {
                 if (window.animationManager) {
                     animationManager.animateTurnChange(false);
                 }
+                
+                if (mobileFab) mobileFab.classList.remove('pulse');
             }
             
             if (state.turnTimeRemaining !== null) {
@@ -818,6 +983,7 @@ class GameClient {
         } else if (state.state === 'finished') {
             turnText.textContent = 'Spelet är slut!';
             turnIndicator.classList.remove('active');
+            if (mobileFab) mobileFab.classList.remove('pulse');
         }
     }
 
@@ -1116,17 +1282,29 @@ class GameClient {
             logContainer.appendChild(logDiv);
             logContainer.scrollTop = logContainer.scrollHeight;
         }
+        
+        // Synka till mobil bottom sheet logg-flik
+        const mobileLogContainer = document.getElementById('mobile-log-messages');
+        if (mobileLogContainer) {
+            const mobileLogDiv = document.createElement('div');
+            mobileLogDiv.className = `log-entry ${type}`;
+            mobileLogDiv.textContent = message;
+            mobileLogContainer.appendChild(mobileLogDiv);
+            mobileLogContainer.scrollTop = mobileLogContainer.scrollHeight;
+        }
     }
 
     updateActionButtons(state) {
         const askBtn = document.getElementById('ask-btn');
         const waitingMsg = document.getElementById('waiting-message');
         const surrenderBtn = document.getElementById('surrender-btn');
+        const mobileFab = document.getElementById('mobile-fab');
         
         if (this.isSpectator) {
             askBtn.classList.add('hidden');
             waitingMsg.classList.add('hidden');
             surrenderBtn.classList.add('hidden');
+            if (mobileFab) mobileFab.classList.add('hidden');
             return;
         }
         
@@ -1141,8 +1319,11 @@ class GameClient {
             surrenderBtn.classList.add('hidden');
         }
         
-        // Uppdatera mobil parnings-badge
+        // Uppdatera mobil parnings-badge och action-bar center
         const mobilePairs = document.getElementById('mobile-pairs');
+        const mobilePairsDisplay = document.getElementById('mobile-pairs-display');
+        const myPairs = state.yourPairs?.length || 0;
+        
         if (mobilePairs) {
             if (state.state === 'playing') {
                 mobilePairs.classList.remove('hidden');
@@ -1151,12 +1332,18 @@ class GameClient {
             }
         }
         
-        // Dölj Fråga-knappen om det finns en pending ask (väntar på svar)
-        const hasPendingAsk = this.pendingCardRequest !== null || document.getElementById('ask-pending-banner')?.classList.contains('hidden') === false;
+        if (mobilePairsDisplay) {
+            mobilePairsDisplay.innerHTML = `🏆 <strong>${myPairs}</strong> par`;
+        }
         
-        if (state.state === 'playing' && currentPlayer?.isYou && myHand.length > 0 && !iSurrendered && !hasPendingAsk) {
+        // Dölj Fråga-knappen och FAB om det finns en pending ask (väntar på svar)
+        const hasPendingAsk = this.pendingCardRequest !== null || document.getElementById('ask-pending-banner')?.classList.contains('hidden') === false;
+        const canAsk = state.state === 'playing' && currentPlayer?.isYou && myHand.length > 0 && !iSurrendered && !hasPendingAsk;
+        
+        if (canAsk) {
             askBtn.classList.remove('hidden');
             waitingMsg.classList.add('hidden');
+            if (mobileFab) mobileFab.classList.remove('hidden');
             
             if (window.animationManager) {
                 animationManager.pulse(askBtn, 2000);
@@ -1164,6 +1351,7 @@ class GameClient {
         } else {
             askBtn.classList.add('hidden');
             waitingMsg.classList.remove('hidden');
+            if (mobileFab) mobileFab.classList.add('hidden');
         }
     }
 
@@ -1427,6 +1615,18 @@ class GameClient {
         
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
+        
+        // Synka till mobil bottom sheet chatt-flik
+        const mobileChatContainer = document.getElementById('mobile-chat-messages');
+        if (mobileChatContainer) {
+            const mobileDiv = document.createElement('div');
+            mobileDiv.className = `log-entry chat ${msg.isSystem ? 'system' : ''}`;
+            mobileDiv.innerHTML = msg.isSystem
+                ? `<span class="msg-text">${this.escapeHtml(msg.message)}</span>`
+                : `<span class="chat-sender">${this.escapeHtml(msg.player)}</span>${this.escapeHtml(msg.message)}`;
+            mobileChatContainer.appendChild(mobileDiv);
+            mobileChatContainer.scrollTop = mobileChatContainer.scrollHeight;
+        }
         
         if (window.audioManager && !msg.isSystem) {
             audioManager.playChat();
