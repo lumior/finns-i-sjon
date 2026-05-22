@@ -2532,12 +2532,23 @@ input:checked + .toggle::after {
     }
     
     .rank-btn {
-        width: 44px;
-        height: 62px;
+        width: 48px;
+        height: 68px;
         border-radius: 10px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         transition: all 0.2s ease;
+        position: relative;
+        padding: 0;
+    }
+    
+    .rank-btn.red {
+        color: #dc2626;
+    }
+    
+    .rank-btn.black {
+        color: #0f172a;
     }
     
     .rank-btn:active {
@@ -2545,13 +2556,40 @@ input:checked + .toggle::after {
     }
     
     .rank-btn.selected {
-        background: rgba(99, 102, 241, 0.2);
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
         border-color: var(--primary);
-        box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+        color: white;
+        box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        transform: scale(1.08);
+    }
+    
+    .rank-btn.selected .rc-rank-top,
+    .rank-btn.selected .rc-rank-bottom,
+    .rank-btn.selected .rc-suit {
+        color: white;
+    }
+    
+    .rc-rank-top {
+        position: absolute;
+        top: 4px;
+        left: 6px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        line-height: 1;
     }
     
     .rc-suit {
-        font-size: 1.2rem;
+        font-size: 1.4rem;
+        line-height: 1;
+    }
+    
+    .rc-rank-bottom {
+        position: absolute;
+        bottom: 4px;
+        right: 6px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        line-height: 1;
     }
     
     /* ── Game-over mobil ── */
@@ -2704,8 +2742,20 @@ input:checked + .toggle::after {
     }
     
     .rank-btn {
-        width: 40px;
-        height: 56px;
+        width: 42px;
+        height: 60px;
+    }
+    
+    .rc-rank-top {
+        font-size: 0.8rem;
+    }
+    
+    .rc-rank-bottom {
+        font-size: 0.8rem;
+    }
+    
+    .rc-suit {
+        font-size: 1.25rem;
     }
 }
 
