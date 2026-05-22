@@ -1720,19 +1720,22 @@ input:checked + .toggle::after {
 /* ── Mobil FAB ── */
 .mobile-fab {
     position: fixed;
-    bottom: calc(80px + env(safe-area-inset-bottom));
+    bottom: calc(84px + env(safe-area-inset-bottom));
     right: 16px;
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, #818cf8 0%, #6366f1 40%, #4f46e5 100%);
     color: white;
-    border: none;
-    font-size: 1.5rem;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    font-size: 1.6rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 6px 24px rgba(79, 70, 229, 0.55),
+        0 2px 8px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
     cursor: pointer;
     z-index: 90;
     transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
@@ -1742,7 +1745,10 @@ input:checked + .toggle::after {
 
 .mobile-fab:active {
     transform: scale(0.92);
-    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+    box-shadow:
+        0 3px 12px rgba(79, 70, 229, 0.4),
+        0 1px 4px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .mobile-fab.hidden {
@@ -1752,12 +1758,23 @@ input:checked + .toggle::after {
 }
 
 .mobile-fab.pulse {
-    animation: fabPulse 2s ease-in-out infinite;
+    animation: fabPulse 1.8s ease-in-out infinite;
 }
 
 @keyframes fabPulse {
-    0%, 100% { box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5); }
-    50% { box-shadow: 0 4px 30px rgba(99, 102, 241, 0.8), 0 0 40px rgba(99, 102, 241, 0.3); }
+    0%, 100% {
+        box-shadow:
+            0 6px 24px rgba(79, 70, 229, 0.55),
+            0 2px 8px rgba(0, 0, 0, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    50% {
+        box-shadow:
+            0 8px 35px rgba(79, 70, 229, 0.85),
+            0 0 50px rgba(99, 102, 241, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        transform: scale(1.04);
+    }
 }
 
 /* ── Modern mobil action-bar ── */
@@ -2243,17 +2260,17 @@ input:checked + .toggle::after {
     }
     
     .card {
-        width: 58px;
-        height: 81px;
-        font-size: 1.25rem;
-        margin-left: -18px;
-        border-radius: 10px;
+        width: 72px;
+        height: 100px;
+        font-size: 1.5rem;
+        margin-left: -22px;
+        border-radius: 12px;
         flex-shrink: 0;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.35);
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1.5px solid rgba(255, 255, 255, 0.12);
     }
     
     .card:first-child {
@@ -2269,25 +2286,25 @@ input:checked + .toggle::after {
     
     .card:active {
         transform: scale(0.94) translateY(-4px) !important;
-        box-shadow: 0 0 20px rgba(99, 102, 241, 0.3), 0 4px 15px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 0 24px rgba(99, 102, 241, 0.35), 0 4px 18px rgba(0, 0, 0, 0.45);
     }
     
     .card .suit {
-        font-size: 1.6rem;
+        font-size: 2rem;
     }
     
     .card .rank-top {
-        top: 4px;
-        left: 6px;
-        font-size: 0.85rem;
-        font-weight: 700;
+        top: 5px;
+        left: 7px;
+        font-size: 1rem;
+        font-weight: 800;
     }
     
     .card .rank-bottom {
-        bottom: 4px;
-        right: 6px;
-        font-size: 0.85rem;
-        font-weight: 700;
+        bottom: 5px;
+        right: 7px;
+        font-size: 1rem;
+        font-weight: 800;
     }
     
     /* Highlight för card-request mer synlig */
@@ -2600,20 +2617,20 @@ input:checked + .toggle::after {
     }
     
     .card {
-        width: 52px;
-        height: 73px;
-        font-size: 1.15rem;
-        margin-left: -16px;
-        border-radius: 9px;
+        width: 64px;
+        height: 89px;
+        font-size: 1.35rem;
+        margin-left: -20px;
+        border-radius: 10px;
     }
     
     .card .suit {
-        font-size: 1.4rem;
+        font-size: 1.8rem;
     }
     
     .card .rank-top,
     .card .rank-bottom {
-        font-size: 0.8rem;
+        font-size: 0.9rem;
     }
     
     .game-log {
@@ -2643,11 +2660,11 @@ input:checked + .toggle::after {
     }
     
     .mobile-fab {
-        width: 52px;
-        height: 52px;
-        bottom: calc(72px + env(safe-area-inset-bottom));
+        width: 58px;
+        height: 58px;
+        bottom: calc(76px + env(safe-area-inset-bottom));
         right: 14px;
-        font-size: 1.4rem;
+        font-size: 1.5rem;
     }
     
     .ask-pending-banner {
@@ -2708,11 +2725,11 @@ input:checked + .toggle::after {
     }
     
     .card {
-        width: 48px;
-        height: 67px;
-        font-size: 1.05rem;
-        margin-left: -14px;
-        border-radius: 8px;
+        width: 58px;
+        height: 81px;
+        font-size: 1.25rem;
+        margin-left: -18px;
+        border-radius: 10px;
     }
     
     .hand {
@@ -2730,10 +2747,10 @@ input:checked + .toggle::after {
     }
     
     .mobile-fab {
-        width: 48px;
-        height: 48px;
-        bottom: calc(62px + env(safe-area-inset-bottom));
-        font-size: 1.3rem;
+        width: 54px;
+        height: 54px;
+        bottom: calc(66px + env(safe-area-inset-bottom));
+        font-size: 1.4rem;
     }
     
     .start-game-btn {
