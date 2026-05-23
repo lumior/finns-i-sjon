@@ -36,6 +36,17 @@ const roomManager = new RoomManager();
 const webRTC = new WebRTCSignaling(io, roomManager);
 const PORT = process.env.PORT || 3000;
 
+// Debug: skriv ut miljövariabler för felsökning (maskerade)
+console.log('🔧 Miljövariabler:', {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    DATABASE_URL: process.env.DATABASE_URL ? 'satt' : 'saknas',
+    JWT_SECRET: process.env.JWT_SECRET
+        ? `satt (längd: ${process.env.JWT_SECRET.length}, startar med: ${process.env.JWT_SECRET.substring(0, 4)}...)`
+        : 'SAKNAS',
+    DB_PATH: process.env.DB_PATH
+});
+
 // JWT_SECRET måste vara satt — varna starkt om det saknas
 if (!process.env.JWT_SECRET) {
     console.error('⚠️  VARNING: JWT_SECRET saknas i miljövariabler.');
