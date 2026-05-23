@@ -337,7 +337,15 @@ class GameClient {
         });
         
         document.getElementById('play-again-btn').addEventListener('click', () => {
-            window.location.reload();
+            // Host kan starta om spelet direkt; andra väntar på hosten
+            if (this.isHost) {
+                gameSocket.emit('start_game');
+                document.getElementById('game-over-modal').classList.add('hidden');
+                this.addLogEntry('🔄 Startar nytt spel...', 'system');
+            } else {
+                document.getElementById('game-over-modal').classList.add('hidden');
+                this.showModal('Väntar på värden', 'Värden startar nästa spel. Håll utkik!', 'OK');
+            }
         });
         
         document.getElementById('back-to-lobby').addEventListener('click', () => {
@@ -672,6 +680,10 @@ class GameClient {
     handleGameStarted(data) {
         this.gameState = data.gameState;
         this.renderGame();
+        
+        // Göm game-over-modal om den är öppen (t.ex. vid omstart)
+        const gameOverModal = document.getElementById('game-over-modal');
+        if (gameOverModal) gameOverModal.classList.add('hidden');
         
         if (window.audioManager) {
             audioManager.playCardDeal();
