@@ -1,5 +1,10 @@
 .game-body {
-    background: linear-gradient(135deg, var(--table-dark) 0%, var(--table-green) 100%);
+    background:
+        radial-gradient(ellipse at center, rgba(28, 19, 10, 0.2) 0%, rgba(12, 8, 4, 0.5) 100%),
+        url('/assets/images/wood-table.svg');
+    background-size: cover, 250px 250px;
+    background-position: center, center;
+    background-repeat: no-repeat, repeat;
     min-height: 100vh;
     overflow: hidden;
 }
