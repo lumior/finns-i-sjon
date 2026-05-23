@@ -38,7 +38,9 @@ const PORT = process.env.PORT || 3000;
 
 // JWT_SECRET måste vara satt — varna starkt om det saknas
 if (!process.env.JWT_SECRET) {
-    console.error('⚠️  VARNING: JWT_SECRET saknas i miljövariabler. Sätt ett starkt secret i .env för produktion!');
+    console.error('⚠️  VARNING: JWT_SECRET saknas i miljövariabler.');
+    console.error('   Lokal utveckling: skapa .env med JWT_SECRET=<lång slumpmässig sträng>');
+    console.error('   Railway: gå till Variables → New Variable → JWT_SECRET');
 }
 
 app.use(
