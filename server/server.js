@@ -74,7 +74,8 @@ const readLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100
+    max: 600,
+    message: { error: 'För många förfrågningar. Vänta en stund och försök igen.' }
 });
 
 app.use('/api/auth/', authLimiter);
