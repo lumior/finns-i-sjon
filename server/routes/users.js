@@ -9,7 +9,7 @@ router.get('/leaderboard', async (req, res) => {
         const limit = parseInt(req.query.limit) || 50;
         const leaderboard = await User.getLeaderboard(limit);
         res.json(leaderboard);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: 'Kunde inte hämta topplista' });
     }
 });
@@ -18,7 +18,7 @@ router.get('/online', async (req, res) => {
     try {
         const users = await User.getOnlineUsers();
         res.json(users);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: 'Kunde inte hämta online-användare' });
     }
 });
@@ -31,7 +31,7 @@ router.get('/search', async (req, res) => {
         }
         const users = await User.searchUsers(query);
         res.json(users);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: 'Sökning misslyckades' });
     }
 });
@@ -54,7 +54,7 @@ router.get('/:id/profile', async (req, res) => {
             })),
             recentGames: history
         });
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: 'Kunde inte hämta profil' });
     }
 });

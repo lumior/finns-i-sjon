@@ -7,7 +7,7 @@ router.get('/total-games', async (req, res) => {
     try {
         const count = await Game.getTotalCount();
         res.json({ count });
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: 'Kunde inte hämta statistik' });
     }
 });

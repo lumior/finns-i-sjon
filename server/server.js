@@ -33,7 +33,7 @@ const io = new Server(server, {
 });
 
 const roomManager = new RoomManager();
-const webRTC = new WebRTCSignaling(io, roomManager);
+new WebRTCSignaling(io, roomManager);
 const PORT = process.env.PORT || 3000;
 
 // Debug: skriv ut miljövariabler för felsökning (maskerade)

@@ -3,7 +3,7 @@ const AIPlayer = require('./AIPlayer');
 const { extractPairs } = require('./utils');
 const {
     MIN_PLAYERS,
-    MAX_PLAYERS,
+
     CARDS_PER_PLAYER_2P,
     CARDS_PER_PLAYER_MULTI,
     GAME_STATES

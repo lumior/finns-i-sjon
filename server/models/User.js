@@ -85,7 +85,7 @@ class User {
                 achievementType
             ]);
             return true;
-        } catch (e) {
+        } catch {
             return false;
         }
     }

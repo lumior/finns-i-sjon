@@ -1,7 +1,7 @@
 function createHandleGameEnd(io, roomManager, Game, User, ELO) {
-    return async function handleGameEnd(game, room) {
+    return async function handleGameEnd(game, _room) {
         const standings = game.calculateWinner();
-        const gameData = game.getGameData();
+        game.getGameData();
 
         try {
             let winnerId = null;

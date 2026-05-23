@@ -1,6 +1,3 @@
-const { RANKS } = require('../utils/constants');
-const { findPairs, extractPairs } = require('./utils');
-
 class AIPlayer {
     constructor(difficulty = 'smart', name = 'AI-Spelare') {
         this.difficulty = difficulty;
@@ -68,7 +65,7 @@ class AIPlayer {
         };
     }
 
-    smartStrategy(opponents, myRanks, gameState) {
+    smartStrategy(opponents, myRanks, _gameState) {
         let bestChoice = null;
         let bestScore = -1;
 
@@ -364,7 +361,7 @@ class AIPlayer {
 
         // Om fortfarande för mycket, glöm äldsta asked-entries
         if (total > this.memoryCapacity) {
-            for (const [playerId, asked] of this.memory.askedCards) {
+            for (const [, asked] of this.memory.askedCards) {
                 const entries = Object.entries(asked);
                 if (entries.length > 3) {
                     // Sortera efter lastAsked och glöm de äldsta

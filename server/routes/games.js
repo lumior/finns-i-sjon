@@ -12,7 +12,7 @@ router.get('/history', async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const history = await Game.getUserHistory(req.user.id, limit);
         res.json(history);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: 'Kunde inte hämta spelhistorik' });
     }
 });
@@ -24,7 +24,7 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Spel hittades inte' });
         }
         res.json(game);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: 'Kunde inte hämta speldetaljer' });
     }
 });

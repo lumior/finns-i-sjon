@@ -19,7 +19,7 @@ class Auth {
     static verifyToken(token) {
         try {
             return jwt.verify(token, JWT_SECRET);
-        } catch (e) {
+        } catch {
             return null;
         }
     }
