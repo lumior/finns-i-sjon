@@ -243,6 +243,12 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
             }
 
             const game = room.game;
+            
+            // Om spelet är slut, återställ det först så att det kan startas om
+            if (game.state === GAME_STATES.FINISHED) {
+                game.resetGame();
+            }
+            
             if (!game.canStart()) {
                 socket.emit('error', { message: 'Minst 2 spelare krävs för att starta' });
                 return;
