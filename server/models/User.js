@@ -1,12 +1,14 @@
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
+const { getPlayerAvatar } = require('../game/utils');
 
 class User {
     static async create(username, email, password, displayName = null) {
         const hashedPassword = await bcrypt.hash(password, 10);
+        const avatarUrl = getPlayerAvatar(username);
         const result = await db.run(
-            'INSERT INTO users (username, email, password_hash, display_name) VALUES (?, ?, ?, ?)',
-            [username, email, hashedPassword, displayName || username]
+            'INSERT INTO users (username, email, password_hash, display_name, avatar_url) VALUES (?, ?, ?, ?, ?)',
+            [username, email, hashedPassword, displayName || username, avatarUrl]
         );
         return result.id;
     }
