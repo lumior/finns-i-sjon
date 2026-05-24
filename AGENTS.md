@@ -56,7 +56,7 @@ finns-i-sjon-pro/
 │   │   ├── users.js           # GET /leaderboard, /online, /search, /:id/profile
 │   │   ├── games.js           # GET /history, /:id
 │   │   ├── rooms.js           # GET /, /:id (kräver RoomManager-instans)
-│   │   └── stats.js           # Statistikendpoints
+│   │   └── stats.js           # GET /total-games
 │   ├── game/
 │   │   ├── GameEngine.js      # Spelregler, turhantering, par, AI-anslutning
 │   │   ├── RoomManager.js     # Rums-CRUD, join/leave/kick, reconnection
@@ -164,8 +164,10 @@ npm run format:check  # Prettier --check (används i CI)
 ### ESLint-regler (se `eslint.config.js`)
 - `no-unused-vars`: warn (args som börjar med `_` ignoreras)
 - `no-console`: off (tillåtet i detta projekt)
+- `no-debugger`: warn
 - `eqeqeq`: error (alltid `===` / `!==`)
 - `curly`: error (alltid måsvingar, även för enraders block)
+- `no-throw-literal`: error
 - `prefer-const`: warn
 
 ### Namngivning och språk
@@ -210,8 +212,8 @@ npm run format:check  # Prettier --check (används i CI)
 
 ### Rate limiting
 - `/api/auth/*`: 10 förfrågningar / 15 minuter
-- Läs-endpoints (rooms, online, leaderboard): 120 / minut
-- Övriga API: 100 / 15 minuter
+- Läs-endpoints (`/api/rooms`, `/api/users/online`, `/api/stats/total-games`, `/api/users/leaderboard`): 120 / minut
+- Övriga API: 600 / 15 minuter
 - **Obs:** Socket.IO-events har **inte** rate limiting för närvarande.
 
 ---
@@ -224,9 +226,24 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 2. **MariaDB/MySQL** — om `DB_HOST` etc. är satt
 3. **SQLite3** — fallback för utveckling (`DB_PATH=./database/game.db`)
 
-Tabeller: `users`, `games`, `game_participants`, `game_events`, `friendships`, `achievements`, `game_snapshots`.
+Sätt `DB_FALLBACK=false` för att inaktivera SQLite-fallback och tvinga fram MariaDB.
 
-Se `PROJEKTPLAN.md` för fullständigt schema.
+### Tabeller
+- `users` — användarkonton, ELO, statistik
+- `games` — spelmetadata (vinnare, duration, antal turer)
+- `game_participants` — deltagare per spel med slutlig rank och ELO-förändring
+- `game_events` — händelselogg (frågor, fiskningar, par)
+- `friendships` — vänförfrågningar (status: pending/accepted)
+- `achievements` — upplåsta achievements per användare
+- `game_snapshots` — JSON-snapshots av spelstatus för crash-recovery
+
+### Index
+- `idx_users_elo` (users.elo_rating DESC)
+- `idx_users_online` (users.is_online)
+- `idx_achievements_user` (achievements.user_id)
+- `idx_games_created` (games.created_at DESC)
+- `idx_game_participants_user` (game_participants.user_id)
+- `idx_game_events_game` (game_events.game_id)
 
 ---
 
@@ -235,19 +252,63 @@ Se `PROJEKTPLAN.md` för fullständigt schema.
 - **Namespace:** Default `/`
 - **Auth-middleware:** `Auth.socketAuth` körs före `connection`-event
 - **Huvudmodul:** `server/sockets/index.js` sätter ihop `handlers.js` och `game-end.js`
-- **Viktiga events:**
-  - `create_room`, `join_room`, `start_game`
-  - `ask_cards` + `respond_to_ask` (mänskliga spelare)
-  - `chat_message`
-  - `reconnect_attempt` (stöd för sidomladdning/ny flik)
 
-Spelet använder **två ask-flöden**:
-- Direkt `askForCards()` för AI-motståndare (svarar synkront)
-- `requestAsk()` + `respond_to_ask()` för mänskliga spelare (asynkront pending-ask-mönster)
+### Klient → Server (utöver grundläggande rumshantering)
+| Event | Beskrivning |
+|-------|-------------|
+| `create_room` | Skapa nytt rum |
+| `join_room` | Gå med i rum (stöd för lösenord och spectator) |
+| `reconnect_attempt` | Återanslut efter disconnect med `oldSocketId` + `reconnectToken` |
+| `start_game` | Värd startar spelet (stödjer omstart om state är FINISHED) |
+| `toggle_ready` | Växla ready-status i vänteläge |
+| `ask_cards` | Fråga motståndare om kort (AI = synkront, människa = pending-ask) |
+| `respond_to_ask` | Svara på pågående förfrågan (hasCard, rank) |
+| `chat_message` | Skicka chattmeddelande (saneras, achievements möjliga) |
+| `add_ai` | Lägg till AI-spelare |
+| `remove_ai` | Ta bort AI-spelare |
+| `kick_player` | Kicka spelare (värden) |
+| `surrender` | Ge upp — avslutar spelarens deltagande |
+| `update_settings` | Uppdatera rum (allowAI, turnTimer, spectatorMode, maxPlayers, deckTheme) |
+| `leave_room` | Lämna rum |
+| `dev_ai_vs_ai` | Dev-only: starta AI vs AI med åskådare |
+
+### Server → Klient (viktiga events)
+| Event | Beskrivning |
+|-------|-------------|
+| `room_created` / `room_joined` / `spectator_joined` | Bekräftelser |
+| `game_started` | Spelet har börjat |
+| `game_state_update` | Allmän state-uppdatering |
+| `turn_result` | Resultat av ett drag (innehåller `gameState`, `aiReasoning` för AI-drag) |
+| `ask_pending` | Väntar på svar från motståndare |
+| `card_request` | Någon frågar dig om kort |
+| `game_over` | Spelet slut (innehåller `winner`, `standings`, `eloChange`) |
+| `chat_message` | Nytt chattmeddelande |
+| `player_joined` / `player_left` / `player_reconnected` / `player_kicked` / `player_surrendered` | Spelarhändelser |
+| `ai_added` / `ai_removed` | AI-händelser |
+| `settings_updated` / `ready_status_update` | Rumstillstånd |
+| `achievement_unlocked` | Achievement upplåst |
+| `error` | Felmeddelande |
+
+### Två ask-flöden
+- **Direkt `askForCards()`** för AI-motståndare (svarar synkront)
+- **`requestAsk()` + `respond_to_ask()`** för mänskliga spelare (asynkront pending-ask-mönster)
 
 ---
 
-## 10. Driftsättning
+## 10. WebRTC-signaleringsarkitektur
+
+Fil: `server/webrtc/signaling.js`
+
+Klassen `WebRTCSignaling` hanterar P2P-röstchatt via Socket.IO:
+- `voice_join` / `voice_leave` — anslut/lämna röstchatt i ett rum
+- `webrtc_offer` / `webrtc_answer` / `webrtc_ice_candidate` — standard WebRTC-signaleringsflöde
+- `voice_peer_joined` / `voice_peer_left` / `voice_peers_list` — peer-hantering
+
+ICE-servrar: Google STUN + Open Relay TURN (fallback). Anpassad TURN kan sättas via miljövariabler (`TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`).
+
+---
+
+## 11. Driftsättning
 
 ### Railway (primär metod)
 1. Repo på GitHub, kopplat till Railway
@@ -271,7 +332,7 @@ npm run dev
 
 ---
 
-## 11. Utvecklingskonventioner
+## 12. Utvecklingskonventioner
 
 ### Innan du commitar
 1. Kör `npm run lint` — fixa fel
@@ -282,7 +343,7 @@ npm run dev
 ### Att lägga till en ny API-endpoint
 1. Skapa route-fil under `server/routes/` (eller utöka befintlig)
 2. Registrera i `server/server.js` med `app.use('/api/xxx', ...)`
-3. Använd `Auth.middleware()` för autentisering om det behövs (körs redan globalt, sätt `req.user` till `null` för öppna endpoints)
+3. Auth-middleware körs globalt och sätter `req.user` till `null` för gäster
 
 ### Att lägga till ett Socket.IO-event
 1. Lägg till handler i `server/sockets/handlers.js`
@@ -291,16 +352,15 @@ npm run dev
 
 ---
 
-## 12. Kända begränsningar (från PROJEKTPLAN.md)
+## 13. Kända begränsningar
 
-- `makeAIMMove` är felstavat i `GameEngine.js` (ska vara `makeAIMove`)
-- `handleGameEnd` skickar inte `eloChange` per spelare i `standings`-arrayen
 - `friendships`-tabellen finns men används inte i frontend
 - WebRTC-video fungerar inte på Safari `localhost` — använd `127.0.0.1`
+- `handleGameEnd` skickar inte `eloChange` per spelare i `standings`-arrayen (skickas separat som `eloChange` per spelare i `game_over`)
 
 ---
 
-## 13. Snabbreferens: Viktiga filer att läsa
+## 14. Snabbreferens: Viktiga filer att läsa
 
 | Om du ska... | Läs dessa filer |
 |--------------|-----------------|

@@ -78,7 +78,7 @@ function getPlayerAvatar(name, currentAvatar = null) {
     // Simple hash of the name
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
-        hash = ((hash << 5) - hash) + name.charCodeAt(i);
+        hash = (hash << 5) - hash + name.charCodeAt(i);
         hash |= 0; // Convert to 32-bit int
     }
     const index = Math.abs(hash) % AVATARS.length;

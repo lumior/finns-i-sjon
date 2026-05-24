@@ -475,24 +475,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 });
 
                 if (result.gameOver) {
-                    room.game.players.forEach(player => {
-                        io.to(player.socketId).emit('game_over', {
-                            gameState: room.game.getPublicState(player.socketId),
-                            winner: room.game.winner,
-                            standings: room.game.finalStandings,
-                            duration: room.game.duration,
-                            totalTurns: room.game.totalTurns
-                        });
-                    });
-                    room.game.spectators.forEach(spectatorId => {
-                        io.to(spectatorId).emit('game_over', {
-                            gameState: room.game.getSpectatorState(),
-                            winner: room.game.winner,
-                            standings: room.game.finalStandings,
-                            duration: room.game.duration,
-                            totalTurns: room.game.totalTurns
-                        });
-                    });
+                    handleGameEnd(room.game, room);
                 } else {
                     room.game.players.forEach(player => {
                         io.to(player.socketId).emit('game_state_update', room.game.getPublicState(player.socketId));

@@ -1232,7 +1232,7 @@ class GameEngine {
 
     calculateWinner() {
         const activePlayers = this.players
-            .filter(p => p.connected || p.pairs.length > 0)
+            .filter(p => !p.surrendered && (p.connected || p.pairs.length > 0))
             .sort((a, b) => b.pairs.length - a.pairs.length);
 
         // Assign ranks with tie handling (same pairs = same rank)
