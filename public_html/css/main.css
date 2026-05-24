@@ -1069,7 +1069,7 @@ body {
     
     .hero {
         flex-direction: column;
-        padding: var(--space-xl) var(--space-md);
+        padding: 5rem var(--space-md) var(--space-xl);
     }
     
     .hero-visual {
