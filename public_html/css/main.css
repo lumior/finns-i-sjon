@@ -1036,12 +1036,35 @@ body {
         padding: var(--space-sm) var(--space-md);
     }
     
+    .nav-brand {
+        font-size: 1.1rem;
+        gap: var(--space-xs);
+    }
+    
+    .logo {
+        font-size: 1.5rem;
+    }
+    
     .nav-links {
-        gap: var(--space-sm);
+        gap: var(--space-xs);
     }
     
     .nav-link {
         display: none;
+    }
+    
+    .nav-avatar {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .nav-username {
+        display: none;
+    }
+    
+    .nav-elo {
+        font-size: 0.7rem;
+        padding: 1px 5px;
     }
     
     .hero {
@@ -1088,6 +1111,19 @@ body {
 }
 
 @media (max-width: 480px) {
+    .pro-badge {
+        display: none;
+    }
+    
+    .nav-elo {
+        display: none;
+    }
+    
+    #logout-btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+    
     .hero-actions {
         flex-direction: column;
     }
