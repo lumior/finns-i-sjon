@@ -584,10 +584,15 @@ class GameClient {
             mobileSettingsToggle.addEventListener('click', () => this.showSettings());
         }
         
-        const mobileLeave = document.getElementById('mobile-leave');
-        if (mobileLeave) {
-            mobileLeave.addEventListener('click', () => this.leaveGame());
+        const mobileRules = document.getElementById('mobile-rules');
+        if (mobileRules) {
+            mobileRules.addEventListener('click', () => this.showRules());
         }
+        
+        const rulesClose = document.querySelector('.rules-modal-close');
+        const rulesBackdrop = document.querySelector('.rules-modal-backdrop');
+        if (rulesClose) rulesClose.addEventListener('click', () => this.hideRules());
+        if (rulesBackdrop) rulesBackdrop.addEventListener('click', () => this.hideRules());
     }
     
     openMobileSheet(tab = 'chat') {
@@ -1773,6 +1778,14 @@ class GameClient {
 
     showSettings() {
         document.getElementById('settings-modal').classList.remove('hidden');
+    }
+
+    showRules() {
+        document.getElementById('rules-modal').classList.remove('hidden');
+    }
+
+    hideRules() {
+        document.getElementById('rules-modal').classList.add('hidden');
     }
 
     showAddAIModal() {

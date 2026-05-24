@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Finns i sjön PRO – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/game.css?v=26">
+    <link rel="stylesheet" href="/css/game.css?v=27">
     <link rel="stylesheet" href="/css/animations.css">
     <link rel="stylesheet" href="/css/voice-chat.css?v=14">
     <link rel="stylesheet" href="/css/video-chat.css?v=14">
@@ -178,7 +178,7 @@
                     <span id="mobile-pairs-display">🏆 <strong>0</strong> par</span>
                 </div>
                 <button class="action-bar-btn" id="mobile-settings-toggle" title="Inställningar">⚙️</button>
-                <button class="action-bar-btn" id="mobile-leave" title="Lämna">←</button>
+                <button class="action-bar-btn" id="mobile-rules" title="Spelregler">ℹ️</button>
             </div>
         </section>
     </main>
@@ -318,6 +318,52 @@
         </div>
     </div>
 
+    <!-- Spelregler modal -->
+    <div id="rules-modal" class="rules-modal hidden">
+        <div class="rules-modal-backdrop"></div>
+        <div class="rules-modal-content">
+            <button class="rules-modal-close">&times;</button>
+            <h2>📖 Spelregler</h2>
+            <div class="rules-list">
+                <div class="rule-item">
+                    <div class="rule-num">1</div>
+                    <div>
+                        <h4>Dela ut kort</h4>
+                        <p>Varje spelare får 5 kort (7 vid 2 spelare). Resten bildar "sjön".</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <div class="rule-num">2</div>
+                    <div>
+                        <h4>Fråga om kort</h4>
+                        <p>Välj en motståndare och fråga efter en valör du själv har. T.ex: "Har du någon sjua?"</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <div class="rule-num">3</div>
+                    <div>
+                        <h4>Finns i sjön!</h4>
+                        <p>Om motståndaren inte har kortet säger de "Finns i sjön!" och du drar från högen.</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <div class="rule-num">4</div>
+                    <div>
+                        <h4>Samla par</h4>
+                        <p>När du får två kort med samma valör lägger du ut dem. Flest par vinner!</p>
+                    </div>
+                </div>
+                <div class="rule-item">
+                    <div class="rule-num">5</div>
+                    <div>
+                        <h4>Kräva svar</h4>
+                        <p>Om någon frågar dig måste du svara sanningen. Har du kortet — ge det till dem!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="ai-thinking" class="ai-thinking hidden">
         <div class="thinking-dots">
             <span></span><span></span><span></span>
@@ -333,6 +379,6 @@
     <script src="/js/voice-ui.js?v=13"></script>
     <script src="/js/video-chat.js?v=16"></script>
     <script src="/js/video-ui.js?v=13"></script>
-    <script src="/js/game.js?v=19"></script>
+    <script src="/js/game.js?v=20"></script>
 </body>
 </html>
