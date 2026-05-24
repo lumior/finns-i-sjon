@@ -72,7 +72,31 @@ function getPlayerAvatar(name, currentAvatar = null) {
         '/assets/images/avatars/player-5.png',
         '/assets/images/avatars/player-6.png',
         '/assets/images/avatars/player-7.png',
-        '/assets/images/avatars/player-8.png'
+        '/assets/images/avatars/player-8.png',
+        '/assets/images/avatars/player-9.png',
+        '/assets/images/avatars/player-10.png',
+        '/assets/images/avatars/player-11.png',
+        '/assets/images/avatars/player-12.png',
+        '/assets/images/avatars/player-13.png',
+        '/assets/images/avatars/player-14.png',
+        '/assets/images/avatars/player-15.png',
+        '/assets/images/avatars/player-16.png',
+        '/assets/images/avatars/player-17.png',
+        '/assets/images/avatars/player-18.png',
+        '/assets/images/avatars/player-19.png',
+        '/assets/images/avatars/player-20.png',
+        '/assets/images/avatars/player-21.png',
+        '/assets/images/avatars/player-22.png',
+        '/assets/images/avatars/player-23.png',
+        '/assets/images/avatars/player-24.png',
+        '/assets/images/avatars/player-25.png',
+        '/assets/images/avatars/player-26.png',
+        '/assets/images/avatars/player-27.png',
+        '/assets/images/avatars/player-28.png',
+        '/assets/images/avatars/player-29.png',
+        '/assets/images/avatars/player-30.png',
+        '/assets/images/avatars/player-31.png',
+        '/assets/images/avatars/player-32.png'
     ];
 
     // Simple hash of the name
