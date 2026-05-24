@@ -373,11 +373,17 @@ class Database {
             });
         }
         if (this.isPostgres) {
-            const result = await this.pool.query(sql, params);
+            const result = await this.pool.query(this._pgSql(sql), params);
             return result.rows;
         }
         const [rows] = await this.pool.execute(sql, params);
         return rows;
+    }
+
+    // Konvertera ?-placeholders till $1,$2... för PostgreSQL
+    _pgSql(sql) {
+        let i = 0;
+        return sql.replace(/\?/g, () => `$${++i}`);
     }
 
     async get(sql, params = []) {
@@ -393,7 +399,7 @@ class Database {
             });
         }
         if (this.isPostgres) {
-            const result = await this.pool.query(sql, params);
+            const result = await this.pool.query(this._pgSql(sql), params);
             return result.rows[0] || null;
         }
         const [rows] = await this.pool.execute(sql, params);
@@ -413,7 +419,7 @@ class Database {
             });
         }
         if (this.isPostgres) {
-            const result = await this.pool.query(sql, params);
+            const result = await this.pool.query(this._pgSql(sql), params);
             return {
                 id: result.rows[0]?.id || 0,
                 changes: result.rowCount
