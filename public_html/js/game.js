@@ -677,6 +677,9 @@ class GameClient {
             if (localVideoLabel) localVideoLabel.textContent = me.name;
             document.getElementById('my-name').textContent = me.name;
             
+            const myAvatar = document.getElementById('my-avatar');
+            if (myAvatar) myAvatar.src = me.avatar || '/assets/images/default-avatar.png';
+            
             // Spara reconnectToken för framtida återanslutning
             if (data.reconnectToken || me.reconnectToken) {
                 localStorage.setItem('reconnectToken', data.reconnectToken || me.reconnectToken);
@@ -928,6 +931,12 @@ class GameClient {
         this.renderHand(state.yourHand, state.yourPairs);
         this.updateGameLog(state.gameLog);
         this.updateActionButtons(state);
+        
+        const me = state.players.find(p => p.isYou);
+        if (me) {
+            const myAvatar = document.getElementById('my-avatar');
+            if (myAvatar) myAvatar.src = me.avatar || '/assets/images/default-avatar.png';
+        }
     }
 
     updateTurnIndicator(state) {
