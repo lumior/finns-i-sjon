@@ -9,6 +9,7 @@ class GameClient {
         this.playerName = new URLSearchParams(window.location.search).get('name') || localStorage.getItem('playerName');
         this.password = new URLSearchParams(window.location.search).get('password');
         this.token = new URLSearchParams(window.location.search).get('token') || localStorage.getItem('token');
+        this.lastDrawnCardId = null;
         
         this.settings = {
             soundEnabled: localStorage.getItem('soundEnabled') !== 'false',
@@ -801,6 +802,11 @@ class GameClient {
         
         this.renderGame();
         
+        // Highlighta det kort som just dragits från bordet (fiskning)
+        if (data.drawnCard) {
+            this.highlightDrawnCard(data.drawnCard.id);
+        }
+        
         // Visa tydligt när par bildas (både vid fråga och fiske)
         if (data.newPairs && data.newPairs.length > 0) {
             const pairCount = data.newPairs.length;
@@ -834,6 +840,21 @@ class GameClient {
         if (data.aiReasoning) {
             this.addLogEntry(`🤖 ${data.aiReasoning}`, 'system');
         }
+    }
+
+    highlightDrawnCard(cardId) {
+        const container = document.getElementById('my-hand');
+        if (!container) return;
+
+        const cardEl = container.querySelector(`[data-card-id="${cardId}"]`);
+        if (!cardEl) return;
+
+        cardEl.classList.add('card-new-drawn');
+
+        // Ta bort highlight efter animation
+        setTimeout(() => {
+            cardEl.classList.remove('card-new-drawn');
+        }, 2500);
     }
 
     handleGameOver(data) {
