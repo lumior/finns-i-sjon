@@ -419,9 +419,16 @@ class Database {
             });
         }
         if (this.isPostgres) {
-            const result = await this.pool.query(this._pgSql(sql), params);
+            const pgSql = this._pgSql(sql);
+            const result = await this.pool.query(pgSql, params);
+            // Hämta senaste INSERT-id via lastval()
+            let lastId = 0;
+            if (pgSql.trim().toLowerCase().startsWith('insert')) {
+                const idResult = await this.pool.query('SELECT lastval()');
+                lastId = parseInt(idResult.rows[0].lastval, 10) || 0;
+            }
             return {
-                id: result.rows[0]?.id || 0,
+                id: lastId,
                 changes: result.rowCount
             };
         }
