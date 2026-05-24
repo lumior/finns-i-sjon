@@ -1,6 +1,6 @@
 const CardDeck = require('./CardDeck');
 const AIPlayer = require('./AIPlayer');
-const { extractPairs } = require('./utils');
+const { extractPairs, getPlayerAvatar } = require('./utils');
 const {
     MIN_PLAYERS,
 
@@ -106,7 +106,7 @@ class GameEngine {
             surrendered: false,
             userId: userData?.id || null,
             elo: userData?.elo || 1200,
-            avatar: userData?.avatar || '/assets/images/default-avatar.png',
+            avatar: getPlayerAvatar(playerName, userData?.avatar),
             askedThisTurn: false,
             turnTimeTotal: 0,
             successfulAsks: 0,

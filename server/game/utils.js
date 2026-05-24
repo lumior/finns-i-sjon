@@ -51,4 +51,38 @@ function extractPairs(player, pile = null) {
     return newPairs;
 }
 
-module.exports = { findPairs, extractPairs };
+/**
+ * Deterministically pick a unique avatar for a player based on their name.
+ * Same name always gives the same avatar, different names give different avatars.
+ * @param {string} name — player name / username
+ * @param {string} [currentAvatar] — existing avatar URL (if not default, keep it)
+ * @returns {string} avatar URL
+ */
+function getPlayerAvatar(name, currentAvatar = null) {
+    // If player already has a custom non-default avatar, keep it
+    if (currentAvatar && !currentAvatar.includes('default-avatar')) {
+        return currentAvatar;
+    }
+
+    const AVATARS = [
+        '/assets/images/avatars/player-1.png',
+        '/assets/images/avatars/player-2.png',
+        '/assets/images/avatars/player-3.png',
+        '/assets/images/avatars/player-4.png',
+        '/assets/images/avatars/player-5.png',
+        '/assets/images/avatars/player-6.png',
+        '/assets/images/avatars/player-7.png',
+        '/assets/images/avatars/player-8.png'
+    ];
+
+    // Simple hash of the name
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = ((hash << 5) - hash) + name.charCodeAt(i);
+        hash |= 0; // Convert to 32-bit int
+    }
+    const index = Math.abs(hash) % AVATARS.length;
+    return AVATARS[index];
+}
+
+module.exports = { findPairs, extractPairs, getPlayerAvatar };
