@@ -2116,7 +2116,7 @@ input:checked + .toggle::after {
     }
     
     /* Dölj desktop start-knapp i header på mobil */
-    #start-game-btn {
+    .header-center .start-game-btn {
         display: none !important;
     }
     

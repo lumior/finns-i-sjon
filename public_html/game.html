@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Finns i sjön PRO – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/game.css?v=29">
+    <link rel="stylesheet" href="/css/game.css?v=30">
     <link rel="stylesheet" href="/css/animations.css">
     <link rel="stylesheet" href="/css/voice-chat.css?v=14">
     <link rel="stylesheet" href="/css/video-chat.css?v=14">
@@ -39,11 +39,6 @@
             <span id="ready-status" class="ready-status hidden"></span>
         </div>
         
-        <!-- Mobil: stor centrerad start-knapp (utom header för att undvika backdrop-filter containing block) -->
-        <div id="mobile-start-container" class="mobile-start-container hidden">
-            <button id="mobile-start-btn" class="btn btn-primary mobile-start-btn">🎴 Starta spelet</button>
-        </div>
-        
         <div class="header-right">
             <div class="deck-info">
                 <span class="deck-icon">🎴</span>
@@ -70,6 +65,11 @@
             </div>
         </div>
     </header>
+    
+    <!-- Mobil: stor centrerad start-knapp (utom header för att undvika backdrop-filter containing block) -->
+    <div id="mobile-start-container" class="mobile-start-container hidden">
+        <button id="mobile-start-btn" class="btn btn-primary mobile-start-btn">🎴 Starta spelet</button>
+    </div>
 
     <main class="game-board">
         <section id="opponents-area" class="opponents-area"></section>
