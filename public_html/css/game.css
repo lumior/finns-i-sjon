@@ -2122,6 +2122,7 @@ input:checked + .toggle::after {
     
     /* Mobil start-knapp: stor fixed knapp i mitten */
     .mobile-start-container {
+        display: block;
         position: fixed;
         top: 50%;
         left: 50%;
