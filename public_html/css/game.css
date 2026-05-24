@@ -1493,7 +1493,8 @@ input:checked + .toggle::after {
 }
 
 /* Mobil start-knapp dold på desktop */
-.mobile-start-container {
+.mobile-start-container,
+.mobile-ready-container {
     display: none;
 }
 
@@ -2120,6 +2121,12 @@ input:checked + .toggle::after {
         display: none !important;
     }
     
+    /* Dölj desktop knappar i header på mobil */
+    #start-game-btn,
+    #ready-btn {
+        display: none !important;
+    }
+    
     /* Mobil start-knapp: stor fixed knapp i mitten */
     .mobile-start-container {
         display: block;
@@ -2142,6 +2149,35 @@ input:checked + .toggle::after {
         white-space: nowrap;
         border: none;
         cursor: pointer;
+    }
+    
+    /* Mobil redo-knapp: centrerad under start-knappen */
+    .mobile-ready-container {
+        display: block;
+        position: fixed;
+        top: calc(50% + 60px);
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 150;
+    }
+    
+    .mobile-ready-btn {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: white;
+        font-weight: 700;
+        padding: 14px 32px;
+        font-size: 1.1rem;
+        border-radius: var(--radius-xl);
+        box-shadow: 0 0 40px rgba(34, 197, 94, 0.4), 0 6px 20px rgba(0, 0, 0, 0.3);
+        white-space: nowrap;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .mobile-ready-btn.ready-active {
+        background: linear-gradient(135deg, #10b981, #059669);
+        box-shadow: 0 0 25px rgba(16, 185, 129, 0.5);
     }
     
     .btn-ready {
@@ -2969,6 +3005,15 @@ input:checked + .toggle::after {
     .mobile-start-btn {
         padding: 12px 24px;
         font-size: 1rem;
+    }
+    
+    .mobile-ready-btn {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+    
+    .mobile-ready-container {
+        top: calc(50% + 50px);
     }
     
     .btn-ready {

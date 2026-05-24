@@ -390,6 +390,13 @@ class GameClient {
             gameSocket.emit('toggle_ready');
         });
         
+        const mobileReadyBtn = document.getElementById('mobile-ready-btn');
+        if (mobileReadyBtn) {
+            mobileReadyBtn.addEventListener('click', () => {
+                gameSocket.emit('toggle_ready');
+            });
+        }
+        
         document.getElementById('setting-sound').addEventListener('change', (e) => {
             this.settings.soundEnabled = e.target.checked;
             localStorage.setItem('soundEnabled', e.target.checked);
@@ -868,13 +875,20 @@ class GameClient {
     
     handleReadyStatusUpdate(readyStatus) {
         const readyBtn = document.getElementById('ready-btn');
+        const mobileReadyBtn = document.getElementById('mobile-ready-btn');
         const readyStatusEl = document.getElementById('ready-status');
         
         // Uppdatera knappens utseende baserat på egen status
         const me = readyStatus.find(p => p.id === this.gameState?.players?.find(pl => pl.isYou)?.id);
-        if (me && readyBtn) {
-            readyBtn.classList.toggle('ready-active', me.ready);
-            readyBtn.textContent = me.ready ? '✅ Redo!' : '👍 Redo';
+        if (me) {
+            if (readyBtn) {
+                readyBtn.classList.toggle('ready-active', me.ready);
+                readyBtn.textContent = me.ready ? '✅ Redo!' : '👍 Redo';
+            }
+            if (mobileReadyBtn) {
+                mobileReadyBtn.classList.toggle('ready-active', me.ready);
+                mobileReadyBtn.textContent = me.ready ? '✅ Redo!' : '👍 Redo';
+            }
         }
         
         // Uppdatera status-text för host
@@ -944,10 +958,15 @@ class GameClient {
         }
         
         // Visa redo-knapp för icke-host, ready-status för host
+        const mobileReadyContainer = document.getElementById('mobile-ready-container');
         if (state.state === 'waiting') {
             if (readyBtn) {
                 const showReady = !this.isHost;
                 readyBtn.classList.toggle('hidden', !showReady);
+            }
+            if (mobileReadyContainer) {
+                const showReady = !this.isHost;
+                mobileReadyContainer.classList.toggle('hidden', !showReady);
             }
             if (readyStatus) {
                 const showStatus = this.isHost;
@@ -955,6 +974,7 @@ class GameClient {
             }
         } else {
             if (readyBtn) readyBtn.classList.add('hidden');
+            if (mobileReadyContainer) mobileReadyContainer.classList.add('hidden');
             if (readyStatus) readyStatus.classList.add('hidden');
         }
         
