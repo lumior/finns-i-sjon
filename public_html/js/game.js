@@ -379,6 +379,13 @@ class GameClient {
             gameSocket.emit('start_game');
         });
         
+        const mobileStartBtn = document.getElementById('mobile-start-btn');
+        if (mobileStartBtn) {
+            mobileStartBtn.addEventListener('click', () => {
+                gameSocket.emit('start_game');
+            });
+        }
+        
         document.getElementById('ready-btn').addEventListener('click', () => {
             gameSocket.emit('toggle_ready');
         });
@@ -927,6 +934,13 @@ class GameClient {
             const canStart = this.isHost && state.state === 'waiting';
             console.log('🎮 updateTurnIndicator:', { isHost: this.isHost, state: state.state, canStart });
             startBtn.classList.toggle('hidden', !canStart);
+        }
+        
+        // Mobil start-knapp (centrerad, utanför header)
+        const mobileStartContainer = document.getElementById('mobile-start-container');
+        if (mobileStartContainer) {
+            const canStart = this.isHost && state.state === 'waiting';
+            mobileStartContainer.classList.toggle('hidden', !canStart);
         }
         
         // Visa redo-knapp för icke-host, ready-status för host

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Finns i sjön PRO – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/game.css?v=27">
+    <link rel="stylesheet" href="/css/game.css?v=28">
     <link rel="stylesheet" href="/css/animations.css">
     <link rel="stylesheet" href="/css/voice-chat.css?v=14">
     <link rel="stylesheet" href="/css/video-chat.css?v=14">
@@ -37,6 +37,11 @@
             <button id="start-game-btn" class="btn btn-primary start-game-btn hidden">🎴 Starta spelet</button>
             <button id="ready-btn" class="btn btn-ready hidden">👍 Redo</button>
             <span id="ready-status" class="ready-status hidden"></span>
+        </div>
+        
+        <!-- Mobil: stor centrerad start-knapp (utom header för att undvika backdrop-filter containing block) -->
+        <div id="mobile-start-container" class="mobile-start-container hidden">
+            <button id="mobile-start-btn" class="btn btn-primary mobile-start-btn">🎴 Starta spelet</button>
         </div>
         
         <div class="header-right">
@@ -379,6 +384,6 @@
     <script src="/js/voice-ui.js?v=13"></script>
     <script src="/js/video-chat.js?v=16"></script>
     <script src="/js/video-ui.js?v=13"></script>
-    <script src="/js/game.js?v=20"></script>
+    <script src="/js/game.js?v=21"></script>
 </body>
 </html>

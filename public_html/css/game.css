@@ -1492,6 +1492,11 @@ input:checked + .toggle::after {
     box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
 }
 
+/* Mobil start-knapp dold på desktop */
+.mobile-start-container {
+    display: none;
+}
+
 .btn-ready {
     background: linear-gradient(135deg, #22c55e, #16a34a);
     color: white;
@@ -2110,19 +2115,32 @@ input:checked + .toggle::after {
         justify-content: center;
     }
     
-    /* Starta-spelet-knapp: stor fixed knapp i mitten på mobil */
-    .start-game-btn {
+    /* Dölj desktop start-knapp i header på mobil */
+    #start-game-btn {
+        display: none !important;
+    }
+    
+    /* Mobil start-knapp: stor fixed knapp i mitten */
+    .mobile-start-container {
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
         z-index: 150;
+    }
+    
+    .mobile-start-btn {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        font-weight: 700;
         padding: 18px 36px;
         font-size: 1.2rem;
         border-radius: var(--radius-xl);
         box-shadow: 0 0 50px rgba(99, 102, 241, 0.5), 0 8px 30px rgba(0, 0, 0, 0.4);
         animation: pulse 1.5s ease-in-out infinite;
         white-space: nowrap;
+        border: none;
+        cursor: pointer;
     }
     
     .btn-ready {
@@ -2947,7 +2965,7 @@ input:checked + .toggle::after {
         font-size: 1.4rem;
     }
     
-    .start-game-btn {
+    .mobile-start-btn {
         padding: 12px 24px;
         font-size: 1rem;
     }
