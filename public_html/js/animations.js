@@ -506,7 +506,7 @@ class AnimationManager {
         }
         
         container.innerHTML = `
-            <div class="lucky-fish-label">🎣 TURFISK!</div>
+            <div class="lucky-fish-label">🐟 TURFISK!</div>
             <div class="lucky-fish-card ${useImageDeck ? '' : (isRed ? 'red' : 'black')}">
                 ${cardHtml}
             </div>

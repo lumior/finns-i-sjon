@@ -799,7 +799,7 @@ class GameClient {
             );
         } else if (data.fishedSuccess) {
             this.addLogEntry(
-                `🎣 ${data.askerName} fiskade upp rätt kort!`,
+                `🐟 ${data.askerName} fiskade upp rätt kort!`,
                 'luck'
             );
         } else {
@@ -951,7 +951,7 @@ class GameClient {
             if (mobileFab) mobileFab.classList.remove('pulse');
         } else if (state.state === 'playing') {
             if (currentPlayer?.isYou) {
-                turnText.textContent = 'Din tur! 🎣';
+                turnText.textContent = 'Din tur! 🐟';
                 turnIndicator.classList.add('active');
                 
                 if (window.animationManager) {
