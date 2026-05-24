@@ -140,6 +140,14 @@ function setupEventListeners() {
             card.classList.add('selected');
             AppState.selectedDifficulty = card.dataset.diff;
             document.getElementById('start-ai-game').disabled = false;
+            
+            // På mobil: scrolla ner till namn/starta-sektionen
+            if (window.innerWidth <= 768) {
+                const aiOptions = document.querySelector('.ai-options');
+                if (aiOptions) {
+                    aiOptions.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
         });
     });
     
