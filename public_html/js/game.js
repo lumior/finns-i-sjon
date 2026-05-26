@@ -34,6 +34,7 @@ class GameClient {
         this.pendingAskTimer = null;
         this.cardRequestCountdown = null;
         this.wasMobileFabHidden = true;
+        this.availableThemes = [{ id: 'standard', name: 'Standard' }];
 
         this.init();
     }
@@ -44,16 +45,54 @@ class GameClient {
             return;
         }
 
+        await this.loadThemes();
+
         if (window.audioManager) {
             await audioManager.init();
         }
-        
+
         if (window.animationManager) {
             animationManager.enabled = this.settings.animationsEnabled;
         }
 
         this.setupUI();
         this.connectSocket();
+    }
+
+    async loadThemes() {
+        try {
+            const res = await fetch('/api/themes');
+            const data = await res.json();
+            if (data.themes && data.themes.length > 0) {
+                this.availableThemes = data.themes;
+                this.populateThemeSelect();
+            }
+        } catch (err) {
+            console.warn('Kunde inte ladda teman:', err);
+        }
+    }
+
+    populateThemeSelect() {
+        const select = document.getElementById('setting-deck-theme');
+        if (!select) return;
+
+        const currentValue = select.value || this.settings.deckTheme;
+        select.innerHTML = this.availableThemes.map(t =>
+            `<option value="${t.id}">${t.id === 'standard' ? '🎴' : '🃏'} ${t.name}</option>`
+        ).join('');
+        select.value = currentValue;
+    }
+
+    updateDeckToggle(themeId) {
+        const deckToggle = document.getElementById('deck-toggle');
+        if (!deckToggle) return;
+
+        const theme = this.availableThemes.find(t => t.id === themeId);
+        const nextIndex = (this.availableThemes.findIndex(t => t.id === themeId) + 1) % this.availableThemes.length;
+        const nextTheme = this.availableThemes[nextIndex];
+
+        deckToggle.textContent = themeId === 'standard' ? '🥗' : '🎴';
+        deckToggle.title = `Aktivt: ${theme ? theme.name : themeId}. Klicka för ${nextTheme ? nextTheme.name : 'nästa'}`;
     }
 
     connectSocket() {
@@ -171,9 +210,7 @@ class GameClient {
                 localStorage.setItem('deckTheme', settings.deckTheme);
                 const settingSelect = document.getElementById('setting-deck-theme');
                 if (settingSelect) settingSelect.value = settings.deckTheme;
-                const deckToggle = document.getElementById('deck-toggle');
-                if (deckToggle) {
-                    deckToggle.textContent = settings.deckTheme === 'standard' ? '🥗' : '🎴';
+                this.updateDeckToggle(settings.deckTheme);
                     deckToggle.title = settings.deckTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
                 }
                 this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
@@ -282,7 +319,9 @@ class GameClient {
         
         document.getElementById('deck-toggle').addEventListener('click', () => {
             const isAIMode = new URLSearchParams(window.location.search).get('ai');
-            const newTheme = this.settings.deckTheme === 'standard' ? 'vegetable' : 'standard';
+            const currentIndex = this.availableThemes.findIndex(t => t.id === this.settings.deckTheme);
+            const nextIndex = (currentIndex + 1) % this.availableThemes.length;
+            const newTheme = this.availableThemes[nextIndex].id;
             
             // I multiplayer-rum: värden skickar till server så alla får samma tema
             if (!isAIMode && this.isHost) {
@@ -294,8 +333,7 @@ class GameClient {
             this.settings.deckTheme = newTheme;
             localStorage.setItem('deckTheme', newTheme);
             document.getElementById('setting-deck-theme').value = newTheme;
-            document.getElementById('deck-toggle').textContent = newTheme === 'standard' ? '🥗' : '🎴';
-            document.getElementById('deck-toggle').title = newTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
+            this.updateDeckToggle(newTheme);
             this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
             this.renderOpponents(this.gameState?.players || []);
         });
@@ -436,9 +474,7 @@ class GameClient {
             // I AI-läge eller om man inte är värd: ändra lokalt
             this.settings.deckTheme = e.target.value;
             localStorage.setItem('deckTheme', e.target.value);
-            const deckToggle = document.getElementById('deck-toggle');
-            if (deckToggle) {
-                deckToggle.textContent = e.target.value === 'standard' ? '🥗' : '🎴';
+            this.updateDeckToggle(e.target.value);
                 deckToggle.title = e.target.value === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
             }
             this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
@@ -457,9 +493,7 @@ class GameClient {
         document.getElementById('setting-card-style').value = this.settings.cardStyle;
         document.getElementById('setting-deck-theme').value = this.settings.deckTheme;
         
-        const deckToggle = document.getElementById('deck-toggle');
-        if (deckToggle) {
-            deckToggle.textContent = this.settings.deckTheme === 'standard' ? '🥗' : '🎴';
+        this.updateDeckToggle(this.settings.deckTheme);
             deckToggle.title = this.settings.deckTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
         }
         
@@ -658,9 +692,7 @@ class GameClient {
             localStorage.setItem('deckTheme', serverTheme);
             const settingSelect = document.getElementById('setting-deck-theme');
             if (settingSelect) settingSelect.value = serverTheme;
-            const deckToggle = document.getElementById('deck-toggle');
-            if (deckToggle) {
-                deckToggle.textContent = serverTheme === 'standard' ? '🥗' : '🎴';
+            this.updateDeckToggle(serverTheme);
                 deckToggle.title = serverTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
             }
             // Dölj temaväljaren för icke-värdar i multiplayer-rum
@@ -1251,7 +1283,7 @@ class GameClient {
                     <div class="card card-deck-image ${cardStyleClass}"
                          data-card-id="${card.id}"
                          style="${transformStyle}">
-                        <img src="/assets/cards/${veggie}/${card.rank}.png"
+                        <img src="/assets/cards/${deckTheme}/${veggie}/${card.rank}.png"
                              alt="${card.rank}"
                              data-fb-rank="${card.rank}"
                              data-fb-suit="${suits[card.suit]}"
@@ -1481,7 +1513,7 @@ class GameClient {
             if (!rankExamples[c.rank]) rankExamples[c.rank] = c;
         });
         
-        const useImageDeck = this.settings.deckTheme === 'vegetable';
+        const useImageDeck = this.settings.deckTheme !== 'standard';
         
         rankContainer.innerHTML = availableRanks.map(r => {
             const example = rankExamples[r];
@@ -1492,7 +1524,7 @@ class GameClient {
                 return `
                     <button class="rank-btn rank-btn-image" data-rank="${r}"
                         style="background: transparent; border: none; box-shadow: none; padding: 0;">
-                        <img src="/assets/cards/${veggie}/${r}.png" alt="${r}"
+                        <img src="/assets/cards/${deckTheme}/${veggie}/${r}.png" alt="${r}"
                              style="width: 50px; height: 70px; object-fit: cover; border-radius: var(--radius-md); display: block; box-shadow: 1px 1px 6px rgba(0,0,0,0.3);"
                              data-fb-rank="${r}"
                              data-fb-suit="${suits[example.suit]}"

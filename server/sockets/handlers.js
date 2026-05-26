@@ -515,10 +515,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 game.settings.maxPlayers = Math.min(6, Math.max(2, data.maxPlayers));
             }
             if (data.deckTheme !== undefined) {
-                const validThemes = ['standard', 'vegetable'];
-                if (validThemes.includes(data.deckTheme)) {
-                    game.settings.deckTheme = data.deckTheme;
-                }
+                game.settings.deckTheme = data.deckTheme;
             }
 
             io.to(room.game.roomId).emit('settings_updated', game.settings);

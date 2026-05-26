@@ -493,7 +493,7 @@ class AnimationManager {
 
                 let cardInner;
                 if (useImageDeck) {
-                    cardInner = `<img class="pc-card-img" src="/assets/cards/${veggie}/${card.rank}.png" alt="${card.rank}" onerror="this.style.display='none';this.parentElement.classList.add('${isRed ? 'red' : 'black'}');this.parentElement.innerHTML='<span class=\\'pc-rank-top\\'>${card.rank}</span><span class=\\'pc-suit\\'>${suitSymbol}</span><span class=\\'pc-rank-bottom\\'>${card.rank}</span>'">`;
+                    cardInner = `<img class="pc-card-img" src="/assets/cards/${deckTheme}/${veggie}/${card.rank}.png" alt="${card.rank}" onerror="this.style.display='none';this.parentElement.classList.add('${isRed ? 'red' : 'black'}');this.parentElement.innerHTML='<span class=\\'pc-rank-top\\'>${card.rank}</span><span class=\\'pc-suit\\'>${suitSymbol}</span><span class=\\'pc-rank-bottom\\'>${card.rank}</span>'">`;
                 } else {
                     cardInner = `<span class="pc-rank-top">${card.rank}</span><span class="pc-suit">${suitSymbol}</span><span class="pc-rank-bottom">${card.rank}</span>`;
                 }
@@ -546,7 +546,7 @@ class AnimationManager {
         let setupFallback = null;
         if (useImageDeck) {
             const veggie = suitToVeggie[drawnCard.suit];
-            cardHtml = `<img class="lf-card-img" src="/assets/cards/${veggie}/${drawnCard.rank}.png" alt="${drawnCard.rank}" data-fb-rank="${drawnCard.rank}" data-fb-suit="${suitSymbol}" data-fb-red="${isRed}">`;
+            cardHtml = `<img class="lf-card-img" src="/assets/cards/${deckTheme}/${veggie}/${drawnCard.rank}.png" alt="${drawnCard.rank}" data-fb-rank="${drawnCard.rank}" data-fb-suit="${suitSymbol}" data-fb-red="${isRed}">`;
             setupFallback = (img) => {
                 img.addEventListener('error', function onLuckyFishError() {
                     this.style.display = 'none';

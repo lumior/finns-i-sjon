@@ -291,7 +291,7 @@ function renderRooms(rooms) {
                 ${room.aiCount > 0 ? `<span class="badge badge-ai">🤖 ${room.aiCount}</span>` : ''}
                 ${room.hasPassword ? `<span class="badge badge-private">🔒</span>` : ''}
                 ${room.gameType === 'tournament' ? `<span class="badge badge-tournament">🏆</span>` : ''}
-                ${room.deckTheme === 'vegetable' ? `<span class="badge badge-vegetable">🥗</span>` : ''}
+                ${room.deckTheme !== 'standard' ? `<span class="badge badge-vegetable">🃏</span>` : ''}
             </div>
             <button class="join-room-btn">Gå med</button>
         </div>
