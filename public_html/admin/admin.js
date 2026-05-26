@@ -23,6 +23,12 @@ const SUIT_COLORS = {
     clubs: '#1e293b',
     spades: '#1e293b'
 };
+const SUIT_FOLDERS = {
+    hearts: 'aubergine',
+    diamonds: 'radish',
+    clubs: 'pepper',
+    spades: 'potato'
+};
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 560;
 
@@ -505,7 +511,7 @@ async function generateAndDownload() {
     const root = zip.folder(themeName);
 
     for (const suit of SUITS) {
-        const folder = root.folder(suit);
+        const folder = root.folder(SUIT_FOLDERS[suit]);
         for (const rank of RANKS) {
             await renderCardToCanvas(rank, suit);
             const dataUrl = document.getElementById('card-canvas').toDataURL('image/png');
