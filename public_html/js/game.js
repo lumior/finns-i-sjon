@@ -211,8 +211,6 @@ class GameClient {
                 const settingSelect = document.getElementById('setting-deck-theme');
                 if (settingSelect) settingSelect.value = settings.deckTheme;
                 this.updateDeckToggle(settings.deckTheme);
-                    deckToggle.title = settings.deckTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
-                }
                 this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
                 this.renderOpponents(this.gameState?.players || []);
             }
