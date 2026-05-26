@@ -2821,6 +2821,47 @@ input:checked + .toggle::after {
         padding: 6px 14px;
         font-size: 0.8rem;
     }
+
+    /* ── Ytterligare header-komprimering ── */
+    .game-header {
+        gap: 4px;
+    }
+
+    .header-left {
+        gap: 4px;
+    }
+
+    .header-right {
+        gap: 4px;
+    }
+
+    #deck-toggle {
+        display: none !important;
+    }
+
+    #sound-toggle {
+        display: none !important;
+    }
+
+    .deck-info {
+        padding: 2px 6px;
+        font-size: 0.7rem;
+        gap: 2px;
+    }
+
+    .deck-label {
+        display: none;
+    }
+
+    #leave-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
+
+    .header-center {
+        gap: 4px;
+    }
 }
 
 /* === Extra-kompakt för små skärmar ≤480px === */

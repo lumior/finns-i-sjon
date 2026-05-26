@@ -783,3 +783,35 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: var(--border-light);
 }
+
+@media (max-width: 768px) {
+    .pair-cards-popup {
+        top: 30%;
+        gap: 6px;
+    }
+
+    .pair-cards-label {
+        font-size: 1.2rem;
+    }
+
+    .pair-card-mini {
+        width: 45px;
+        height: 65px;
+        padding: 4px;
+        border-radius: var(--radius-sm);
+    }
+
+    .pc-rank-top,
+    .pc-rank-bottom {
+        font-size: 0.6rem;
+    }
+
+    .pc-suit {
+        font-size: 1.1rem;
+    }
+
+    .pair-cards-rank {
+        font-size: 0.75rem;
+        padding: 3px 10px;
+    }
+}

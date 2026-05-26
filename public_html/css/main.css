@@ -1108,6 +1108,23 @@ body {
     .leaderboard-wins {
         display: none;
     }
+
+    .room-filters {
+        flex-wrap: wrap;
+        gap: var(--space-sm);
+    }
+
+    .search-input {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .filter-select {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+    }
 }
 
 @media (max-width: 480px) {
