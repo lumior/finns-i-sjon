@@ -21,6 +21,7 @@ const usersRoutes = require('./routes/users');
 const gamesRoutes = require('./routes/games');
 const createRoomRouter = require('./routes/rooms');
 const statsRoutes = require('./routes/stats');
+const adminRoutes = require('./routes/admin');
 const registerSocketHandlers = require('./sockets');
 
 const app = express();
@@ -110,6 +111,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/games', gamesRoutes);
 app.use('/api/rooms', createRoomRouter(roomManager));
 app.use('/api/stats', statsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Socket.IO
 registerSocketHandlers(io, roomManager, {

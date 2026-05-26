@@ -1,4 +1,4 @@
-# AGENTS.md — Finns i Sjön PRO
+<!-- AGENTS.md — Finns i Sjön PRO -->
 
 > **Målgrupp:** AI-kodningsagenter som arbetar med detta projekt.  
 > **Språk:** Projektets källkod och dokumentation är primärt på **svenska** (användarsidor, kommentarer, loggmeddelanden, API-svar). Denna fil skrivs på svenska för konsekvens, med tekniska termer på engelska där det är naturligt.
@@ -7,7 +7,7 @@
 
 ## 1. Projektöversikt
 
-**Finns i Sjön PRO** är ett realtidsmultiplayer-kortspel (svenska "Finns i sjön" / Go Fish) för webben. Det har stöd för:
+**Finns i Sjön PRO** (v2.0.0) är ett realtidsmultiplayer-kortspel (svenska "Finns i sjön" / Go Fish) för webben. Det har stöd för:
 
 - Rumsbaserade spelbord med privata/publika rum
 - AI-motståndare på 4 svårighetsgrader
@@ -26,7 +26,7 @@
 
 | Lager | Teknik |
 |-------|--------|
-| Runtime | Node.js 18+ |
+| Runtime | Node.js 18+ (CI använder Node 20) |
 | Backend | Express 4, Socket.IO 4 |
 | Databas | SQLite3 (dev), MariaDB/MySQL eller PostgreSQL (prod) |
 | Auth | JWT (`jsonwebtoken`), bcryptjs |
@@ -55,14 +55,14 @@ finns-i-sjon-pro/
 │   │   ├── auth.js            # POST /register, /login, GET /me, POST /logout
 │   │   ├── users.js           # GET /leaderboard, /online, /search, /:id/profile
 │   │   ├── games.js           # GET /history, /:id
-│   │   ├── rooms.js           # GET /, /:id (kräver RoomManager-instans)
+│   │   ├── rooms.js           # Factory: createRoomRouter(roomManager)
 │   │   └── stats.js           # GET /total-games
 │   ├── game/
 │   │   ├── GameEngine.js      # Spelregler, turhantering, par, AI-anslutning
-│   │   ├── RoomManager.js     # Rums-CRUD, join/leave/kick, reconnection
+│   │   ├── RoomManager.js     # Rums-CRUD, join/leave/kick, reconnection, ban
 │   │   ├── CardDeck.js        # Kortlekslogik (skapa, blanda, dra)
 │   │   ├── AIPlayer.js        # AI med 4 svårighetsgrader
-│   │   └── utils.js           # extractPairs etc.
+│   │   └── utils.js           # extractPairs, getPlayerAvatar etc.
 │   ├── sockets/
 │   │   ├── index.js           # Registrerar alla Socket.IO-handlers
 │   │   ├── handlers.js        # Huvudsakliga event-handlers (create_room, ask_cards, etc.)
@@ -92,10 +92,10 @@ finns-i-sjon-pro/
 │   │   ├── audio.js           # Web Audio API (syntetiska ljudeffekter)
 │   │   ├── animations.js      # Partikeleffekter, kortanimationer
 │   │   ├── leaderboard.js     # Topplista-hantering
-│   │   ├── voice-chat.js      # WebRTC-röstklient
+│   │   ├── voice-chat.js      # WebRTC-röstklient (basklass)
 │   │   ├── voice-ui.js        # Röstchatt-UI-kontroller
-│   │   ├── video-chat.js      # WebRTC-videoklient
-│   │   └── video-ui.js        # Videochatt-UI-kontroller
+│   │   ├── video-chat.js      # WebRTC-videoklient (extends voice)
+│   │   └── video-ui.js        # Videochatt-UI-kontroller (extends voice)
 │   └── assets/
 │       ├── cards/             # Kortbilder (4 teman: aubergine, pepper, potato, radish)
 │       └── images/            # Avatarer, AI-porträtt
@@ -108,14 +108,17 @@ finns-i-sjon-pro/
 │   └── utils/
 │       └── elo.test.js
 │
+├── scripts/
+│   └── update-user-avatars.js # One-off migration: uppdaterar default-avatarer
 ├── database/
-│   └── game.db                # SQLite-fil (skapas vid init-db)
+│   └── game.db                # SQLite-fil (skapas vid init-db, gitignored)
 ├── .github/workflows/ci.yml   # GitHub Actions: lint + format-check + test
-├── package.json               # NPM-scripts och beroenden
+├── package.json               # NPM-scripts och beroenden (v2.0.0)
 ├── jest.config.js             # Jest-konfiguration
 ├── eslint.config.js           # ESLint flat config (CommonJS, browser+node+jest globals)
-├── .prettierrc                # Prettier-konfig (4 spaces, singleQuote, semi)
+├── .prettierrc                # Prettier-konfig
 ├── .env / .env.example        # Miljövariabler
+├── generate-avatars.py        # Python-skript för att generera spelar-avatarer
 └── Procfile                   # Railway: "web: node server/server.js"
 ```
 
@@ -133,7 +136,7 @@ npm run dev
 # Starta produktionsserver
 npm start
 
-# Initiera databas (kör `connect()` i database.js)
+# Initiera databas (laddar server/config/database.js som side-effect)
 npm run init-db
 
 # Tester
@@ -148,6 +151,11 @@ npm run format        # Prettier --write på server/ och tests/
 npm run format:check  # Prettier --check (används i CI)
 ```
 
+**Noteringar:**
+- `npm run init-db` initierar tabeller genom att ladda `database.js` som side-effect (skapar tabeller vid första anrop).
+- `npm test` inkluderar redan `--forceExit`; CI-kommandot `npm test -- --forceExit` dubblerar därför flaggan (ofarligt).
+- CI kör Node.js 20.
+
 ---
 
 ## 5. Kodstil och konventioner
@@ -160,6 +168,8 @@ npm run format:check  # Prettier --check (används i CI)
 - **Citattecken:** Enkla (`'string'`)
 - **Radbredd:** 120 tecken
 - **Pilfunktioner:** Undvik parenteser vid enkel parameter: `x => x + 1`
+- **Trailing commas:** Nej (`trailingComma: none`)
+- **Bracket spacing:** Ja (`{ foo: bar }`)
 
 ### ESLint-regler (se `eslint.config.js`)
 - `no-unused-vars`: warn (args som börjar med `_` ignoreras)
@@ -188,9 +198,9 @@ npm run format:check  # Prettier --check (används i CI)
 - **CI:** GitHub Actions kör `npm run lint`, `npm run format:check`, och `npm test -- --forceExit` vid varje push/PR till `main`.
 
 ### Existerande testfiler
-- `tests/game/GameEngine.test.js` — Spelregler, turhantering, utdelning
+- `tests/game/GameEngine.test.js` — Spelregler, turhantering, utdelning, återanslutning
 - `tests/game/CardDeck.test.js` — Kortlekslogik
-- `tests/game/AIPlayer.test.js` — AI-beteenden
+- `tests/game/AIPlayer.test.js` — AI-beteenden och minne
 - `tests/utils/elo.test.js` — ELO-beräkningar
 
 ---
@@ -208,6 +218,7 @@ npm run format:check  # Prettier --check (används i CI)
 
 ### Input-sanering
 - All användarchatt saneras via `escapeHtml()` innan broadcast.
+- `GameEngine.filterChat()` censurerar dessutom svordomar (`fan`, `jävla`, `helvete`, `skit`).
 - Helmet CSP är aktiverat. Justera `contentSecurityPolicy` i `server/server.js` om nya externa resurser läggs till.
 
 ### Rate limiting
@@ -215,6 +226,10 @@ npm run format:check  # Prettier --check (används i CI)
 - Läs-endpoints (`/api/rooms`, `/api/users/online`, `/api/stats/total-games`, `/api/users/leaderboard`): 120 / minut
 - Övriga API: 600 / 15 minuter
 - **Obs:** Socket.IO-events har **inte** rate limiting för närvarande.
+
+### Övrigt
+- `friendships`-tabellen finns men används varken i frontend eller backend.
+- `banPlayer` finns i `RoomManager` men saknar en Socket.IO-handler (endast `kick_player` är exponerad).
 
 ---
 
@@ -224,9 +239,13 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 
 1. **PostgreSQL** — om `DATABASE_URL` är satt (Railway-standard)
 2. **MariaDB/MySQL** — om `DB_HOST` etc. är satt
-3. **SQLite3** — fallback för utveckling (`DB_PATH=./database/game.db`)
+3. **SQLite3** — fallback för utveckling (`DB_PATH=./database/game.db`), såvida inte `DB_FALLBACK=false`
 
-Sätt `DB_FALLBACK=false` för att inaktivera SQLite-fallback och tvinga fram MariaDB.
+### Viktiga miljövariabler
+- `DATABASE_URL` — PostgreSQL-anslutningssträng
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` — MariaDB
+- `DB_PATH` — SQLite-sökväg
+- `DB_FALLBACK=false` — inaktiverar SQLite-fallback och tvingar fram MariaDB
 
 ### Tabeller
 - `users` — användarkonton, ELO, statistik
@@ -238,12 +257,18 @@ Sätt `DB_FALLBACK=false` för att inaktivera SQLite-fallback och tvinga fram Ma
 - `game_snapshots` — JSON-snapshots av spelstatus för crash-recovery
 
 ### Index
+Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 - `idx_users_elo` (users.elo_rating DESC)
 - `idx_users_online` (users.is_online)
 - `idx_achievements_user` (achievements.user_id)
 - `idx_games_created` (games.created_at DESC)
 - `idx_game_participants_user` (game_participants.user_id)
 - `idx_game_events_game` (game_events.game_id)
+
+**Observera:** SQLite-fallback initierar **inte** dessa index.
+
+### Snapshots
+- `game_snapshots` sparas asynkront vid state-ändringar, men är **throttlad** till max en gång per 30 sekunder under pågående spel.
 
 ---
 
@@ -293,6 +318,11 @@ Sätt `DB_FALLBACK=false` för att inaktivera SQLite-fallback och tvinga fram Ma
 - **Direkt `askForCards()`** för AI-motståndare (svarar synkront)
 - **`requestAsk()` + `respond_to_ask()`** för mänskliga spelare (asynkront pending-ask-mönster)
 
+### Timeout och återanslutning
+- **Tur-timer:** 45 sekunder (`TURN_TIMEOUT`). Om en spelare inte svarar på en `card_request` i tid auto-löser servern förfrågan som "Fisk!" via `autoResolvePendingAsk()`.
+- **Disconnect-grace:** Vid `disconnect` väntar servern **60 sekunder** innan `forceRemove` körs, vilket ger utrymme för återanslutning.
+- **Reconnection:** Klienten sparar `previousSocketId` och `reconnectToken` i `localStorage`; vid återanslutning skickas `reconnect_attempt`.
+
 ---
 
 ## 10. WebRTC-signaleringsarkitektur
@@ -306,6 +336,8 @@ Klassen `WebRTCSignaling` hanterar P2P-röstchatt via Socket.IO:
 
 ICE-servrar: Google STUN + Open Relay TURN (fallback). Anpassad TURN kan sättas via miljövariabler (`TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`).
 
+**Notering:** `getIceServers()` finns på serversidan men är **inte** exponerad via någon HTTP-route; klienten förväntas ha samma ICE-konfiguration hårdkodad eller hämtad på annat sätt.
+
 ---
 
 ## 11. Driftsättning
@@ -318,8 +350,13 @@ ICE-servrar: Google STUN + Open Relay TURN (fallback). Anpassad TURN kan sättas
    - `NODE_ENV=production`
    - `PORT=3000`
    - `DATABASE_URL` — för PostgreSQL (rekommenderat för persistent data)
+   - `RATE_LIMIT_WINDOW` / `RATE_LIMIT_MAX` — valfria rate-limit-överskridningar
+   - `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` — valfria anpassade TURN-servrar
+   - `DB_FALLBACK=false` — rekommenderas i prod för att undvika SQLite
 
 **Viktigt:** På Railways gratisplan är filsystemet "ephemeral". Använd PostgreSQL (`DATABASE_URL`) för att inte förlora användardata vid omstart.
+
+**Se även:** `DEPLOY_RAILWAY.md` för en mer detaljerad steg-för-steg-guide.
 
 ### Lokalt
 ```bash
@@ -350,13 +387,28 @@ npm run dev
 2. Vid speländringar: använd `roomManager.getRoomBySocket(socket.id)` för att hämta aktuellt rum
 3. Använd `io.to(roomId).emit(...)` för broadcast och `socket.emit(...)` för direktsvar
 
+### Projektroten — dokumentationskonventioner
+Projektet har en uppsättning markdown-filer i roten som komplement till denna fil:
+- **`ANALYS.md`** — djupanalys av arkitektur, säkerhet, prestanda och UX
+- **`DEPLOY_RAILWAY.md`** — detaljerad deploy-guide för Railway
+- **`PROJEKTPLAN.md`** — originalplan med achievements, färgpalett, ljudsystem och animationer
+- **`DEBUGGING_LOG.md`** — historisk debugg- och bugfix-logg
+- **`CHANGELOG_SESSION_YYYY-MM-DD.md`** / **`CHAT_SESSION_YYYY-MM-DD.md`** — loggar från tidigare utvecklingssessioner
+- **`BUGFIX_*.md`** — dokumentation av specifika buggfixar (t.ex. mobil spectator-buggen)
+
+### Vanliga fallgropar
+- **`README.md` refererar ibland till `public/`** — projektets faktiska statiska mapp är `public_html/`.
+- **`scripts/`** innehåller one-off migrationer (t.ex. `update-user-avatars.js`). De körs manuellt vid behov, inte som en del av byggprocessen.
+
 ---
 
 ## 13. Kända begränsningar
 
-- `friendships`-tabellen finns men används inte i frontend
-- WebRTC-video fungerar inte på Safari `localhost` — använd `127.0.0.1`
-- `handleGameEnd` skickar inte `eloChange` per spelare i `standings`-arrayen (skickas separat som `eloChange` per spelare i `game_over`)
+- `friendships`-tabellen finns men används inte i frontend eller backend.
+- `banPlayer` finns i `RoomManager` men saknar en Socket.IO-handler (endast `kick_player` är exponerad).
+- WebRTC-video fungerar inte på Safari `localhost` — använd `127.0.0.1`.
+- Standings-arrayen i `game_over`-eventet innehåller inte `eloChange` per spelare; varje mottagare får istället ett separat `eloChange`-objekt direkt i event-payloaden.
+- `README.md` anger ibland fel statisk mapp (`public/` istället för `public_html/`).
 
 ---
 
@@ -373,6 +425,10 @@ npm run dev
 | Ändra ljud/animationer | `public_html/js/audio.js`, `public_html/js/animations.js` |
 | Ändra auth | `server/auth/auth.js`, `server/routes/auth.js` |
 | Ändra WebRTC | `server/webrtc/signaling.js`, `public_html/js/voice-chat.js` |
+| Ändra CI/CD | `.github/workflows/ci.yml` |
+| Ändra linting/format/test-konfig | `eslint.config.js`, `.prettierrc`, `jest.config.js` |
+| Kör one-off migrationer | `scripts/update-user-avatars.js` |
+| Förstå avatar-generering | `generate-avatars.py` |
 
 ---
 
