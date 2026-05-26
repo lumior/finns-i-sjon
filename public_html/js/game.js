@@ -1505,8 +1505,9 @@ class GameClient {
             if (!rankExamples[c.rank]) rankExamples[c.rank] = c;
         });
         
-        const useImageDeck = this.settings.deckTheme !== 'standard';
-        
+        const deckTheme = this.settings.deckTheme;
+        const useImageDeck = deckTheme !== 'standard';
+
         rankContainer.innerHTML = availableRanks.map(r => {
             const example = rankExamples[r];
             const isRed = example.suit === 'hearts' || example.suit === 'diamonds';
