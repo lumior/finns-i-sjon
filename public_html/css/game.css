@@ -2921,11 +2921,11 @@ input:checked + .toggle::after {
     }
     
     .mobile-fab {
-        width: 58px;
-        height: 58px;
+        width: 72px;
+        height: 72px;
         bottom: calc(76px + env(safe-area-inset-bottom));
         right: 14px;
-        font-size: 1.5rem;
+        font-size: 1.8rem;
     }
     
     .ask-pending-banner {
@@ -3030,10 +3030,10 @@ input:checked + .toggle::after {
     }
     
     .mobile-fab {
-        width: 54px;
-        height: 54px;
+        width: 64px;
+        height: 64px;
         bottom: calc(66px + env(safe-area-inset-bottom));
-        font-size: 1.4rem;
+        font-size: 1.6rem;
     }
     
     .mobile-start-btn {

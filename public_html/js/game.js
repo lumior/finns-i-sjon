@@ -33,7 +33,8 @@ class GameClient {
         this.pendingCardRequest = null;
         this.pendingAskTimer = null;
         this.cardRequestCountdown = null;
-        
+        this.wasMobileFabHidden = true;
+
         this.init();
     }
 
@@ -1424,15 +1425,25 @@ class GameClient {
         if (canAsk) {
             askBtn.classList.remove('hidden');
             waitingMsg.classList.add('hidden');
-            if (mobileFab) mobileFab.classList.remove('hidden');
-            
+            if (mobileFab) {
+                const wasHidden = mobileFab.classList.contains('hidden');
+                mobileFab.classList.remove('hidden');
+                if (wasHidden && this.wasMobileFabHidden && window.audioManager) {
+                    audioManager.playAlert();
+                }
+                this.wasMobileFabHidden = false;
+            }
+
             if (window.animationManager) {
                 animationManager.pulse(askBtn, 2000);
             }
         } else {
             askBtn.classList.add('hidden');
             waitingMsg.classList.remove('hidden');
-            if (mobileFab) mobileFab.classList.add('hidden');
+            if (mobileFab) {
+                mobileFab.classList.add('hidden');
+                this.wasMobileFabHidden = true;
+            }
         }
     }
 

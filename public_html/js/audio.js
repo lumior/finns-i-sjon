@@ -206,6 +206,32 @@ class AudioManager {
         osc.stop(this.context.currentTime + 0.2);
     }
 
+    playAlert() {
+        if (!this.enabled || !this.initialized) return;
+        this.resume();
+
+        const now = this.context.currentTime;
+        const notes = [880, 1100];
+
+        notes.forEach((freq, i) => {
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+
+            gain.gain.setValueAtTime(0, now + i * 0.12);
+            gain.gain.linearRampToValueAtTime(0.25, now + i * 0.12 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.25);
+
+            osc.start(now + i * 0.12);
+            osc.stop(now + i * 0.12 + 0.25);
+        });
+    }
+
     playGameOver(won) {
         if (!this.enabled || !this.initialized) return;
         this.resume();
