@@ -228,7 +228,8 @@ body {
 }
 
 .form-group input[type="text"],
-.form-group select {
+.form-group select,
+.form-group input[type="color"] {
     width: 100%;
     padding: 10px 14px;
     background: var(--bg-primary);
@@ -246,11 +247,9 @@ body {
 }
 
 .form-group input[type="color"] {
-    width: 60px;
-    height: 40px;
-    border: none;
-    border-radius: var(--radius-sm);
+    height: 44px;
     cursor: pointer;
+    padding: 4px;
 }
 
 .form-group small {
@@ -267,59 +266,104 @@ body {
     color: var(--accent-light);
 }
 
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-md);
-}
-
-/* Style options */
-.style-options {
-    display: flex;
-    gap: var(--space-md);
-}
-
-.style-option {
-    flex: 1;
-    padding: var(--space-md);
-    background: var(--bg-primary);
-    border: 2px solid var(--border-color);
-    border-radius: var(--radius-md);
-    cursor: pointer;
+.suits-intro {
     text-align: center;
-    transition: all 0.2s;
+    padding: var(--space-md) 0 0;
+    color: var(--text-secondary);
 }
 
-.style-option:hover {
-    border-color: var(--accent);
-}
-
-.style-option input {
-    display: none;
-}
-
-.style-option input:checked + span {
+.suits-intro strong {
     color: var(--accent);
 }
 
-.style-option:has(input:checked) {
+/* Suit tabs */
+.suit-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.suit-tab {
+    padding: var(--space-md);
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.suit-tab:hover {
     border-color: var(--accent);
-    background: rgba(245, 158, 11, 0.1);
+    color: var(--text-primary);
+}
+
+.suit-tab.active {
+    border-color: var(--accent);
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--accent);
+}
+
+.suit-tab .suit-icon {
+    font-size: 1.6rem;
+}
+
+.suit-tab .suit-name {
+    font-size: 0.8rem;
+}
+
+/* Suit panels */
+.suit-panel {
+    display: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    animation: fadeIn 0.2s ease;
+}
+
+.suit-panel.active {
+    display: block;
+}
+
+.suit-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-md);
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.suit-panel-header h3 {
+    font-size: 1.2rem;
+}
+
+.suit-panel-header .progress {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
 }
 
 /* Cards editor */
 .cards-editor {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: var(--space-md);
-    margin-bottom: var(--space-lg);
 }
 
 .card-editor-item {
-    background: var(--bg-card);
+    background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    padding: var(--space-md);
+    padding: var(--space-sm);
     text-align: center;
     transition: border-color 0.2s;
 }
@@ -329,21 +373,21 @@ body {
 }
 
 .card-rank-label {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     font-weight: 700;
-    margin-bottom: var(--space-sm);
+    margin-bottom: var(--space-xs);
     color: var(--accent);
 }
 
 .card-emoji-input {
     width: 100%;
-    padding: 8px;
-    font-size: 1.5rem;
+    padding: 6px;
+    font-size: 1.4rem;
     text-align: center;
-    background: var(--bg-primary);
+    background: var(--bg-secondary);
     border: 2px solid var(--border-color);
     border-radius: var(--radius-sm);
-    margin-bottom: var(--space-sm);
+    margin-bottom: var(--space-xs);
 }
 
 .card-emoji-input:focus {
@@ -353,8 +397,9 @@ body {
 
 .card-file-input {
     width: 100%;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
+    margin-bottom: var(--space-xs);
 }
 
 .card-preview-mini {
@@ -365,8 +410,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.5rem;
-    margin-top: var(--space-sm);
+    font-size: 2rem;
     overflow: hidden;
 }
 
@@ -374,6 +418,56 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* Bulk fill */
+.bulk-fill {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    flex-wrap: wrap;
+    align-items: center;
+    padding: var(--space-sm);
+    background: rgba(245, 158, 11, 0.05);
+    border-radius: var(--radius-md);
+    border: 1px dashed rgba(245, 158, 11, 0.2);
+}
+
+.bulk-fill label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.bulk-fill input {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.bulk-fill input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.bulk-fill button {
+    padding: 8px 16px;
+    background: var(--accent);
+    color: #0f172a;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.bulk-fill button:hover {
+    background: var(--accent-light);
 }
 
 /* Buttons */
@@ -433,14 +527,36 @@ body {
     margin-bottom: var(--space-md);
 }
 
+.preview-suits {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.preview-suit {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: var(--space-lg);
+}
+
+.preview-suit:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.preview-suit h4 {
+    margin-bottom: var(--space-md);
+    color: var(--accent);
+    font-size: 1.1rem;
+}
+
 .preview-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: var(--space-md);
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: var(--space-sm);
 }
 
 .preview-card {
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     transition: transform 0.2s;
@@ -453,23 +569,6 @@ body {
 .preview-card img {
     width: 100%;
     display: block;
-}
-
-/* Progress bar */
-.progress-bar {
-    width: 100%;
-    height: 8px;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-full);
-    overflow: hidden;
-    margin: var(--space-md) 0;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--accent-light));
-    border-radius: var(--radius-full);
-    transition: width 0.3s ease;
 }
 
 /* Toast */
@@ -487,6 +586,8 @@ body {
     z-index: 9999;
     opacity: 0;
     transition: all 0.3s ease;
+    text-align: center;
+    max-width: 90vw;
 }
 
 .toast.show {
@@ -496,12 +597,11 @@ body {
 
 .toast.success {
     border-color: var(--success);
-    color: var(--success);
 }
 
 .toast.error {
     border-color: var(--danger);
-    color: var(--danger);
+    color: #fca5a5;
 }
 
 /* Responsive */
@@ -533,12 +633,17 @@ body {
         gap: var(--space-sm);
     }
 
-    .form-row {
-        grid-template-columns: 1fr;
+    .suit-tabs {
+        grid-template-columns: repeat(2, 1fr);
     }
 
-    .style-options {
+    .suit-tab .suit-name {
+        display: none;
+    }
+
+    .suit-panel-header {
         flex-direction: column;
+        align-items: flex-start;
     }
 
     .cards-editor {
@@ -556,7 +661,7 @@ body {
     }
 
     .preview-grid {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
     }
 }
 
@@ -566,6 +671,16 @@ body {
     }
 
     .preview-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .bulk-fill {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .bulk-fill input,
+    .bulk-fill button {
+        width: 100%;
     }
 }

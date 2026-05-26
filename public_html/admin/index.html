@@ -13,12 +13,12 @@
         <header class="admin-header">
             <a href="/" class="back-link">← Tillbaka till spelet</a>
             <h1>🎣 Kortleks-admin</h1>
-            <p>Hantera och skapa nya kortlekar för Finns i Sjön</p>
+            <p>Skapa en komplett kortlek med 52 kort (4 färger × 13 valörer)</p>
         </header>
 
         <nav class="admin-tabs">
             <button class="tab-btn active" data-tab="themes">📁 Befintliga teman</button>
-            <button class="tab-btn" data-tab="creator">✨ Skapa nytt tema</button>
+            <button class="tab-btn" data-tab="creator">✨ Skapa ny kortlek</button>
         </nav>
 
         <!-- TAB: Befintliga teman -->
@@ -27,57 +27,51 @@
             <div class="themes-grid" id="themes-grid"></div>
         </section>
 
-        <!-- TAB: Skapa nytt tema -->
+        <!-- TAB: Skapa ny kortlek -->
         <section id="creator-tab" class="tab-panel">
             <div class="creator-form">
                 <div class="form-group">
-                    <label for="theme-name">Temanamn (mappnamn)</label>
-                    <input type="text" id="theme-name" placeholder="t.ex. djur, bilar, yrken" maxlength="30">
-                    <small>Endast små bokstäver, siffror och bindestreck. Ex: <code>havsdjur</code></small>
+                    <label for="theme-name">Kortleksnamn (för ZIP-filen)</label>
+                    <input type="text" id="theme-name" placeholder="t.ex. mitt-tema" maxlength="30">
+                    <small>Endast små bokstäver, siffror och bindestreck.</small>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="bg-color">Bakgrundsfärg</label>
-                        <input type="color" id="bg-color" value="#1e3a5f">
-                    </div>
-                    <div class="form-group">
-                        <label for="bg-gradient">Gradient-riktning</label>
-                        <select id="bg-gradient">
-                            <option value="none">Solid färg</option>
-                            <option value="linear-down">Ljusare nedåt</option>
-                            <option value="linear-up">Ljusare uppåt</option>
-                            <option value="radial">Radial (mitten)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="card-style">Kortstil</label>
-                    <div class="style-options">
-                        <label class="style-option">
-                            <input type="radio" name="card-style" value="emoji" checked>
-                            <span>😊 Emoji-centrerad</span>
-                        </label>
-                        <label class="style-option">
-                            <input type="radio" name="card-style" value="image">
-                            <span>🖼️ Bild per kort</span>
-                        </label>
-                    </div>
+                <div class="suits-intro">
+                    <p>En kortlek har fyra färger. Välj innehåll för <strong>alla 52 kort</strong> nedan.</p>
                 </div>
             </div>
 
-            <h3>Välj innehåll för varje kort</h3>
-            <div class="cards-editor" id="cards-editor"></div>
+            <!-- Suit tabs -->
+            <div class="suit-tabs">
+                <button class="suit-tab active" data-suit="hearts">
+                    <span class="suit-icon">♥️</span>
+                    <span class="suit-name">Hjärter</span>
+                </button>
+                <button class="suit-tab" data-suit="diamonds">
+                    <span class="suit-icon">♦️</span>
+                    <span class="suit-name">Ruter</span>
+                </button>
+                <button class="suit-tab" data-suit="clubs">
+                    <span class="suit-icon">♣️</span>
+                    <span class="suit-name">Klöver</span>
+                </button>
+                <button class="suit-tab" data-suit="spades">
+                    <span class="suit-icon">♠️</span>
+                    <span class="suit-name">Spader</span>
+                </button>
+            </div>
+
+            <!-- Suit panels -->
+            <div id="suit-panels"></div>
 
             <div class="creator-actions">
-                <button class="btn btn-secondary" id="preview-btn">👁️ Förhandsgranska alla</button>
+                <button class="btn btn-secondary" id="preview-btn">👁️ Förhandsgranska alla 52</button>
                 <button class="btn btn-primary" id="generate-btn">🎨 Generera & ladda ner ZIP</button>
             </div>
 
             <div class="preview-area hidden" id="preview-area">
                 <h3>Förhandsgranskning</h3>
-                <div class="preview-grid" id="preview-grid"></div>
+                <div class="preview-suits" id="preview-suits"></div>
             </div>
         </section>
     </div>

@@ -1,14 +1,45 @@
 /* ========================================
    FINNS I SJÖN — KORTLEKS-ADMIN JS
+   Hanterar 52 kort (4 färger × 13 valörer)
    ======================================== */
 
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-const SUIT_SYMBOLS = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
+const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
+const SUIT_NAMES = {
+    hearts: 'Hjärter',
+    diamonds: 'Ruter',
+    clubs: 'Klöver',
+    spades: 'Spader'
+};
+const SUIT_ICONS = {
+    hearts: '♥️',
+    diamonds: '♦️',
+    clubs: '♣️',
+    spades: '♠️'
+};
+const SUIT_COLORS = {
+    hearts: '#dc2626',
+    diamonds: '#dc2626',
+    clubs: '#1e293b',
+    spades: '#1e293b'
+};
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 560;
 
-let cardData = {};
+let cardData = {
+    hearts: {},
+    diamonds: {},
+    clubs: {},
+    spades: {}
+};
+let suitSettings = {
+    hearts: { bgColor: '#7c1d1d', gradient: 'radial' },
+    diamonds: { bgColor: '#1d3a7c', gradient: 'radial' },
+    clubs: { bgColor: '#1d5c1d', gradient: 'radial' },
+    spades: { bgColor: '#3d1d5c', gradient: 'radial' }
+};
 let generatedImages = {};
+let activeSuit = 'hearts';
 
 /* ========================================
    INIT
@@ -16,7 +47,8 @@ let generatedImages = {};
 document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     loadThemes();
-    initCardsEditor();
+    initSuitPanels();
+    initSuitTabs();
     bindEvents();
 });
 
@@ -48,7 +80,7 @@ async function loadThemes() {
         loading.style.display = 'none';
 
         if (!data.success || data.themes.length === 0) {
-            grid.innerHTML = '<p class="loading">Inga teman hittades ännu. Skapa det första!</p>';
+            grid.innerHTML = '<p class="loading">Inga teman hittades ännu. Skapa den första kortleken!</p>';
             return;
         }
 
@@ -73,78 +105,167 @@ async function loadThemes() {
 }
 
 /* ========================================
-   KORT-EDITOR
+   SUIT PANELS
    ======================================== */
-function initCardsEditor() {
-    const container = document.getElementById('cards-editor');
+function initSuitTabs() {
+    document.querySelectorAll('.suit-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const suit = btn.dataset.suit;
+            switchSuit(suit);
+        });
+    });
+}
+
+function switchSuit(suit) {
+    activeSuit = suit;
+    document.querySelectorAll('.suit-tab').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.suit-tab[data-suit="${suit}"]`).classList.add('active');
+
+    document.querySelectorAll('.suit-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`panel-${suit}`).classList.add('active');
+}
+
+function initSuitPanels() {
+    const container = document.getElementById('suit-panels');
+    container.innerHTML = SUITS.map(suit => `
+        <div class="suit-panel ${suit === 'hearts' ? 'active' : ''}" id="panel-${suit}">
+            <div class="suit-panel-header">
+                <h3>${SUIT_ICONS[suit]} ${SUIT_NAMES[suit]}</h3>
+                <span class="progress" id="progress-${suit}">0/13 ifyllda</span>
+            </div>
+
+            <div class="form-row" style="margin-bottom:12px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Bakgrundsfärg</label>
+                    <input type="color" class="suit-bg-color" data-suit="${suit}" value="${suitSettings[suit].bgColor}">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Gradient</label>
+                    <select class="suit-gradient" data-suit="${suit}">
+                        <option value="none" ${suitSettings[suit].gradient === 'none' ? 'selected' : ''}>Solid</option>
+                        <option value="linear-down" ${suitSettings[suit].gradient === 'linear-down' ? 'selected' : ''}>Ljusare nedåt</option>
+                        <option value="linear-up" ${suitSettings[suit].gradient === 'linear-up' ? 'selected' : ''}>Ljusare uppåt</option>
+                        <option value="radial" ${suitSettings[suit].gradient === 'radial' ? 'selected' : ''}>Radial (mitten)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bulk-fill">
+                <label>Fyll alla med emoji:</label>
+                <input type="text" class="bulk-emoji" data-suit="${suit}" placeholder="t.ex. 🚗" maxlength="2">
+                <button class="bulk-btn" data-suit="${suit}">Fyll alla</button>
+            </div>
+
+            <div class="cards-editor" id="editor-${suit}"></div>
+        </div>
+    `).join('');
+
+    // Initiera editors för varje suit
+    SUITS.forEach(suit => initCardsEditor(suit));
+
+    // Bind suit settings
+    document.querySelectorAll('.suit-bg-color').forEach(input => {
+        input.addEventListener('input', e => {
+            suitSettings[e.target.dataset.suit].bgColor = e.target.value;
+        });
+    });
+    document.querySelectorAll('.suit-gradient').forEach(input => {
+        input.addEventListener('change', e => {
+            suitSettings[e.target.dataset.suit].gradient = e.target.value;
+        });
+    });
+
+    // Bind bulk fill
+    document.querySelectorAll('.bulk-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const suit = e.target.dataset.suit;
+            const emoji = document.querySelector(`.bulk-emoji[data-suit="${suit}"]`).value.trim();
+            if (!emoji) return;
+            RANKS.forEach(rank => {
+                cardData[suit][rank] = { type: 'emoji', value: emoji };
+                updateMiniPreview(suit, rank);
+            });
+            updateProgress(suit);
+            showToast(`${SUIT_NAMES[suit]} fylld med ${emoji}!`);
+        });
+    });
+}
+
+function initCardsEditor(suit) {
+    const container = document.getElementById(`editor-${suit}`);
     container.innerHTML = RANKS.map(rank => `
         <div class="card-editor-item" data-rank="${rank}">
             <div class="card-rank-label">${rank}</div>
-            <input type="text" class="card-emoji-input" data-rank="${rank}" placeholder="😊" maxlength="2">
-            <input type="file" class="card-file-input" data-rank="${rank}" accept="image/*">
-            <div class="card-preview-mini" id="preview-${rank}">
+            <input type="text" class="card-emoji-input" data-suit="${suit}" data-rank="${rank}" placeholder="😊" maxlength="2">
+            <input type="file" class="card-file-input" data-suit="${suit}" data-rank="${rank}" accept="image/*">
+            <div class="card-preview-mini" id="preview-${suit}-${rank}">
                 <span>?</span>
             </div>
         </div>
     `).join('');
 
-    // Bind emoji inputs
     container.querySelectorAll('.card-emoji-input').forEach(input => {
         input.addEventListener('input', e => {
+            const s = e.target.dataset.suit;
             const rank = e.target.dataset.rank;
-            cardData[rank] = { type: 'emoji', value: e.target.value };
-            updateMiniPreview(rank);
-            // Rensa file-input om emoji skrivs
-            const fileInput = container.querySelector(`.card-file-input[data-rank="${rank}"]`);
+            cardData[s][rank] = { type: 'emoji', value: e.target.value };
+            updateMiniPreview(s, rank);
+            const fileInput = container.querySelector(`.card-file-input[data-suit="${s}"][data-rank="${rank}"]`);
             if (fileInput) fileInput.value = '';
+            updateProgress(s);
         });
     });
 
-    // Bind file inputs
     container.querySelectorAll('.card-file-input').forEach(input => {
         input.addEventListener('change', e => {
+            const s = e.target.dataset.suit;
             const rank = e.target.dataset.rank;
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             reader.onload = ev => {
-                cardData[rank] = { type: 'image', value: ev.target.result };
-                updateMiniPreview(rank);
-                // Rensa emoji-input om bild väljs
-                const emojiInput = container.querySelector(`.card-emoji-input[data-rank="${rank}"]`);
+                cardData[s][rank] = { type: 'image', value: ev.target.result };
+                updateMiniPreview(s, rank);
+                const emojiInput = container.querySelector(`.card-emoji-input[data-suit="${s}"][data-rank="${rank}"]`);
                 if (emojiInput) emojiInput.value = '';
+                updateProgress(s);
             };
             reader.readAsDataURL(file);
         });
     });
 }
 
-function updateMiniPreview(rank) {
-    const el = document.getElementById(`preview-${rank}`);
-    const data = cardData[rank];
+function updateMiniPreview(suit, rank) {
+    const el = document.getElementById(`preview-${suit}-${rank}`);
+    const data = cardData[suit][rank];
     if (!data) {
         el.innerHTML = '<span>?</span>';
         return;
     }
-
     if (data.type === 'emoji') {
         el.innerHTML = data.value || '<span>?</span>';
-        el.style.fontSize = '2.5rem';
     } else {
         el.innerHTML = `<img src="${data.value}" alt="${rank}">`;
     }
 }
 
+function updateProgress(suit) {
+    const filled = RANKS.filter(rank => cardData[suit][rank] && cardData[suit][rank].value).length;
+    document.getElementById(`progress-${suit}`).textContent = `${filled}/13 ifyllda`;
+}
+
 /* ========================================
    CANVAS KORT-RENDERING
    ======================================== */
-function renderCardToCanvas(rank, bgColor, gradientType, style) {
+function renderCardToCanvas(rank, suit) {
     const canvas = document.getElementById('card-canvas');
     const ctx = canvas.getContext('2d');
-    const data = cardData[rank];
+    const data = cardData[suit][rank];
+    const settings = suitSettings[suit];
+    const bgColor = settings.bgColor;
+    const gradientType = settings.gradient;
 
-    // Rensa
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // Bakgrund
@@ -170,7 +291,7 @@ function renderCardToCanvas(rank, bgColor, gradientType, style) {
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     ctx.restore();
 
-    // Mönster-prickar för textur
+    // Textur-prickar
     ctx.save();
     ctx.globalAlpha = 0.03;
     ctx.fillStyle = '#ffffff';
@@ -189,7 +310,6 @@ function renderCardToCanvas(rank, bgColor, gradientType, style) {
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
     ctx.lineWidth = 4;
     ctx.strokeRect(12, 12, CANVAS_WIDTH - 24, CANVAS_HEIGHT - 24);
-
     ctx.strokeStyle = 'rgba(0,0,0,0.15)';
     ctx.lineWidth = 2;
     ctx.strokeRect(18, 18, CANVAS_WIDTH - 36, CANVAS_HEIGHT - 36);
@@ -226,8 +346,8 @@ function renderCardToCanvas(rank, bgColor, gradientType, style) {
             ctx.shadowBlur = 20;
             ctx.fillText(data.value, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
             ctx.restore();
+            return Promise.resolve();
         } else if (data.type === 'image' && data.value) {
-            // Bilder renderas asynkront — vi returnerar en promise
             return new Promise(resolve => {
                 const img = new Image();
                 img.onload = () => {
@@ -237,7 +357,6 @@ function renderCardToCanvas(rank, bgColor, gradientType, style) {
                     const y = (CANVAS_HEIGHT - size) / 2;
                     const r = 16;
 
-                    // Rundad rektangel för bild
                     ctx.beginPath();
                     ctx.moveTo(x + r, y);
                     ctx.lineTo(x + size - r, y);
@@ -274,6 +393,7 @@ function renderCardToCanvas(rank, bgColor, gradientType, style) {
 
                     resolve();
                 };
+                img.onerror = resolve;
                 img.src = data.value;
             });
         }
@@ -295,6 +415,9 @@ function lightenColor(hex, percent) {
 }
 
 function showToast(message, type = 'success') {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
@@ -318,71 +441,81 @@ function bindEvents() {
 async function generatePreviews() {
     const themeName = document.getElementById('theme-name').value.trim().toLowerCase();
     if (!themeName) {
-        showToast('Ange ett temanamn först!', 'error');
+        showToast('Ange ett namn på kortleken först!', 'error');
         return;
     }
 
-    const bgColor = document.getElementById('bg-color').value;
-    const gradientType = document.getElementById('bg-gradient').value;
-
     const previewArea = document.getElementById('preview-area');
-    const previewGrid = document.getElementById('preview-grid');
-    previewGrid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--text-secondary);">Genererar förhandsgranskning...</p>';
+    const previewSuits = document.getElementById('preview-suits');
+    previewSuits.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:2rem;">Genererar 52 kort...</p>';
     previewArea.classList.remove('hidden');
 
     generatedImages = {};
+    let html = '';
 
-    for (const rank of RANKS) {
-        await renderCardToCanvas(rank, bgColor, gradientType);
-        const dataUrl = document.getElementById('card-canvas').toDataURL('image/png');
-        generatedImages[rank] = dataUrl;
+    for (const suit of SUITS) {
+        generatedImages[suit] = {};
+        for (const rank of RANKS) {
+            await renderCardToCanvas(rank, suit);
+            generatedImages[suit][rank] = document.getElementById('card-canvas').toDataURL('image/png');
+        }
+
+        html += `
+            <div class="preview-suit">
+                <h4>${SUIT_ICONS[suit]} ${SUIT_NAMES[suit]}</h4>
+                <div class="preview-grid">
+                    ${RANKS.map(rank => `
+                        <div class="preview-card">
+                            <img src="${generatedImages[suit][rank]}" alt="${rank} ${suit}">
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
     }
 
-    previewGrid.innerHTML = RANKS.map(rank => `
-        <div class="preview-card">
-            <img src="${generatedImages[rank]}" alt="${rank}">
-        </div>
-    `).join('');
-
+    previewSuits.innerHTML = html;
     previewArea.scrollIntoView({ behavior: 'smooth' });
-    showToast('Förhandsgranskning klar!');
+    showToast('✅ Förhandsgranskning av alla 52 kort klar!');
 }
 
 async function generateAndDownload() {
     const themeName = document.getElementById('theme-name').value.trim().toLowerCase();
     if (!themeName) {
-        showToast('Ange ett temanamn först!', 'error');
+        showToast('Ange ett namn på kortleken först!', 'error');
         return;
     }
 
     if (!/^[a-z0-9-]+$/.test(themeName)) {
-        showToast('Temanamnet får bara innehålla små bokstäver, siffror och bindestreck!', 'error');
+        showToast('Namnet får bara innehålla små bokstäver, siffror och bindestreck!', 'error');
         return;
     }
 
-    const hasAnyContent = RANKS.some(rank => cardData[rank] && cardData[rank].value);
+    const hasAnyContent = SUITS.some(suit =>
+        RANKS.some(rank => cardData[suit][rank] && cardData[suit][rank].value)
+    );
     if (!hasAnyContent) {
-        showToast('Välj minst en emoji eller bild för korten!', 'error');
+        showToast('Välj minst en emoji eller bild för något kort!', 'error');
         return;
     }
 
-    const bgColor = document.getElementById('bg-color').value;
-    const gradientType = document.getElementById('bg-gradient').value;
-
-    showToast('Genererar kort...');
+    showToast('Genererar 52 kort... Det kan ta några sekunder.');
 
     const zip = new JSZip();
-    const folder = zip.folder(themeName);
+    const root = zip.folder(themeName);
 
-    for (const rank of RANKS) {
-        await renderCardToCanvas(rank, bgColor, gradientType);
-        const dataUrl = document.getElementById('card-canvas').toDataURL('image/png');
-        const base64 = dataUrl.split(',')[1];
-        folder.file(`${rank}.png`, base64, { base64: true });
+    for (const suit of SUITS) {
+        const folder = root.folder(suit);
+        for (const rank of RANKS) {
+            await renderCardToCanvas(rank, suit);
+            const dataUrl = document.getElementById('card-canvas').toDataURL('image/png');
+            const base64 = dataUrl.split(',')[1];
+            folder.file(`${rank}.png`, base64, { base64: true });
+        }
     }
 
     const content = await zip.generateAsync({ type: 'blob' });
     saveAs(content, `${themeName}-kortlek.zip`);
 
-    showToast('✅ ZIP-fil nedladdad! Extrahera till public_html/assets/cards/');
+    showToast('✅ ZIP nedladdad! Extrahera till public_html/assets/cards/');
 }
