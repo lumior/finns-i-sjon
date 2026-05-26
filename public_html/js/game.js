@@ -473,8 +473,6 @@ class GameClient {
             this.settings.deckTheme = e.target.value;
             localStorage.setItem('deckTheme', e.target.value);
             this.updateDeckToggle(e.target.value);
-                deckToggle.title = e.target.value === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
-            }
             this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
             this.renderOpponents(this.gameState?.players || []);
         });
@@ -492,8 +490,6 @@ class GameClient {
         document.getElementById('setting-deck-theme').value = this.settings.deckTheme;
         
         this.updateDeckToggle(this.settings.deckTheme);
-            deckToggle.title = this.settings.deckTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
-        }
         
         // Push-to-talk tangent (mellanslag)
         document.addEventListener('keydown', (e) => {
@@ -691,8 +687,6 @@ class GameClient {
             const settingSelect = document.getElementById('setting-deck-theme');
             if (settingSelect) settingSelect.value = serverTheme;
             this.updateDeckToggle(serverTheme);
-                deckToggle.title = serverTheme === 'standard' ? 'Växla till grönsakskort' : 'Växla till standardkort';
-            }
             // Dölj temaväljaren för icke-värdar i multiplayer-rum
             const isAIMode = new URLSearchParams(window.location.search).get('ai');
             if (!isAIMode && !this.isHost) {
