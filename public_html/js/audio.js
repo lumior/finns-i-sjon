@@ -211,25 +211,40 @@ class AudioManager {
         this.resume();
 
         const now = this.context.currentTime;
-        const notes = [880, 1100];
 
-        notes.forEach((freq, i) => {
-            const osc = this.context.createOscillator();
-            const gain = this.context.createGain();
+        // Unik notis-ton: snabb frekvens-sweep uppåt som en pling
+        const osc1 = this.context.createOscillator();
+        const gain1 = this.context.createGain();
+        osc1.connect(gain1);
+        gain1.connect(this.sfxGain);
 
-            osc.connect(gain);
-            gain.connect(this.sfxGain);
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(700, now);
+        osc1.frequency.exponentialRampToValueAtTime(1400, now + 0.07);
 
-            osc.type = 'sine';
-            osc.frequency.value = freq;
+        gain1.gain.setValueAtTime(0, now);
+        gain1.gain.linearRampToValueAtTime(0.22, now + 0.03);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
 
-            gain.gain.setValueAtTime(0, now + i * 0.12);
-            gain.gain.linearRampToValueAtTime(0.25, now + i * 0.12 + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.25);
+        osc1.start(now);
+        osc1.stop(now + 0.28);
 
-            osc.start(now + i * 0.12);
-            osc.stop(now + i * 0.12 + 0.25);
-        });
+        // Kvint-överton som faller ner för klockliknande efterklang
+        const osc2 = this.context.createOscillator();
+        const gain2 = this.context.createGain();
+        osc2.connect(gain2);
+        gain2.connect(this.sfxGain);
+
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(2100, now + 0.06);
+        osc2.frequency.exponentialRampToValueAtTime(1050, now + 0.18);
+
+        gain2.gain.setValueAtTime(0, now + 0.06);
+        gain2.gain.linearRampToValueAtTime(0.12, now + 0.09);
+        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+
+        osc2.start(now + 0.06);
+        osc2.stop(now + 0.22);
     }
 
     playGameOver(won) {
