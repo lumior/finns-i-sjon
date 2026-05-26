@@ -452,7 +452,7 @@ class AnimationManager {
 
     animatePairPopup(count = 1) {
         if (!this.enabled) return;
-        
+
         const el = document.createElement('div');
         el.className = 'pair-popup';
         el.innerHTML = `
@@ -460,13 +460,69 @@ class AnimationManager {
             <div class="pair-popup-text">${count > 1 ? count + ' PAR!' : 'PAR!'}</div>
         `;
         document.body.appendChild(el);
-        
+
         this.spawnParticles(window.innerWidth / 2, window.innerHeight / 2, 'gold', 35);
-        
+
         setTimeout(() => {
             el.style.animation = 'pairPopupFadeOut 0.4s ease forwards';
             setTimeout(() => el.remove(), 400);
         }, 1800);
+    }
+
+    animatePairCards(newPairs) {
+        if (!this.enabled || !newPairs || newPairs.length === 0) return;
+
+        const suits = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
+        const suitToVeggie = { hearts: 'pepper', diamonds: 'radish', clubs: 'potato', spades: 'aubergine' };
+        const deckTheme = localStorage.getItem('deckTheme') || 'standard';
+        const useImageDeck = deckTheme !== 'standard';
+        const totalCards = newPairs.reduce((sum, p) => sum + p.length, 0);
+        const scaleDown = totalCards > 4 ? 0.8 : 1;
+
+        const container = document.createElement('div');
+        container.className = 'pair-cards-popup';
+
+        let cardsHtml = '';
+        newPairs.forEach((pair, pairIdx) => {
+            pair.forEach((card, cardIdx) => {
+                const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
+                const suitSymbol = suits[card.suit] || '♠';
+                const veggie = suitToVeggie[card.suit];
+                const marginLeft = cardIdx === 0 && pairIdx > 0 ? '12px' : (cardIdx === 1 ? '-18px' : '0');
+                const zIndex = cardIdx === 1 ? '2' : '1';
+
+                let cardInner;
+                if (useImageDeck) {
+                    cardInner = `<img class="pc-card-img" src="/assets/cards/${veggie}/${card.rank}.png" alt="${card.rank}" onerror="this.style.display='none';this.parentElement.classList.add('${isRed ? 'red' : 'black'}');this.parentElement.innerHTML='<span class=\\'pc-rank-top\\'>${card.rank}</span><span class=\\'pc-suit\\'>${suitSymbol}</span><span class=\\'pc-rank-bottom\\'>${card.rank}</span>'">`;
+                } else {
+                    cardInner = `<span class="pc-rank-top">${card.rank}</span><span class="pc-suit">${suitSymbol}</span><span class="pc-rank-bottom">${card.rank}</span>`;
+                }
+
+                cardsHtml += `
+                    <div class="pair-card-mini ${useImageDeck ? '' : (isRed ? 'red' : 'black')}" style="margin-left:${marginLeft};z-index:${zIndex};transform:scale(${scaleDown});">
+                        ${cardInner}
+                    </div>
+                `;
+            });
+        });
+
+        const firstCard = newPairs[0][0];
+        const rankText = `${firstCard.rank}:or`;
+
+        container.innerHTML = `
+            <div class="pair-cards-label">${newPairs.length > 1 ? newPairs.length + ' PAR!' : 'PAR!'}</div>
+            <div class="pair-cards-row">${cardsHtml}</div>
+            <div class="pair-cards-rank">${rankText}</div>
+        `;
+
+        document.body.appendChild(container);
+
+        this.spawnParticles(window.innerWidth / 2, window.innerHeight / 2, 'gold', 30);
+
+        setTimeout(() => {
+            container.style.animation = 'pairCardsFadeOut 0.5s ease forwards';
+            setTimeout(() => container.remove(), 500);
+        }, 2200);
     }
 
     animateLuckyFish(drawnCard) {

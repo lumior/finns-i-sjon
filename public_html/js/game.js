@@ -817,7 +817,7 @@ class GameClient {
             );
             
             if (window.animationManager) {
-                animationManager.animatePairPopup(pairCount);
+                animationManager.animatePairCards(data.newPairs);
             }
         }
         
