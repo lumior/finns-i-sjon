@@ -22,10 +22,11 @@ function scanThemes() {
             const themePath = path.join(CARDS_DIR, entry.name);
             const files = fs.readdirSync(themePath);
             const cardFiles = files.filter(f => f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.webp'));
-            const foundRanks = RANKS.filter(rank =>
-                cardFiles.includes(`${rank}.png`) ||
-                cardFiles.includes(`${rank}.jpg`) ||
-                cardFiles.includes(`${rank}.webp`)
+            const foundRanks = RANKS.filter(
+                rank =>
+                    cardFiles.includes(`${rank}.png`) ||
+                    cardFiles.includes(`${rank}.jpg`) ||
+                    cardFiles.includes(`${rank}.webp`)
             );
 
             themes.push({
