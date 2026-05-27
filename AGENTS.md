@@ -15,6 +15,7 @@
 - Spectator-läge (åskådare)
 - WebRTC-baserad röst- och videochatt (P2P)
 - Achievements, spelhistorik och topplista
+- Admin-API för kortlekstemahantering
 
 **Huvudentry:** `server/server.js`  
 **Port:** `process.env.PORT || 3000`  
@@ -56,7 +57,8 @@ finns-i-sjon-pro/
 │   │   ├── users.js           # GET /leaderboard, /online, /search, /:id/profile
 │   │   ├── games.js           # GET /history, /:id
 │   │   ├── rooms.js           # Factory: createRoomRouter(roomManager)
-│   │   └── stats.js           # GET /total-games
+│   │   ├── stats.js           # GET /total-games
+│   │   └── admin.js           # GET /themes, /themes/:theme (kortlekshantering)
 │   ├── game/
 │   │   ├── GameEngine.js      # Spelregler, turhantering, par, AI-anslutning
 │   │   ├── RoomManager.js     # Rums-CRUD, join/leave/kick, reconnection, ban
@@ -79,6 +81,12 @@ finns-i-sjon-pro/
 │   ├── index.html             # Lobby / landing page
 │   ├── game.html              # Spelbräde
 │   ├── leaderboard.html       # Topplista (standalone)
+│   ├── admin/                 # Admin-panel för temahantering
+│   │   ├── index.html
+│   │   ├── admin.js
+│   │   ├── admin.css
+│   │   ├── FileSaver.min.js
+│   │   └── jszip.min.js
 │   ├── css/
 │   │   ├── main.css           # Huvudstyling, design-system
 │   │   ├── game.css           # Spelbräde, kort, timer
@@ -95,10 +103,18 @@ finns-i-sjon-pro/
 │   │   ├── voice-chat.js      # WebRTC-röstklient (basklass)
 │   │   ├── voice-ui.js        # Röstchatt-UI-kontroller
 │   │   ├── video-chat.js      # WebRTC-videoklient (extends voice)
-│   │   └── video-ui.js        # Videochatt-UI-kontroller (extends voice)
+│   │   ├── video-ui.js        # Videochatt-UI-kontroller (extends voice)
+│   │   ├── socket.io.min.js   # Socket.IO-klientbibliotek (vendored)
+│   │   └── socket.io.min.js.map
 │   └── assets/
-│       ├── cards/             # Kortbilder (4 teman: aubergine, pepper, potato, radish)
-│       └── images/            # Avatarer, AI-porträtt
+│       ├── cards/             # Kortleksbilder per tema-kategori och färg
+│       │   ├── vegetable/     # Grönsakstema
+│       │   │   ├── aubergine/ → Hearts
+│       │   │   ├── radish/    → Diamonds
+│       │   │   ├── pepper/    → Clubs
+│       │   │   └── potato/    → Spades
+│       │   └── mobler/        # Möbel-tema (samma färgstruktur)
+│       └── images/            # Avatarer, AI-porträtt, bakgrund
 │
 ├── tests/                     # Jest-tester
 │   ├── game/
@@ -211,6 +227,7 @@ npm run format:check  # Prettier --check (används i CI)
 - JWT med 7 dagars giltighet. `JWT_SECRET` **måste** bytas i produktion.
 - Token skickas i `Authorization: Bearer <token>`-header för REST, och i `socket.handshake.auth.token` för Socket.IO.
 - Auth-middleware sätter `req.user` / `socket.user` till `null` vid saknad/ogiltig token (aldrig hårda fel).
+- Middleware läser även token från `req.cookies.token` och `req.query.token` som fallback.
 
 ### Databas
 - SQL-injektionsskydd: alla queries använder parametriserade uttryck (`?` / `$1`).
@@ -246,6 +263,8 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` — MariaDB
 - `DB_PATH` — SQLite-sökväg
 - `DB_FALLBACK=false` — inaktiverar SQLite-fallback och tvingar fram MariaDB
+- `RATE_LIMIT_WINDOW` / `RATE_LIMIT_MAX` — valfria rate-limit-överskridningar
+- `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` — valfria anpassade TURN-servrar
 
 ### Tabeller
 - `users` — användarkonton, ELO, statistik
@@ -340,7 +359,26 @@ ICE-servrar: Google STUN + Open Relay TURN (fallback). Anpassad TURN kan sättas
 
 ---
 
-## 11. Driftsättning
+## 11. Kortleks-teman och tillgångar
+
+Kortleksbilderna ligger under `public_html/assets/cards/` och är organiserade i **tema-kategorier** (t.ex. `vegetable`, `mobler`). Varje kategori innehåller 4 undermappar som motsvarar "färger":
+
+| Färg (suit) | Mappnamn |
+|-------------|----------|
+| Hearts      | `aubergine` |
+| Diamonds    | `radish` |
+| Clubs       | `pepper` |
+| Spades      | `potato` |
+
+Varje färg-mapp innehåller 13 bildfiler: `A.png`, `2.png` … `10.png`, `J.png`, `Q.png`, `K.png`.
+
+**Fallback:** Om en bild saknas renderas kortet med standard Unicode (rank + färgsymbol).
+
+**Admin-API:** `server/routes/admin.js` exponerar `/api/admin/themes` och `/api/admin/themes/:theme` för att lista och inspektera teman.
+
+---
+
+## 12. Driftsättning
 
 ### Railway (primär metod)
 1. Repo på GitHub, kopplat till Railway
@@ -369,7 +407,7 @@ npm run dev
 
 ---
 
-## 12. Utvecklingskonventioner
+## 13. Utvecklingskonventioner
 
 ### Innan du commitar
 1. Kör `npm run lint` — fixa fel
@@ -399,10 +437,11 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 ### Vanliga fallgropar
 - **`README.md` refererar ibland till `public/`** — projektets faktiska statiska mapp är `public_html/`.
 - **`scripts/`** innehåller one-off migrationer (t.ex. `update-user-avatars.js`). De körs manuellt vid behov, inte som en del av byggprocessen.
+- **Kortleksstrukturen** har ändrats från flat (`assets/cards/aubergine/`) till kategoriserad (`assets/cards/vegetable/aubergine/`). Kod som läser teman (t.ex. admin-routes) hanterar båda nivåerna.
 
 ---
 
-## 13. Kända begränsningar
+## 14. Kända begränsningar
 
 - `friendships`-tabellen finns men används inte i frontend eller backend.
 - `banPlayer` finns i `RoomManager` men saknar en Socket.IO-handler (endast `kick_player` är exponerad).
@@ -412,10 +451,10 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 
 ---
 
-## 14. Snabbreferens: Viktiga filer att läsa
+## 15. Snabbreferens: Viktiga filer att läsa
 
-| Om du ska... | Läs dessa filer |
-|--------------|-----------------|
+| Om du ska… | Läs dessa filer |
+|------------|-----------------|
 | Ändra spelregler | `server/game/GameEngine.js`, `server/game/utils.js` |
 | Ändra AI-beteende | `server/game/AIPlayer.js` |
 | Ändra rumshantering | `server/game/RoomManager.js` |
@@ -429,6 +468,7 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 | Ändra linting/format/test-konfig | `eslint.config.js`, `.prettierrc`, `jest.config.js` |
 | Kör one-off migrationer | `scripts/update-user-avatars.js` |
 | Förstå avatar-generering | `generate-avatars.py` |
+| Hantera kortleksteman | `server/routes/admin.js`, `public_html/assets/cards/README.md` |
 
 ---
 
