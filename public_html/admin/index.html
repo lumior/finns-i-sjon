@@ -36,13 +36,27 @@
                     <small>Endast små bokstäver, siffror och bindestreck.</small>
                 </div>
 
+                <div class="mode-toggle">
+                    <button class="mode-btn active" data-mode="simple" id="mode-simple">
+                        🎯 Enkelt läge
+                        <small>En emoji per valör (alla Ess = 🍎)</small>
+                    </button>
+                    <button class="mode-btn" data-mode="advanced" id="mode-advanced">
+                        ⚙️ Avancerat läge
+                        <small>Unikt innehåll per kort (52 olika)</small>
+                    </button>
+                </div>
+
                 <div class="suits-intro">
-                    <p>En kortlek har fyra färger. Välj innehåll för <strong>alla 52 kort</strong> nedan.</p>
+                    <p id="mode-description">Sätt en emoji eller bild per valör — alla fyra färger får samma.</p>
                 </div>
             </div>
 
-            <!-- Suit tabs -->
-            <div class="suit-tabs">
+            <!-- Simple mode editor -->
+            <div id="simple-editor" class="simple-editor"></div>
+
+            <!-- Advanced mode: Suit tabs -->
+            <div class="suit-tabs" id="suit-tabs-wrapper">
                 <button class="suit-tab active" data-suit="hearts">
                     <span class="suit-icon">♥️</span>
                     <span class="suit-name">Hjärter</span>

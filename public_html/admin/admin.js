@@ -38,6 +38,7 @@ let cardData = {
     clubs: {},
     spades: {}
 };
+let rankData = {};
 let suitSettings = {
     hearts: { bgColor: '#7c1d1d', gradient: 'radial' },
     diamonds: { bgColor: '#1d3a7c', gradient: 'radial' },
@@ -46,6 +47,7 @@ let suitSettings = {
 };
 let generatedImages = {};
 let activeSuit = 'hearts';
+let editMode = 'simple';
 
 /* ========================================
    INIT
@@ -53,9 +55,12 @@ let activeSuit = 'hearts';
 document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     loadThemes();
+    initModeToggle();
+    initSimpleEditor();
     initSuitPanels();
     initSuitTabs();
     bindEvents();
+    updateModeVisibility();
 });
 
 /* ========================================
@@ -107,6 +112,161 @@ async function loadThemes() {
     } catch (err) {
         loading.textContent = 'Kunde inte ladda teman. Försök igen senare.';
         console.error(err);
+    }
+}
+
+/* ========================================
+   MODE TOGGLE
+   ======================================== */
+function initModeToggle() {
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.mode;
+            switchMode(mode);
+        });
+    });
+}
+
+function switchMode(mode) {
+    if (mode === editMode) return;
+
+    if (mode === 'advanced') {
+        // Sprid enkla valör-data till alla färger
+        syncSimpleToAdvanced();
+    } else {
+        // Försök hitta gemensamma valörer från avancerat läge
+        syncAdvancedToSimple();
+    }
+
+    editMode = mode;
+
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('active');
+
+    const desc = document.getElementById('mode-description');
+    if (mode === 'simple') {
+        desc.textContent = 'Sätt en emoji eller bild per valör — alla fyra färger får samma.';
+    } else {
+        desc.textContent = 'Välj innehåll för varje kort individuellt (52 unika). Du kan fortfarande fylla en hel färg med bulk-knappen.';
+    }
+
+    updateModeVisibility();
+    updateAllProgress();
+}
+
+function updateModeVisibility() {
+    const simpleEditor = document.getElementById('simple-editor');
+    const suitTabs = document.getElementById('suit-tabs-wrapper');
+    const suitPanels = document.getElementById('suit-panels');
+
+    if (editMode === 'simple') {
+        simpleEditor.classList.remove('hidden');
+        suitTabs.style.display = 'none';
+        suitPanels.style.display = 'none';
+    } else {
+        simpleEditor.classList.add('hidden');
+        suitTabs.style.display = 'grid';
+        suitPanels.style.display = 'block';
+    }
+}
+
+function syncSimpleToAdvanced() {
+    RANKS.forEach(rank => {
+        if (rankData[rank] && rankData[rank].value) {
+            SUITS.forEach(suit => {
+                cardData[suit][rank] = { ...rankData[rank] };
+            });
+        }
+    });
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => updateMiniPreview(suit, rank));
+        updateProgress(suit);
+    });
+}
+
+function syncAdvancedToSimple() {
+    RANKS.forEach(rank => {
+        const values = SUITS.map(suit => cardData[suit][rank]).filter(Boolean);
+        if (values.length === 4 && values.every(v => v.type === values[0].type && v.value === values[0].value)) {
+            rankData[rank] = { ...values[0] };
+        } else {
+            // Ta första icke-tomma värdet, eller rensa
+            const first = values.find(v => v && v.value);
+            if (first) {
+                rankData[rank] = { ...first };
+            }
+        }
+        updateRankPreview(rank);
+    });
+    updateAllProgress();
+}
+
+/* ========================================
+   SIMPLE EDITOR (per rank)
+   ======================================== */
+function initSimpleEditor() {
+    const container = document.getElementById('simple-editor');
+    container.innerHTML = RANKS.map(rank => `
+        <div class="rank-row" data-rank="${rank}">
+            <div class="rank-row-label">${rank}</div>
+            <div class="rank-row-suits">♥️ ♦️ ♣️ ♠️</div>
+            <input type="text" class="rank-emoji-input" data-rank="${rank}" placeholder="😊" maxlength="2">
+            <input type="file" class="rank-file-input" data-rank="${rank}" accept="image/*">
+            <div class="rank-preview-mini" id="rank-preview-${rank}">
+                <span>?</span>
+            </div>
+        </div>
+    `).join('');
+
+    container.querySelectorAll('.rank-emoji-input').forEach(input => {
+        input.addEventListener('input', e => {
+            const rank = e.target.dataset.rank;
+            rankData[rank] = { type: 'emoji', value: e.target.value };
+            updateRankPreview(rank);
+            const fileInput = container.querySelector(`.rank-file-input[data-rank="${rank}"]`);
+            if (fileInput) fileInput.value = '';
+            updateAllProgress();
+        });
+    });
+
+    container.querySelectorAll('.rank-file-input').forEach(input => {
+        input.addEventListener('change', e => {
+            const rank = e.target.dataset.rank;
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = ev => {
+                rankData[rank] = { type: 'image', value: ev.target.result };
+                updateRankPreview(rank);
+                const emojiInput = container.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
+                if (emojiInput) emojiInput.value = '';
+                updateAllProgress();
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+}
+
+function updateRankPreview(rank) {
+    const el = document.getElementById(`rank-preview-${rank}`);
+    const data = rankData[rank];
+    if (!data || !data.value) {
+        el.innerHTML = '<span>?</span>';
+        return;
+    }
+    if (data.type === 'emoji') {
+        el.innerHTML = data.value;
+    } else {
+        el.innerHTML = `<img src="${data.value}" alt="${rank}">`;
+    }
+}
+
+function updateAllProgress() {
+    if (editMode === 'simple') {
+        const filled = RANKS.filter(rank => rankData[rank] && rankData[rank].value).length;
+        document.getElementById('mode-description').textContent =
+            `Sätt en emoji eller bild per valör — ${filled}/13 ifyllda. Alla fyra färger får samma.`;
     }
 }
 
@@ -267,7 +427,8 @@ function updateProgress(suit) {
 function renderCardToCanvas(rank, suit) {
     const canvas = document.getElementById('card-canvas');
     const ctx = canvas.getContext('2d');
-    const data = cardData[suit][rank];
+    // Avancerat läge har prio; fallback till enkelt läge per valör
+    const data = cardData[suit][rank] || rankData[rank];
     const settings = suitSettings[suit];
     const bgColor = settings.bgColor;
     const gradientType = settings.gradient;
@@ -451,6 +612,10 @@ async function generatePreviews() {
         return;
     }
 
+    if (editMode === 'simple') {
+        syncSimpleToAdvanced();
+    }
+
     const previewArea = document.getElementById('preview-area');
     const previewSuits = document.getElementById('preview-suits');
     previewSuits.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:2rem;">Genererar 52 kort...</p>';
@@ -498,11 +663,19 @@ async function generateAndDownload() {
     }
 
     const hasAnyContent = SUITS.some(suit =>
-        RANKS.some(rank => cardData[suit][rank] && cardData[suit][rank].value)
+        RANKS.some(rank => {
+            const data = cardData[suit][rank] || rankData[rank];
+            return data && data.value;
+        })
     );
     if (!hasAnyContent) {
         showToast('Välj minst en emoji eller bild för något kort!', 'error');
         return;
+    }
+
+    // Säkerställ att enkelt läge-data finns i cardData innan generering
+    if (editMode === 'simple') {
+        syncSimpleToAdvanced();
     }
 
     showToast('Genererar 52 kort... Det kan ta några sekunder.');
