@@ -113,7 +113,7 @@ finns-i-sjon-pro/
 │       │   │   ├── radish/    → Diamonds
 │       │   │   ├── pepper/    → Clubs
 │       │   │   └── potato/    → Spades
-│       │   └── mobler/        # Möbel-tema (samma färgstruktur)
+│       │   └── frukt/         # Frukt-tema (samma färgstruktur)
 │       └── images/            # Avatarer, AI-porträtt, bakgrund
 │
 ├── tests/                     # Jest-tester
@@ -361,7 +361,7 @@ ICE-servrar: Google STUN + Open Relay TURN (fallback). Anpassad TURN kan sättas
 
 ## 11. Kortleks-teman och tillgångar
 
-Kortleksbilderna ligger under `public_html/assets/cards/` och är organiserade i **tema-kategorier** (t.ex. `vegetable`, `mobler`). Varje kategori innehåller 4 undermappar som motsvarar "färger":
+Kortleksbilderna ligger under `public_html/assets/cards/` och är organiserade i **tema-kategorier** (t.ex. `vegetable`, `frukt`). Varje kategori innehåller 4 undermappar som motsvarar "färger":
 
 | Färg (suit) | Mappnamn |
 |-------------|----------|
