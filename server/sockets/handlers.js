@@ -594,9 +594,22 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                     if (forceResult && forceResult.player) {
                         const game = forceResult.room?.game;
                         const remainingHumans = game?.players.filter(p => p.connected && !p.isAI).length || 0;
+                        const remainingActive = game?.players.filter(p => !p.surrendered && !p.isAI).length || 0;
                         console.log(
-                            `🗑️ [TIMEOUT-EXEC] ${forceResult.player.name} togs bort. Återstående mänskliga spelare: ${remainingHumans}. Rum state: ${game?.state || 'n/a'}`
+                            `🗑️ [TIMEOUT-EXEC] ${forceResult.player.name} togs bort. Återstående mänskliga: ${remainingHumans}, aktiva: ${remainingActive}. Rum state: ${game?.state || 'n/a'}`
                         );
+
+                        // Om spelet pågår och för få mänskliga spelare återstår, avsluta
+                        if (game && game.state === GAME_STATES.PLAYING) {
+                            const remainingHumans = game.players.filter(p => !p.isAI).length;
+                            if (remainingHumans < 2) {
+                                console.log(`🏁 [GAME_END] ${remainingHumans} mänsklig(a) kvar efter force-remove. Avslutar spel.`);
+                                game.state = GAME_STATES.FINISHED;
+                                game.calculateWinner();
+                                handleGameEnd(game, forceResult.room);
+                            }
+                        }
+
                         io.emit('lobby_update', roomManager.getPublicRoomList());
                     } else {
                         console.log(`🗑️ [TIMEOUT-EXEC] ${socket.id}: Spelaren redan borttagen eller hittades ej`);

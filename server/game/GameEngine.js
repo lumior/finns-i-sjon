@@ -203,24 +203,10 @@ class GameEngine {
             player.connected = false;
             this.addLog('system', `${player.name} kopplade från`);
 
-            const connectedPlayers = this.players.filter(p => p.connected && !p.isAI);
-            const connectedAI = this.players.filter(p => p.connected && p.isAI);
-
-            if (connectedPlayers.length === 0 && connectedAI.length === 0) {
-                const wasFinished = this.state === GAME_STATES.FINISHED;
-                this.state = GAME_STATES.FINISHED;
-                this.addLog('system', 'Alla spelare lämnade - spelet avslutas');
-                if (!wasFinished && this.onGameEnd) {
-                    this.onGameEnd();
-                }
-            } else if (connectedPlayers.length === 0 && connectedAI.length > 0) {
-                const wasFinished = this.state === GAME_STATES.FINISHED;
-                this.state = GAME_STATES.FINISHED;
-                this.calculateWinner();
-                if (!wasFinished && this.onGameEnd) {
-                    this.onGameEnd();
-                }
-            }
+            // AVBRUTET: Sätt INTE spelet till finished vid disconnect.
+            // Låt istället 60-sekunders-timeouten i handlers.js avgöra om
+            // spelaren återansluter. Först vid forceRemove (efter 60s)
+            // avslutas spelet om för få spelare återstår.
 
             return { player, disconnected: true };
         } else {
