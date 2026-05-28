@@ -222,6 +222,10 @@ class GameClient {
                 clearTimeout(this.reconnectTimeout);
                 this.reconnectTimeout = null;
             }
+            // Försök aktivera AudioContext direkt vid reconnect
+            if (window.audioManager) {
+                audioManager.resume();
+            }
             this.handleReconnection(data);
         });
         
@@ -797,11 +801,11 @@ class GameClient {
         
         if (window.audioManager) {
             if (data.gotCards) {
-                audioManager.playSuccess().catch(() => {});
+                audioManager.playSuccess();
             } else if (data.fishedSuccess) {
-                audioManager.playLuckyFish().catch(() => {});
+                audioManager.playLuckyFish();
             } else {
-                audioManager.playFish().catch(() => {});
+                audioManager.playFish();
             }
         }
         

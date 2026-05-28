@@ -33,13 +33,9 @@ class AudioManager {
         }
     }
 
-    async resume() {
+    resume() {
         if (this.context && this.context.state === 'suspended') {
-            try {
-                await this.context.resume();
-            } catch (e) {
-                // Ignorera om resume misslyckas
-            }
+            this.context.resume().catch(() => {});
         }
     }
 
@@ -85,13 +81,12 @@ class AudioManager {
         osc.stop(this.context.currentTime + 0.1);
     }
 
-    async playSuccess() {
+    playSuccess() {
         if (!this.enabled || !this.initialized) return;
-        await this.resume();
+        this.resume();
         
         const notes = [523.25, 659.25, 783.99, 1046.50];
-        // Lägg till en liten lookahead för att säkerställa att context är aktiv
-        const now = this.context.currentTime + 0.02;
+        const now = this.context.currentTime;
         
         notes.forEach((freq, i) => {
             const osc = this.context.createOscillator();
@@ -133,9 +128,9 @@ class AudioManager {
         osc.stop(this.context.currentTime + 0.3);
     }
 
-    async playFish() {
+    playFish() {
         if (!this.enabled || !this.initialized) return;
-        await this.resume();
+        this.resume();
         
         const bufferSize = this.context.sampleRate * 0.5;
         const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
@@ -164,9 +159,9 @@ class AudioManager {
         noise.start(this.context.currentTime);
     }
 
-    async playLuckyFish() {
+    playLuckyFish() {
         if (!this.enabled || !this.initialized) return;
-        await this.resume();
+        this.resume();
         
         const notes = [880, 1100, 1320];
         const now = this.context.currentTime;
@@ -390,15 +385,18 @@ class AudioManager {
 
 const audioManager = new AudioManager();
 
-// Försök initiera direkt vid sidladdning, fallback till klick
+// Försök initiera direkt vid sidladdning
 audioManager.init().catch(() => {});
 
-document.addEventListener('click', () => {
-    if (!audioManager.initialized) {
-        audioManager.init();
-    } else if (audioManager.context && audioManager.context.state === 'suspended') {
-        audioManager.resume();
-    }
-}, { once: true });
+// Resuma vid alla möjliga interaktioner (inte bara klick)
+['click', 'touchstart', 'keydown', 'mousedown'].forEach(event => {
+    document.addEventListener(event, () => {
+        if (!audioManager.initialized) {
+            audioManager.init();
+        } else {
+            audioManager.resume();
+        }
+    }, { once: true });
+});
 
 window.audioManager = audioManager;
