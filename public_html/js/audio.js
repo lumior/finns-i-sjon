@@ -35,7 +35,11 @@ class AudioManager {
 
     async resume() {
         if (this.context && this.context.state === 'suspended') {
-            await this.context.resume();
+            try {
+                await this.context.resume();
+            } catch (e) {
+                // Ignorera om resume misslyckas
+            }
         }
     }
 
@@ -81,12 +85,13 @@ class AudioManager {
         osc.stop(this.context.currentTime + 0.1);
     }
 
-    playSuccess() {
+    async playSuccess() {
         if (!this.enabled || !this.initialized) return;
-        this.resume();
+        await this.resume();
         
         const notes = [523.25, 659.25, 783.99, 1046.50];
-        const now = this.context.currentTime;
+        // Lägg till en liten lookahead för att säkerställa att context är aktiv
+        const now = this.context.currentTime + 0.02;
         
         notes.forEach((freq, i) => {
             const osc = this.context.createOscillator();
@@ -128,9 +133,9 @@ class AudioManager {
         osc.stop(this.context.currentTime + 0.3);
     }
 
-    playFish() {
+    async playFish() {
         if (!this.enabled || !this.initialized) return;
-        this.resume();
+        await this.resume();
         
         const bufferSize = this.context.sampleRate * 0.5;
         const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
@@ -159,9 +164,9 @@ class AudioManager {
         noise.start(this.context.currentTime);
     }
 
-    playLuckyFish() {
+    async playLuckyFish() {
         if (!this.enabled || !this.initialized) return;
-        this.resume();
+        await this.resume();
         
         const notes = [880, 1100, 1320];
         const now = this.context.currentTime;
@@ -385,8 +390,15 @@ class AudioManager {
 
 const audioManager = new AudioManager();
 
+// Försök initiera direkt vid sidladdning, fallback till klick
+audioManager.init().catch(() => {});
+
 document.addEventListener('click', () => {
-    audioManager.init();
+    if (!audioManager.initialized) {
+        audioManager.init();
+    } else if (audioManager.context && audioManager.context.state === 'suspended') {
+        audioManager.resume();
+    }
 }, { once: true });
 
 window.audioManager = audioManager;

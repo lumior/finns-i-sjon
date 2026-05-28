@@ -797,11 +797,11 @@ class GameClient {
         
         if (window.audioManager) {
             if (data.gotCards) {
-                audioManager.playSuccess();
+                audioManager.playSuccess().catch(() => {});
             } else if (data.fishedSuccess) {
-                audioManager.playLuckyFish();
+                audioManager.playLuckyFish().catch(() => {});
             } else {
-                audioManager.playFish();
+                audioManager.playFish().catch(() => {});
             }
         }
         
