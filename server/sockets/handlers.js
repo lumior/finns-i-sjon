@@ -603,7 +603,9 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                         if (game && game.state === GAME_STATES.PLAYING) {
                             const remainingHumans = game.players.filter(p => !p.isAI).length;
                             if (remainingHumans < 2) {
-                                console.log(`🏁 [GAME_END] ${remainingHumans} mänsklig(a) kvar efter force-remove. Avslutar spel.`);
+                                console.log(
+                                    `🏁 [GAME_END] ${remainingHumans} mänsklig(a) kvar efter force-remove. Avslutar spel.`
+                                );
                                 game.state = GAME_STATES.FINISHED;
                                 game.calculateWinner();
                                 handleGameEnd(game, forceResult.room);
