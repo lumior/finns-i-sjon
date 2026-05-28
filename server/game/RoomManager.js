@@ -74,6 +74,17 @@ class RoomManager {
         }
 
         if (game.state !== 'waiting') {
+            // Om samma inloggade användare redan finns och är connected (race condition vid reconnect),
+            // uppdatera socketId istället för att lägga till som spectator
+            if (userData?.id) {
+                const existingUser = game.players.find(p => p.userId === userData.id && p.connected);
+                if (existingUser) {
+                    existingUser.socketId = socketId;
+                    this.playerRooms.set(socketId, roomId.toUpperCase());
+                    return { success: true, game, roomName: room.name };
+                }
+            }
+
             const existingPlayer = game.players.find(p => p.name === playerName && !p.connected);
             if (existingPlayer) {
                 return { success: false, error: 'Spelet pågår - använd återanslutning' };

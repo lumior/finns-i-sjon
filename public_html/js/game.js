@@ -102,11 +102,11 @@ class GameClient {
             if (data?.isReconnect) {
                 // Vid reconnect: skicka inte join_room direkt.
                 // Vänta på 'reconnected' från servern. Om den inte kommer
-                // inom 3 sekunder, skicka join_room som fallback.
+                // inom 10 sekunder, skicka join_room som fallback.
                 this.reconnectTimeout = setTimeout(() => {
                     this.reconnectTimeout = null;
                     this.joinRoom();
-                }, 3000);
+                }, 10000);
             } else {
                 this.joinRoom();
             }
