@@ -2541,51 +2541,89 @@ function updateBatchStats() {
 }
 
 function fillRandomEmpty() {
-    let filled = 0;
     const usedEmojis = new Set();
+    let filled = 0;
 
     // Samla redan använda emojis
+    RANKS.forEach(rank => {
+        const data = rankData[rank];
+        if (data && data.value) {
+            usedEmojis.add(data.value);
+        }
+    });
     SUITS.forEach(suit => {
         RANKS.forEach(rank => {
-            const data = cardData[suit][rank] || rankData[rank];
+            const data = cardData[suit][rank];
             if (data && data.value) {
                 usedEmojis.add(data.value);
             }
         });
     });
 
-    // Fyll tomma kort
-    SUITS.forEach(suit => {
+    if (editMode === 'simple') {
+        // Enkelt läge: fyll bara 13 valörer, alla 4 färger får samma
         RANKS.forEach(rank => {
-            const data = cardData[suit][rank] || rankData[rank];
-            if (!data || !data.value) {
-                // Välj en slumpad emoji som inte redan används (om möjligt)
-                let pool = RANDOM_EMOJI_POOL.filter(e => !usedEmojis.has(e));
-                if (pool.length === 0) {
-                    pool = RANDOM_EMOJI_POOL;
-                }
-                const emoji = pool[Math.floor(Math.random() * pool.length)];
+            if (rankData[rank] && rankData[rank].value) {
+                return;
+            }
+            let pool = RANDOM_EMOJI_POOL.filter(e => !usedEmojis.has(e));
+            if (pool.length === 0) {
+                pool = RANDOM_EMOJI_POOL;
+            }
+            const emoji = pool[Math.floor(Math.random() * pool.length)];
 
-                cardData[suit][rank] = { type: 'emoji', value: emoji };
-                usedEmojis.add(emoji);
-                updateMiniPreview(suit, rank);
-                filled++;
+            rankData[rank] = { type: 'emoji', value: emoji };
+            usedEmojis.add(emoji);
+            filled++;
+        });
+
+        // Synka till cardData (alla färger får samma)
+        RANKS.forEach(rank => {
+            if (rankData[rank] && rankData[rank].value) {
+                SUITS.forEach(suit => {
+                    cardData[suit][rank] = { ...rankData[rank] };
+                    updateMiniPreview(suit, rank);
+                });
+            }
+            updateRankPreview(rank);
+            const simpleEmoji = document.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
+            if (simpleEmoji) {
+                simpleEmoji.value = rankData[rank] && rankData[rank].type === 'emoji' ? rankData[rank].value : '';
             }
         });
-        updateProgress(suit);
-    });
 
-    // Synka simple mode
-    RANKS.forEach(rank => {
-        const values = SUITS.map(suit => cardData[suit][rank]).filter(Boolean);
-        if (values.length === 4 && values.every(v => v.type === values[0].type && v.value === values[0].value)) {
-            rankData[rank] = { ...values[0] };
+        SUITS.forEach(suit => updateProgress(suit));
+        updateAllProgress();
+        updateBatchStats();
+        queueLivePreview();
+
+        if (filled > 0) {
+            showToast(`🎲 ${filled} tomma valörer fyllda — alla 4 färger får samma emoji!`);
+        } else {
+            showToast('Alla valörer är redan ifyllda!');
         }
-        updateRankPreview(rank);
-        const simpleEmoji = document.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
-        if (simpleEmoji) {
-            simpleEmoji.value = rankData[rank] && rankData[rank].type === 'emoji' ? rankData[rank].value : '';
-        }
+        return;
+    }
+
+    // Avancerat läge: fyll alla 52 kort individuellt
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            const data = cardData[suit][rank];
+            if (data && data.value) {
+                return;
+            }
+            let pool = RANDOM_EMOJI_POOL.filter(e => !usedEmojis.has(e));
+            if (pool.length === 0) {
+                pool = RANDOM_EMOJI_POOL;
+            }
+            const emoji = pool[Math.floor(Math.random() * pool.length)];
+
+            cardData[suit][rank] = { type: 'emoji', value: emoji };
+            usedEmojis.add(emoji);
+            updateMiniPreview(suit, rank);
+            filled++;
+        });
+        updateProgress(suit);
     });
 
     updateAllProgress();
