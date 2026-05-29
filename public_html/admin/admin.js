@@ -202,19 +202,19 @@ function buildPrompt(rank, suit, data, settings) {
     const itemDesc = EMOJI_DESCRIPTIONS[data?.value] || (data?.value || 'a symbol');
     const colorName = hexToColorName(settings?.bgColor || '#333333');
     const patternDesc = patternToDescription(settings?.pattern || 'solid');
-    const style = 'Digital illustration, clean vector art style, centered, no text, no letters, no numbers';
+    const style = 'Vector illustration, flat design, no text';
 
     if (rank === 'A') {
-        return `${style}, ${itemDesc}, majestic centered composition, ornate decorative golden frame, ${colorName} background with ${patternDesc} texture, playing card ace style, elegant and regal`;
+        return `${itemDesc}, centered, golden ornate frame, ${colorName} ${patternDesc} background, ${style}`;
     }
 
     if (['J', 'Q', 'K'].includes(rank)) {
         const titles = { J: 'brave knight', Q: 'elegant queen', K: 'powerful king' };
-        return `${style}, ${itemDesc} portrait, ${titles[rank]} character, ornate decorative frame, ${colorName} background with ${patternDesc} texture, royal playing card style, detailed and majestic`;
+        return `${itemDesc}, ${titles[rank]} portrait, ornate frame, ${colorName} ${patternDesc} background, ${style}`;
     }
 
     const num = parseInt(rank, 10);
-    return `${style}, ${itemDesc}, arranged in ${num} symmetric positions, ${colorName} background with ${patternDesc} texture, playing card pip layout, balanced composition`;
+    return `${itemDesc}, ${num} symmetric arranged, ${colorName} ${patternDesc} background, ${style}`;
 }
 
 function simpleHash(str) {
@@ -3023,15 +3023,29 @@ function blobToDataUrl(blob) {
     });
 }
 
-async function fetchAIImage(prompt, seed) {
+async function fetchAIImage(prompt, seed, signal) {
     const encoded = encodeURIComponent(prompt);
     const url = `https://image.pollinations.ai/prompt/${encoded}?width=400&height=560&nologo=true&seed=${seed}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+
+    // Timeout: avbryt efter 30 sekunder
+    const timeoutId = setTimeout(() => {
+        if (signal && !signal.aborted) {
+            // Vi kan inte aborta här utan egen controller, men generateAICards hanterar det via AbortController
+        }
+    }, 30000);
+
+    try {
+        const res = await fetch(url, { signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        return blobToDataUrl(blob);
+    } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
     }
-    const blob = await res.blob();
-    return blobToDataUrl(blob);
 }
 
 function initAIGrid() {
@@ -3136,7 +3150,7 @@ async function generateAICards() {
 
     initAIGrid();
     updateAIProgress(0, 52, 'Startar generering...');
-    showToast('🤖 Startar AI-generering av 52 kort. Detta kan ta 5–10 minuter.');
+    showToast('🤖 Startar AI-generering av 52 kort. Tid: ~2–5 minuter (30 sek max per bild).');
 
     let completed = 0;
     let errors = 0;
@@ -3168,15 +3182,21 @@ async function generateAICards() {
             const maxRetries = 2;
 
             while (!success && retries <= maxRetries && !signal.aborted) {
+                // Timeout per bild: 30 sekunder
+                const imgController = new AbortController();
+                const timeoutId = setTimeout(() => imgController.abort(), 30000);
+
                 try {
-                    const dataUrl = await fetchAIImage(prompt, seed);
+                    const dataUrl = await fetchAIImage(prompt, seed, imgController.signal);
+                    clearTimeout(timeoutId);
                     cardData[suit][rank] = { type: 'image', value: dataUrl };
                     updateMiniPreview(suit, rank);
                     updateAICell(suit, rank, 'done', dataUrl);
                     success = true;
                 } catch (err) {
+                    clearTimeout(timeoutId);
                     retries++;
-                    if (retries <= maxRetries) {
+                    if (retries <= maxRetries && !signal.aborted) {
                         await new Promise(r => setTimeout(r, 2000));
                     }
                 }
@@ -3189,11 +3209,6 @@ async function generateAICards() {
 
             completed++;
             updateAIProgress(completed, total, `${completed}/${total} klara${errors > 0 ? ` (${errors} fel)` : ''}`);
-
-            // Liten pause mellan varje kort för att inte överbelasta
-            if (!signal.aborted) {
-                await new Promise(r => setTimeout(r, 300));
-            }
         }
         if (signal.aborted) {
             break;
