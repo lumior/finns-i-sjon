@@ -231,3 +231,24 @@ Helt omskriven Canvas-rendering för kortleksgeneratorn. Tidigare visade alla ko
   Om < 52/52 kort → `confirm()`-dialog: "Endast X/52 kort är ifyllda. Vill du fortsätta ändå?"
   - Full kortlek → export går direkt igenom
 - **`updateBatchStats()`** anropas automatiskt vid varje ändring, mall-applicering, import och init.
+
+## 2026-05-28 — Admin: Fas 10 — Speltestare (playtest / mini-spel)
+
+### 🎮 Speltestare — se kortleken i ett riktigt spel
+
+- **Mini-spelvy** i admin-panelen med ett virtuellt bord:
+  - **Korthög** (deck pile) — visar kortbaksidan, klicka för att dra kort
+  - **Hand** — visar dragna kort i en överlappande rad (som i ett riktigt kortspel)
+  - **Flip** — klicka på ett kort i handen för att vända det (framsida ↔ baksida)
+- **3D CSS-transform** på korten:
+  - `rotateY(180deg)` vid flip med `transform-style: preserve-3d`
+  - `backface-visibility: hidden` på båda sidor
+  - Snygg `cubic-bezier` animation vid drag
+- **Kontroller**:
+  - **"🃏 Dra kort"** — tar översta kortet från leken, visar med deal-animation
+  - **"🔀 Blanda lek"** — genererar alla 52 kort som dataURLs, blandar dem slumpmässigt
+  - **"🗑️ Kasta hand"** — lägger tillbaka handen i leken
+- **Status-text** visar vad som händer: "Drog: 7 ♥️. 51 kort kvar i leken."
+- **Räknare** på korthögen visar antal kort kvar.
+- Generering av 52 kort sker asynkront vid första "Blanda lek" eller första kortdraget.
+- Baksidan renderas dynamiskt från kortbaksidesinställningarna.

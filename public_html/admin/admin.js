@@ -99,6 +99,11 @@ let backSettings = {
 };
 let symbolMode = false;
 
+let playtestDeck = [];
+let playtestHand = [];
+let playtestReady = false;
+let playtestGenerating = false;
+
 /* ========================================
    INIT
    ======================================== */
@@ -114,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initLivePreview();
     initCardBack();
     initConfigIO();
+    initPlaytest();
     bindEvents();
     updateModeVisibility();
     updateLivePreview();
@@ -1721,6 +1727,213 @@ async function importConfig(file) {
     }
 }
 
+/* ========================================
+   FAS 10: SPELTESTARE
+   ======================================== */
+function initPlaytest() {
+    const drawBtn = document.getElementById('draw-card-btn');
+    const shuffleBtn = document.getElementById('shuffle-deck-btn');
+    const clearBtn = document.getElementById('clear-hand-btn');
+    const deckPile = document.getElementById('deck-pile');
+
+    if (drawBtn) {
+        drawBtn.addEventListener('click', drawCard);
+    }
+    if (shuffleBtn) {
+        shuffleBtn.addEventListener('click', () => {
+            prepareDeck();
+        });
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener('click', clearHand);
+    }
+    if (deckPile) {
+        deckPile.addEventListener('click', drawCard);
+    }
+}
+
+async function prepareDeck() {
+    if (playtestGenerating) {
+        return;
+    }
+    playtestGenerating = true;
+
+    const status = document.getElementById('playtest-status');
+    if (status) {
+        status.textContent = 'Genererar 52 kort...';
+    }
+
+    // Kontrollera att vi har data
+    const hasAnyContent = SUITS.some(suit =>
+        RANKS.some(rank => {
+            const data = cardData[suit][rank] || rankData[rank];
+            return data && data.value;
+        })
+    );
+
+    if (!hasAnyContent) {
+        if (status) {
+            status.textContent = 'Fyll i några kort först!';
+        }
+        playtestGenerating = false;
+        return;
+    }
+
+    // Synka simple mode
+    if (editMode === 'simple') {
+        syncSimpleToAdvanced();
+    }
+
+    // Generera alla 52 kort
+    playtestDeck = [];
+    for (const suit of SUITS) {
+        for (const rank of RANKS) {
+            await renderCardToCanvas(rank, suit);
+            const dataUrl = document.getElementById('card-canvas').toDataURL('image/png');
+            playtestDeck.push({
+                rank: rank,
+                suit: suit,
+                image: dataUrl
+            });
+        }
+    }
+
+    // Generera baksida
+    const backCanvas = document.createElement('canvas');
+    backCanvas.width = CANVAS_WIDTH;
+    backCanvas.height = CANVAS_HEIGHT;
+    renderCardBackToCanvas(backCanvas);
+    const backDataUrl = backCanvas.toDataURL('image/png');
+
+    playtestDeck.forEach(card => {
+        card.backImage = backDataUrl;
+    });
+
+    // Uppdatera deck-pile visuellt med genererad baksida
+    const deckCardBack = document.querySelector('#deck-pile .deck-card-back');
+    if (deckCardBack) {
+        deckCardBack.innerHTML = `<img src="${backDataUrl}" alt="Baksida" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">`;
+    }
+
+    shuffleArray(playtestDeck);
+    playtestHand = [];
+    playtestReady = true;
+    renderHand();
+    updateDeckCount();
+
+    if (status) {
+        status.textContent = 'Kortleken är klar! Dra kort för att börja spela.';
+    }
+    playtestGenerating = false;
+}
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+function drawCard() {
+    if (!playtestReady) {
+        prepareDeck();
+        return;
+    }
+
+    if (playtestDeck.length === 0) {
+        const status = document.getElementById('playtest-status');
+        if (status) {
+            status.textContent = 'Leken är tom! Blanda om för att spela igen.';
+        }
+        return;
+    }
+
+    const card = playtestDeck.pop();
+    playtestHand.push({ ...card, flipped: false });
+    renderHand();
+    updateDeckCount();
+
+    const status = document.getElementById('playtest-status');
+    if (status) {
+        const cardName = symbolMode
+            ? `${SUIT_ICONS[card.suit]} ${SUIT_NAMES[card.suit]}`
+            : `${card.rank} ${SUIT_ICONS[card.suit]}`;
+        status.textContent = `Drog: ${cardName}. ${playtestDeck.length} kort kvar i leken.`;
+    }
+}
+
+function flipCard(index) {
+    if (index < 0 || index >= playtestHand.length) {
+        return;
+    }
+    playtestHand[index].flipped = !playtestHand[index].flipped;
+    renderHand();
+}
+
+function clearHand() {
+    // Lägg tillbaka handen i leken
+    playtestHand.forEach(card => {
+        playtestDeck.push({
+            rank: card.rank,
+            suit: card.suit,
+            image: card.image,
+            backImage: card.backImage
+        });
+    });
+    playtestHand = [];
+    renderHand();
+    updateDeckCount();
+
+    const status = document.getElementById('playtest-status');
+    if (status) {
+        status.textContent = 'Handen kastad. Dra nya kort!';
+    }
+}
+
+function renderHand() {
+    const container = document.getElementById('hand-cards');
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML = playtestHand.map((card, index) => {
+        return `
+            <div class="playtest-card ${card.flipped ? 'flipped' : ''}" data-index="${index}" title="Klicka för att vända">
+                <div class="playtest-card-face">
+                    <img src="${card.image}" alt="${card.rank} ${card.suit}" loading="lazy">
+                </div>
+                <div class="playtest-card-back">
+                    <img src="${card.backImage}" alt="Baksida" loading="lazy">
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Lägg till click-handlers
+    container.querySelectorAll('.playtest-card').forEach(el => {
+        el.addEventListener('click', () => {
+            const idx = parseInt(el.dataset.index, 10);
+            flipCard(idx);
+        });
+    });
+
+    // Animering på senaste kortet
+    const lastCard = container.lastElementChild;
+    if (lastCard) {
+        lastCard.classList.add('dealing');
+        setTimeout(() => {
+            lastCard.classList.remove('dealing');
+        }, 400);
+    }
+}
+
+function updateDeckCount() {
+    const count = document.getElementById('deck-count');
+    if (count) {
+        count.textContent = playtestDeck.length;
+    }
+}
+
 function showToast(message, type = 'success') {
     const existing = document.querySelector('.toast');
     if (existing) {
@@ -1878,7 +2091,9 @@ function validateBeforeExport() {
     SUITS.forEach(suit => {
         RANKS.forEach(rank => {
             const data = cardData[suit][rank] || rankData[rank];
-            if (data && data.value) filled++;
+            if (data && data.value) {
+                filled++;
+            }
         });
     });
 

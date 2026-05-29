@@ -146,6 +146,37 @@
                 <button class="btn btn-primary" id="generate-btn">🎨 Generera & ladda ner ZIP</button>
             </div>
 
+            <!-- Playtest / Game simulator -->
+            <div class="playtest-section" id="playtest-section">
+                <h4>🎮 Testa kortleken</h4>
+                <p class="playtest-desc">Se hur korten ser ut i ett riktigt spel. Dra kort, blanda, och flip:a för att se baksidan.</p>
+
+                <div class="playtest-table">
+                    <div class="deck-area">
+                        <div class="deck-pile" id="deck-pile" title="Klicka för att dra kort">
+                            <div class="deck-card-back">
+                                <span class="deck-center">🎣</span>
+                            </div>
+                            <div class="deck-count" id="deck-count">52</div>
+                        </div>
+                        <div class="deck-label">Kortlek</div>
+                    </div>
+
+                    <div class="hand-area">
+                        <div class="hand-cards" id="hand-cards"></div>
+                        <div class="hand-label">Din hand</div>
+                    </div>
+                </div>
+
+                <div class="playtest-actions">
+                    <button class="btn btn-small" id="draw-card-btn">🃏 Dra kort</button>
+                    <button class="btn btn-small" id="shuffle-deck-btn">🔀 Blanda lek</button>
+                    <button class="btn btn-small btn-danger" id="clear-hand-btn">🗑️ Kasta hand</button>
+                </div>
+
+                <div class="playtest-status" id="playtest-status">Klicka "Blanda lek" för att börja</div>
+            </div>
+
             <div class="preview-area hidden" id="preview-area">
                 <h3>Förhandsgranskning</h3>
                 <div class="preview-suits" id="preview-suits"></div>
