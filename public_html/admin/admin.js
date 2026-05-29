@@ -64,6 +64,39 @@ const RANDOM_EMOJI_POOL = [
     '⭐','🌙','☀️','☁️','⚡','❄️','🔥','💧','🌈','☂️','🌊','🌍','🪐'
 ];
 
+const EMOJI_DESCRIPTIONS = {
+    '🍎': 'a shiny red apple', '🍊': 'a juicy orange', '🍇': 'a cluster of purple grapes',
+    '🍓': 'a ripe strawberry', '🍑': 'a fuzzy peach', '🍒': 'a pair of red cherries',
+    '🍍': 'a tropical pineapple', '🥝': 'a sliced kiwi fruit', '🍋': 'a bright yellow lemon',
+    '🍉': 'a slice of watermelon', '🥭': 'a ripe mango', '🍐': 'a green pear',
+    '🍌': 'a curved yellow banana', '🥕': 'an orange carrot', '🥦': 'a head of broccoli',
+    '🌽': 'an ear of corn', '🍆': 'a purple eggplant', '🧅': 'a brown onion',
+    '🥬': 'fresh green lettuce', '🫑': 'a green bell pepper', '🥒': 'a green cucumber',
+    '🍄': 'a spotted mushroom', '🧄': 'a bulb of garlic', '🌶️': 'a red chili pepper',
+    '🫛': 'green peas in a pod', '🥔': 'a brown potato', '🦁': 'a majestic lion',
+    '🦊': 'a sly red fox', '🐻': 'a brown bear', '🐼': 'a cute panda',
+    '🐨': 'a sleepy koala', '🐯': 'a fierce tiger', '🐷': 'a pink pig',
+    '🐸': 'a green frog', '🐙': 'a purple octopus', '🦉': 'a wise owl',
+    '🦅': 'a soaring eagle', '🦋': 'a colorful butterfly', '🐺': 'a grey wolf',
+    '🚗': 'a red car', '🚕': 'a yellow taxi', '🚌': 'a blue bus',
+    '🚓': 'a police car', '🚑': 'an ambulance', '🚒': 'a fire truck',
+    '🚜': 'a green tractor', '🚲': 'a bicycle', '🛵': 'a scooter',
+    '🚁': 'a helicopter', '🚂': 'a steam train', '✈️': 'an airplane',
+    '🚀': 'a rocket ship', '⚽': 'a soccer ball', '🏀': 'a basketball',
+    '🏈': 'an american football', '⚾': 'a baseball', '🎾': 'a tennis ball',
+    '🏐': 'a volleyball', '🏉': 'a rugby ball', '🎱': 'a billiard ball',
+    '🏓': 'a ping pong ball', '🏸': 'a badminton shuttlecock', '🥊': 'a boxing glove',
+    '⛳': 'a golf flag', '🏆': 'a golden trophy', '🌸': 'a cherry blossom',
+    '🌺': 'a hibiscus flower', '🌻': 'a sunflower', '🌹': 'a red rose',
+    '🌷': 'a pink tulip', '🌵': 'a green cactus', '🌲': 'a pine tree',
+    '🌳': 'an oak tree', '🍁': 'a maple leaf', '🌼': 'a daisy',
+    '🌿': 'green herbs', '☘️': 'a four-leaf clover', '⭐': 'a golden star',
+    '🌙': 'a crescent moon', '☀️': 'a bright sun', '☁️': 'a fluffy cloud',
+    '⚡': 'a lightning bolt', '❄️': 'a snowflake', '🔥': 'flames',
+    '💧': 'a water droplet', '🌈': 'a rainbow', '☂️': 'a red umbrella',
+    '🌊': 'an ocean wave', '🌍': 'planet Earth', '🪐': 'the planet Saturn'
+};
+
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 560;
 
@@ -100,6 +133,98 @@ let playtestDeck = [];
 let playtestHand = [];
 let playtestReady = false;
 let playtestGenerating = false;
+
+/* ========================================
+   AI-BILDGENERERING (Pollinations.ai)
+   ======================================== */
+
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : { r: 128, g: 128, b: 128 };
+}
+
+function hexToColorName(hex) {
+    const { r, g, b } = hexToRgb(hex);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const lum = (r + g + b) / 3;
+    const isDark = lum < 64;
+    const isLight = lum > 192;
+    const prefix = isDark ? 'dark ' : (isLight ? 'light ' : '');
+
+    if (max - min < 30) {
+        if (lum < 50) { return prefix + 'black'; }
+        if (lum > 200) { return prefix + 'white'; }
+        return prefix + 'gray';
+    }
+
+    if (r > g && r > b) {
+        if (g > 150 && b < 100) { return prefix + 'orange'; }
+        if (g > 100 && b > 100) { return prefix + 'pink'; }
+        return prefix + 'red';
+    }
+    if (g > r && g > b) {
+        if (r > 150 && b < 100) { return prefix + 'lime'; }
+        if (r > 100 && b > 100) { return prefix + 'teal'; }
+        return prefix + 'green';
+    }
+    if (b > r && b > g) {
+        if (r > 150 && g < 100) { return prefix + 'purple'; }
+        if (r > 100 && g > 100) { return prefix + 'blue'; }
+        return prefix + 'blue';
+    }
+    if (r > 150 && g > 150 && b < 100) { return prefix + 'yellow'; }
+    if (r > 150 && b > 150 && g < 100) { return prefix + 'magenta'; }
+    if (g > 150 && b > 150 && r < 100) { return prefix + 'cyan'; }
+
+    return prefix + 'colored';
+}
+
+function patternToDescription(pattern) {
+    const map = {
+        dots: 'subtle dotted',
+        stripes: 'striped',
+        diamonds: 'diamond-patterned',
+        checkers: 'checkered',
+        waves: 'wavy',
+        stars: 'star-patterned',
+        solid: 'smooth solid',
+        radial: 'radial gradient'
+    };
+    return map[pattern] || 'textured';
+}
+
+function buildPrompt(rank, suit, data, settings) {
+    const itemDesc = EMOJI_DESCRIPTIONS[data?.value] || (data?.value || 'a symbol');
+    const colorName = hexToColorName(settings?.bgColor || '#333333');
+    const patternDesc = patternToDescription(settings?.pattern || 'solid');
+    const style = 'Digital illustration, clean vector art style, centered, no text, no letters, no numbers';
+
+    if (rank === 'A') {
+        return `${style}, ${itemDesc}, majestic centered composition, ornate decorative golden frame, ${colorName} background with ${patternDesc} texture, playing card ace style, elegant and regal`;
+    }
+
+    if (['J', 'Q', 'K'].includes(rank)) {
+        const titles = { J: 'brave knight', Q: 'elegant queen', K: 'powerful king' };
+        return `${style}, ${itemDesc} portrait, ${titles[rank]} character, ornate decorative frame, ${colorName} background with ${patternDesc} texture, royal playing card style, detailed and majestic`;
+    }
+
+    const num = parseInt(rank, 10);
+    return `${style}, ${itemDesc}, arranged in ${num} symmetric positions, ${colorName} background with ${patternDesc} texture, playing card pip layout, balanced composition`;
+}
+
+function simpleHash(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+        h = ((h << 5) - h) + str.charCodeAt(i);
+        h |= 0;
+    }
+    return Math.abs(h);
+}
 
 /* ========================================
    FAS 11: UNDO/REDO + AUTO-SPARA
@@ -2774,6 +2899,16 @@ function bindEvents() {
             }
         });
     }
+
+    // AI-generering
+    const aiGenerateBtn = document.getElementById('ai-generate-btn');
+    const aiCancelBtn = document.getElementById('ai-cancel-btn');
+    if (aiGenerateBtn) {
+        aiGenerateBtn.addEventListener('click', generateAICards);
+    }
+    if (aiCancelBtn) {
+        aiCancelBtn.addEventListener('click', cancelAIGeneration);
+    }
 }
 
 async function generatePreviews() {
@@ -2870,6 +3005,227 @@ async function generateAndDownload() {
     saveAs(content, `${themeName}-kortlek.zip`);
 
     showToast('✅ ZIP nedladdad! Extrahera till public_html/assets/cards/');
+}
+
+/* ========================================
+   AI-BILDGENERERING — POLLINATIONS.AI
+   ======================================== */
+
+let aiGenerating = false;
+let aiAbortController = null;
+
+function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function fetchAIImage(prompt, seed) {
+    const encoded = encodeURIComponent(prompt);
+    const url = `https://image.pollinations.ai/prompt/${encoded}?width=400&height=560&nologo=true&seed=${seed}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    return blobToDataUrl(blob);
+}
+
+function initAIGrid() {
+    const grid = document.getElementById('ai-grid');
+    if (!grid) {
+        return;
+    }
+    grid.innerHTML = '';
+    for (const suit of SUITS) {
+        for (const rank of RANKS) {
+            const cell = document.createElement('div');
+            cell.className = 'ai-grid-cell';
+            cell.dataset.suit = suit;
+            cell.dataset.rank = rank;
+            cell.textContent = rank;
+            cell.title = `${SUIT_NAMES[suit]} ${rank}`;
+            grid.appendChild(cell);
+        }
+    }
+}
+
+function updateAICell(suit, rank, status, dataUrl) {
+    const cell = document.querySelector(`.ai-grid-cell[data-suit="${suit}"][data-rank="${rank}"]`);
+    if (!cell) {
+        return;
+    }
+    cell.classList.remove('processing', 'done', 'error');
+    cell.classList.add(status);
+    if (status === 'done' && dataUrl) {
+        cell.innerHTML = `<img src="${dataUrl}" alt="${rank}">`;
+    } else if (status === 'error') {
+        cell.textContent = '✕';
+    } else if (status === 'processing') {
+        cell.textContent = '…';
+    }
+}
+
+function updateAIProgress(current, total, message) {
+    const fill = document.getElementById('ai-progress-fill');
+    const text = document.getElementById('ai-progress-text');
+    if (fill) {
+        fill.style.width = `${(current / total) * 100}%`;
+    }
+    if (text) {
+        text.textContent = message || `${current}/${total} kort`;
+    }
+}
+
+async function generateAICards() {
+    if (aiGenerating) {
+        return;
+    }
+
+    const themeName = document.getElementById('theme-name').value.trim().toLowerCase();
+    if (!themeName) {
+        showToast('Ange ett namn på kortleken först!', 'error');
+        return;
+    }
+
+    // Säkerställ att enkelt läge-data finns i cardData innan generering
+    if (editMode === 'simple') {
+        syncSimpleToAdvanced();
+    }
+
+    // Kolla att vi har data att generera från
+    let hasAnyData = false;
+    for (const suit of SUITS) {
+        for (const rank of RANKS) {
+            const d = cardData[suit][rank] || rankData[rank];
+            if (d && d.value) {
+                hasAnyData = true;
+                break;
+            }
+        }
+        if (hasAnyData) {
+            break;
+        }
+    }
+    if (!hasAnyData) {
+        showToast('Fyll i emoji eller bilder för korten först!', 'error');
+        return;
+    }
+
+    aiGenerating = true;
+    aiAbortController = new AbortController();
+    const signal = aiAbortController.signal;
+
+    const section = document.getElementById('ai-section');
+    const btn = document.getElementById('ai-generate-btn');
+    const cancelBtn = document.getElementById('ai-cancel-btn');
+
+    if (section) {
+        section.classList.remove('hidden');
+    }
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Genererar...';
+    }
+    if (cancelBtn) {
+        cancelBtn.classList.remove('hidden');
+    }
+
+    initAIGrid();
+    updateAIProgress(0, 52, 'Startar generering...');
+    showToast('🤖 Startar AI-generering av 52 kort. Detta kan ta 5–10 minuter.');
+
+    let completed = 0;
+    let errors = 0;
+    const total = 52;
+
+    for (const suit of SUITS) {
+        for (const rank of RANKS) {
+            if (signal.aborted) {
+                break;
+            }
+
+            const data = cardData[suit][rank] || rankData[rank];
+            if (!data || !data.value) {
+                updateAICell(suit, rank, 'error');
+                errors++;
+                completed++;
+                updateAIProgress(completed, total, `${completed}/${total} — hoppade över tomt kort`);
+                continue;
+            }
+
+            updateAICell(suit, rank, 'processing');
+            updateAIProgress(completed, total, `${completed}/${total} — genererar ${SUIT_NAMES[suit]} ${rank}...`);
+
+            const prompt = buildPrompt(rank, suit, data, suitSettings[suit]);
+            const seed = simpleHash(themeName + suit + rank + data.value);
+
+            let success = false;
+            let retries = 0;
+            const maxRetries = 2;
+
+            while (!success && retries <= maxRetries && !signal.aborted) {
+                try {
+                    const dataUrl = await fetchAIImage(prompt, seed);
+                    cardData[suit][rank] = { type: 'image', value: dataUrl };
+                    updateMiniPreview(suit, rank);
+                    updateAICell(suit, rank, 'done', dataUrl);
+                    success = true;
+                } catch (err) {
+                    retries++;
+                    if (retries <= maxRetries) {
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
+                }
+            }
+
+            if (!success) {
+                updateAICell(suit, rank, 'error');
+                errors++;
+            }
+
+            completed++;
+            updateAIProgress(completed, total, `${completed}/${total} klara${errors > 0 ? ` (${errors} fel)` : ''}`);
+
+            // Liten pause mellan varje kort för att inte överbelasta
+            if (!signal.aborted) {
+                await new Promise(r => setTimeout(r, 300));
+            }
+        }
+        if (signal.aborted) {
+            break;
+        }
+    }
+
+    aiGenerating = false;
+    aiAbortController = null;
+
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🤖 Generera med AI';
+    }
+    if (cancelBtn) {
+        cancelBtn.classList.add('hidden');
+    }
+
+    if (signal.aborted) {
+        showToast(`⛔ Generering avbruten. ${completed - errors}/${total} kort färdiga.`);
+    } else if (errors > 0) {
+        showToast(`⚠️ Generering klar med ${errors} fel. Klicka på röda celler för att se vilka.`);
+        pushHistory();
+    } else {
+        showToast('✅ AI-generering klar! Alla 52 kort genererade.');
+        pushHistory();
+    }
+}
+
+function cancelAIGeneration() {
+    if (aiAbortController) {
+        aiAbortController.abort();
+    }
 }
 
 async function generateAndUpload() {

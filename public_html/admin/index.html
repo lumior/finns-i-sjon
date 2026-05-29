@@ -173,6 +173,22 @@
                 <button class="btn btn-secondary" id="preview-btn">👁️ Förhandsgranska alla 52</button>
                 <button class="btn btn-primary" id="generate-btn">🎨 Generera & ladda ner ZIP</button>
                 <button class="btn btn-success" id="upload-btn">🚀 Spara direkt till servern</button>
+                <button class="btn btn-ai" id="ai-generate-btn">🤖 Generera med AI</button>
+            </div>
+
+            <div class="ai-section hidden" id="ai-section">
+                <label>🤖 AI-bildgenerering (Pollinations.ai — gratis)</label>
+                <p class="ai-desc">Genererar 52 unika illustrationer baserat på dina valda emoji och färger. Detta ersätter emoji med AI-genererade bilder i kortens centrum. Corner-rank, ram och bakgrund renderas fortfarande av Canvas.</p>
+                <div class="ai-progress" id="ai-progress">
+                    <div class="ai-progress-bar">
+                        <div class="ai-progress-fill" id="ai-progress-fill"></div>
+                    </div>
+                    <div class="ai-progress-text" id="ai-progress-text">Redo att starta</div>
+                </div>
+                <div class="ai-grid" id="ai-grid"></div>
+                <div class="ai-actions">
+                    <button class="btn btn-small btn-danger hidden" id="ai-cancel-btn">⛔ Avbryt</button>
+                </div>
             </div>
 
             <!-- Playtest / Game simulator -->
