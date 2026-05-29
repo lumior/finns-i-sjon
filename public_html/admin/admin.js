@@ -3025,9 +3025,9 @@ function blobToDataUrl(blob) {
 
 async function fetchAIImage(prompt, seed) {
     const encoded = encodeURIComponent(prompt);
-    // Pollinations.ai stödjer endast vissa storlekar. 400x560 hänger sig,
-    // 512x512 ger 402. 1024x1024 fungerar på ~0.3s och skalas ned i canvas.
-    const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&seed=${seed}`;
+    // Pollinations.ai ändrar ofta vilka storlekar som är gratis.
+    // 400x560 hänger sig, 512/768/1024 ger 402. 256x256 fungerar på ~0.3s.
+    const url = `https://image.pollinations.ai/prompt/${encoded}?width=256&height=256&nologo=true&seed=${seed}`;
 
     const res = await fetch(url);
     if (!res.ok) {
@@ -3183,11 +3183,11 @@ async function generateAICards() {
 
             let success = false;
             let retries = 0;
-            const maxRetries = 2;
+            const maxRetries = 1;
 
             while (!success && retries <= maxRetries && !signal.aborted) {
                 try {
-                    const dataUrl = await withTimeout(fetchAIImage(prompt, seed), 25000);
+                    const dataUrl = await withTimeout(fetchAIImage(prompt, seed), 45000);
                     rankData[rank] = { type: 'image', value: dataUrl };
                     SUITS.forEach(s => {
                         cardData[s][rank] = { type: 'image', value: dataUrl };
@@ -3240,7 +3240,7 @@ async function generateAICards() {
 
                 while (!success && retries <= maxRetries && !signal.aborted) {
                     try {
-                        const dataUrl = await withTimeout(fetchAIImage(prompt, seed), 25000);
+                        const dataUrl = await withTimeout(fetchAIImage(prompt, seed), 45000);
                         cardData[suit][rank] = { type: 'image', value: dataUrl };
                         updateMiniPreview(suit, rank);
                         updateAICell(suit, rank, 'done', dataUrl);
