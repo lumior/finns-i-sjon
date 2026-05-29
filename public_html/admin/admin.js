@@ -87,6 +87,7 @@ let backSettings = {
     pattern: 'crosshatch',
     center: '🎣'
 };
+let symbolMode = false;
 
 /* ========================================
    INIT
@@ -96,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadThemes();
     initModeToggle();
     initTemplates();
+    initSymbolMode();
     initSimpleEditor();
     initSuitPanels();
     initSuitTabs();
@@ -318,6 +320,18 @@ function applyTemplate(key) {
 
     updateAllProgress();
     showToast(`Mallen "${template.name}" applicerad på alla 52 kort!`);
+}
+
+function initSymbolMode() {
+    const checkbox = document.getElementById('symbol-mode-checkbox');
+    if (!checkbox) {
+        return;
+    }
+    checkbox.addEventListener('change', e => {
+        symbolMode = e.target.checked;
+        queueLivePreview();
+        showToast(symbolMode ? '🎴 Symbol-läge aktiverat — inga valörer visas' : '🃏 Standardläge — valörer visas');
+    });
 }
 
 function initSimpleEditor() {
@@ -1192,25 +1206,37 @@ async function renderCardToCanvas(rank, suit) {
     // 2. Ram och ornament
     renderCardBorder(ctx);
 
-    // 3. Corner rank med färgsymbol
-    renderCornerRank(ctx, rank, suit);
-
-    // 4. Huvudinnehåll — pip-mönster, face card, eller emoji/bild
-    if (data && data.value) {
-        if (['J', 'Q', 'K', 'A'].includes(rank)) {
-            await renderFaceCard(ctx, rank, suit, data);
-        } else if (['2', '3', '4', '5', '6', '7', '8', '9', '10'].includes(rank)) {
-            const positions = getPipPositions(rank);
+    if (symbolMode) {
+        // Symbol-läge: bara center-innehåll, inga valörer alls
+        if (data && data.value) {
             if (data.type === 'emoji') {
-                renderPips(ctx, data.value, positions);
+                renderCenterEmoji(ctx, data.value, 200);
             } else if (data.type === 'image') {
-                await renderCenterImage(ctx, data.value, 200);
+                await renderCenterImage(ctx, data.value, 260);
             }
-        } else {
-            if (data.type === 'emoji') {
-                renderCenterEmoji(ctx, data.value, 160);
-            } else if (data.type === 'image') {
-                await renderCenterImage(ctx, data.value, 220);
+        }
+    } else {
+        // Standardläge: full spelkortslayout
+        // 3. Corner rank med färgsymbol
+        renderCornerRank(ctx, rank, suit);
+
+        // 4. Huvudinnehåll — pip-mönster, face card, eller emoji/bild
+        if (data && data.value) {
+            if (['J', 'Q', 'K', 'A'].includes(rank)) {
+                await renderFaceCard(ctx, rank, suit, data);
+            } else if (['2', '3', '4', '5', '6', '7', '8', '9', '10'].includes(rank)) {
+                const positions = getPipPositions(rank);
+                if (data.type === 'emoji') {
+                    renderPips(ctx, data.value, positions);
+                } else if (data.type === 'image') {
+                    await renderCenterImage(ctx, data.value, 200);
+                }
+            } else {
+                if (data.type === 'emoji') {
+                    renderCenterEmoji(ctx, data.value, 160);
+                } else if (data.type === 'image') {
+                    await renderCenterImage(ctx, data.value, 220);
+                }
             }
         }
     }
@@ -1299,7 +1325,11 @@ async function updateLivePreview() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(srcCanvas, 0, 0);
 
-    label.textContent = `${livePreviewRank} ${SUIT_ICONS[livePreviewSuit]} ${SUIT_NAMES[livePreviewSuit]}`;
+    if (symbolMode) {
+        label.textContent = `${SUIT_ICONS[livePreviewSuit]} ${SUIT_NAMES[livePreviewSuit]}`;
+    } else {
+        label.textContent = `${livePreviewRank} ${SUIT_ICONS[livePreviewSuit]} ${SUIT_NAMES[livePreviewSuit]}`;
+    }
     wrap.classList.add('active');
 }
 
@@ -1488,7 +1518,8 @@ function exportConfig() {
         cardData: JSON.parse(JSON.stringify(cardData)),
         rankData: JSON.parse(JSON.stringify(rankData)),
         suitSettings: JSON.parse(JSON.stringify(suitSettings)),
-        backSettings: JSON.parse(JSON.stringify(backSettings))
+        backSettings: JSON.parse(JSON.stringify(backSettings)),
+        symbolMode: symbolMode
     };
 
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
@@ -1526,6 +1557,13 @@ async function importConfig(file) {
         }
         if (config.backSettings) {
             backSettings = config.backSettings;
+        }
+        if (typeof config.symbolMode === 'boolean') {
+            symbolMode = config.symbolMode;
+            const checkbox = document.getElementById('symbol-mode-checkbox');
+            if (checkbox) {
+                checkbox.checked = symbolMode;
+            }
         }
         if (config.themeName) {
             document.getElementById('theme-name').value = config.themeName;

@@ -185,3 +185,17 @@ Helt omskriven Canvas-rendering för kortleksgeneratorn. Tidigare visade alla ko
   - Tema-namn
   - Alla UI-inputs synkas automatiskt
 - **Felhantering**: Ogiltig JSON eller saknade fält ger tydligt felmeddelande via `showToast()`.
+
+## 2026-05-28 — Admin: Symbol-läge (dölj valörer)
+
+### 🎴 Symbol-läge — inga spelkortsvärden synliga
+
+- **Ny toggle** i creator-form: "🎴 Symbol-läge — visa endast bilder/emojis, inga valörer"
+- När aktiverat (`symbolMode = true`):
+  - **Inga corner ranks** — inga A/2/3/J/Q/K i hörnen
+  - **Inga face cards** — inga "ESS"/"KNEKT"-titlar, inga kronor, inga unika ramar
+  - **Inga pip-mönster** — ingen 7-prickar-layout etc.
+  - **Alla 52 kort ser likadana ut**: endast center emoji/bild (200px för emoji, 260px för bild)
+  - Live preview-labeln visar bara färg, t.ex. "♥️ Hjärter" istället för "A ♥️ Hjärter"
+- **Användningsfall**: Memory-spel, temakort för barn, eller rena bildkortlekar där man bara matchar symboler utan koppling till traditionella spelkort.
+- **Export/import**: `symbolMode` sparas och läses in med JSON-konfigurationen.
