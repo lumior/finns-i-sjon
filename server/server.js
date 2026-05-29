@@ -71,7 +71,7 @@ app.use(
     })
 );
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '../public_html')));
 
 // Separata rate limiters per endpoint-typ

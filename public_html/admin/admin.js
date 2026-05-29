@@ -94,6 +94,7 @@ let backSettings = {
     center: '🎣'
 };
 let symbolMode = false;
+let loadedTheme = null; // Namnet på det tema som för närvarande är laddat för redigering
 
 let playtestDeck = [];
 let playtestHand = [];
@@ -117,6 +118,7 @@ function getStateSnapshot() {
         suitSettings: JSON.parse(JSON.stringify(suitSettings)),
         backSettings: JSON.parse(JSON.stringify(backSettings)),
         symbolMode: symbolMode,
+        editMode: editMode,
         themeName: document.getElementById('theme-name') ? document.getElementById('theme-name').value : ''
     };
 }
@@ -129,6 +131,9 @@ function restoreState(snapshot) {
     suitSettings = JSON.parse(JSON.stringify(snapshot.suitSettings));
     backSettings = JSON.parse(JSON.stringify(snapshot.backSettings));
     symbolMode = snapshot.symbolMode;
+    if (snapshot.editMode) {
+        editMode = snapshot.editMode;
+    }
 
     const themeInput = document.getElementById('theme-name');
     if (themeInput && snapshot.themeName !== undefined) {
@@ -199,6 +204,13 @@ function restoreState(snapshot) {
     updateLivePreview();
     updateCardBackPreview();
     updateHistoryButtons();
+    updateModeVisibility();
+
+    // Synka mode-toggle knapp
+    const modeToggle = document.getElementById('mode-toggle');
+    if (modeToggle) {
+        modeToggle.textContent = editMode === 'simple' ? '🔄 Avancerat läge' : '🔄 Enkelt läge';
+    }
 
     historyPaused = false;
 }
@@ -436,6 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initHistoryKeyboard();
     initHistoryAutoCapture();
     bindEvents();
+    refreshThemeList();
     updateModeVisibility();
     updateLivePreview();
     updateCardBackPreview();
@@ -2710,6 +2723,7 @@ function validateBeforeExport() {
 function bindEvents() {
     document.getElementById('preview-btn').addEventListener('click', generatePreviews);
     document.getElementById('generate-btn').addEventListener('click', generateAndDownload);
+    document.getElementById('upload-btn').addEventListener('click', generateAndUpload);
 
     const fillRandomBtn = document.getElementById('fill-random-btn');
     const clearAllBtn = document.getElementById('clear-all-btn');
@@ -2733,6 +2747,31 @@ function bindEvents() {
     if (themeInput) {
         themeInput.addEventListener('input', () => {
             setTimeout(() => pushHistory(), 800);
+        });
+        themeInput.addEventListener('change', () => {
+            // Om användaren ändrar namnet manuellt, återställ loadedTheme
+            const currentName = themeInput.value.trim().toLowerCase();
+            if (loadedTheme && loadedTheme !== currentName) {
+                loadedTheme = null;
+                const hint = document.getElementById('load-theme-hint');
+                if (hint) {
+                    hint.textContent = 'Hämta ett sparat tema för att fortsätta redigera det.';
+                }
+            }
+        });
+    }
+
+    // Ladda befintligt tema
+    const loadThemeBtn = document.getElementById('load-theme-btn');
+    const existingSelect = document.getElementById('existing-theme-select');
+    if (loadThemeBtn) {
+        loadThemeBtn.addEventListener('click', loadThemeForEditing);
+    }
+    if (existingSelect) {
+        existingSelect.addEventListener('change', () => {
+            if (loadThemeBtn) {
+                loadThemeBtn.disabled = !existingSelect.value;
+            }
         });
     }
 }
@@ -2831,4 +2870,183 @@ async function generateAndDownload() {
     saveAs(content, `${themeName}-kortlek.zip`);
 
     showToast('✅ ZIP nedladdad! Extrahera till public_html/assets/cards/');
+}
+
+async function generateAndUpload() {
+    const themeName = document.getElementById('theme-name').value.trim().toLowerCase();
+    if (!themeName) {
+        showToast('Ange ett namn på kortleken först!', 'error');
+        return;
+    }
+
+    if (!/^[a-z0-9-]+$/.test(themeName)) {
+        showToast('Namnet får bara innehålla små bokstäver, siffror och bindestreck!', 'error');
+        return;
+    }
+
+    if (!validateBeforeExport()) {
+        return;
+    }
+
+    if (editMode === 'simple') {
+        syncSimpleToAdvanced();
+    }
+
+    showToast('Genererar och laddar upp kortlek... Det kan ta en stund.');
+
+    const cards = {};
+    for (const suit of SUITS) {
+        cards[suit] = {};
+        for (const rank of RANKS) {
+            await renderCardToCanvas(rank, suit);
+            const dataUrl = document.getElementById('card-canvas').toDataURL('image/png');
+            cards[suit][rank] = dataUrl.split(',')[1];
+        }
+    }
+
+    const backCanvas = document.createElement('canvas');
+    backCanvas.width = CANVAS_WIDTH;
+    backCanvas.height = CANVAS_HEIGHT;
+    renderCardBackToCanvas(backCanvas);
+    const backDataUrl = backCanvas.toDataURL('image/png');
+    const back = backDataUrl.split(',')[1];
+
+    const config = getStateSnapshot();
+    delete config.themeName; // themeName skickas separat
+
+    const isUpdate = loadedTheme === themeName;
+    const url = isUpdate ? `/api/admin/themes/${themeName}` : '/api/admin/themes';
+    const method = isUpdate ? 'PUT' : 'POST';
+
+    const btn = document.getElementById('upload-btn');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Laddar upp...';
+
+    try {
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(isUpdate ? { cards, back, config } : { themeName, cards, back, config })
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadedTheme = themeName;
+            showToast(`✅ ${isUpdate ? 'Uppdaterade' : 'Sparade'} ${data.saved} kort till /assets/cards/${themeName}/`);
+            refreshThemeList();
+        } else {
+            showToast(`Fel: ${data.error || 'Okänt fel'}`, 'error');
+        }
+    } catch (err) {
+        showToast(`Nätverksfel: ${err.message}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+/* ========================================
+   LADDA BEFINTLIGT TEMA
+   ======================================== */
+
+async function refreshThemeList() {
+    const select = document.getElementById('existing-theme-select');
+    const loadBtn = document.getElementById('load-theme-btn');
+    const hint = document.getElementById('load-theme-hint');
+
+    if (!select) {
+        return;
+    }
+
+    select.disabled = true;
+    loadBtn.disabled = true;
+    hint.textContent = 'Hämtar temalista...';
+
+    try {
+        const res = await fetch('/api/admin/themes');
+        const data = await res.json();
+
+        // Rensa utom första option
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+
+        if (data.success && data.themes && data.themes.length > 0) {
+            for (const theme of data.themes) {
+                const option = document.createElement('option');
+                option.value = theme.folder;
+                option.textContent = `${theme.name} (${theme.cardCount} kort)${theme.editable ? '' : ' 🔒'}`;
+                option.dataset.editable = theme.editable;
+                if (!theme.editable) {
+                    option.style.color = '#94a3b8';
+                }
+                select.appendChild(option);
+            }
+            select.disabled = false;
+            hint.textContent = 'Hämta ett sparat tema för att fortsätta redigera det. Teman markerade med 🔒 har ingen sparad konfiguration.';
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = '-- Inga teman hittades --';
+            option.disabled = true;
+            select.appendChild(option);
+            hint.textContent = 'Inga teman hittades på servern.';
+        }
+    } catch (err) {
+        hint.textContent = `Kunde inte hämta temalista: ${err.message}`;
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = '-- Fel vid hämtning --';
+        option.disabled = true;
+        select.appendChild(option);
+    }
+}
+
+async function loadThemeForEditing() {
+    const select = document.getElementById('existing-theme-select');
+    const themeName = select.value;
+
+    if (!themeName) {
+        showToast('Välj ett tema att ladda', 'error');
+        return;
+    }
+
+    const option = select.options[select.selectedIndex];
+    const isEditable = option.dataset.editable === 'true';
+
+    if (!isEditable) {
+        showToast('Detta tema har ingen sparad konfiguration och kan inte redigeras.', 'error');
+        return;
+    }
+
+    const loadBtn = document.getElementById('load-theme-btn');
+    const originalText = loadBtn.textContent;
+    loadBtn.disabled = true;
+    loadBtn.textContent = '⏳ Laddar...';
+
+    try {
+        const res = await fetch(`/api/admin/themes/${themeName}/config`);
+        const data = await res.json();
+
+        if (!data.success) {
+            showToast(`Fel: ${data.error || 'Kunde inte ladda tema'}`, 'error');
+            return;
+        }
+
+        restoreState(data.config);
+        loadedTheme = themeName;
+
+        // Uppdatera hint
+        const hint = document.getElementById('load-theme-hint');
+        if (hint) {
+            hint.innerHTML = `✅ Laddade <strong>${themeName}</strong>. Klicka "🚀 Spara direkt till servern" för att uppdatera.`;
+        }
+
+        showToast(`Laddade ${themeName} för redigering`);
+    } catch (err) {
+        showToast(`Nätverksfel: ${err.message}`, 'error');
+    } finally {
+        loadBtn.disabled = false;
+        loadBtn.textContent = originalText;
+    }
 }

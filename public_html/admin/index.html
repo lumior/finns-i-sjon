@@ -36,6 +36,17 @@
                     <small>Endast små bokstäver, siffror och bindestreck.</small>
                 </div>
 
+                <div class="load-theme-section" id="load-theme-section">
+                    <label>📂 Ladda befintligt tema</label>
+                    <div class="load-theme-row">
+                        <select id="existing-theme-select">
+                            <option value="">-- Välj tema --</option>
+                        </select>
+                        <button class="btn btn-small" id="load-theme-btn" disabled>🔄 Ladda</button>
+                    </div>
+                    <small id="load-theme-hint">Hämta ett sparat tema för att fortsätta redigera det.</small>
+                </div>
+
                 <div class="history-bar">
                     <button class="history-btn" id="undo-btn" title="Ångra (Ctrl+Z)">↩️ Ångra</button>
                     <button class="history-btn" id="redo-btn" title="Gör om (Ctrl+Y)">↪️ Gör om</button>
@@ -161,6 +172,7 @@
             <div class="creator-actions">
                 <button class="btn btn-secondary" id="preview-btn">👁️ Förhandsgranska alla 52</button>
                 <button class="btn btn-primary" id="generate-btn">🎨 Generera & ladda ner ZIP</button>
+                <button class="btn btn-success" id="upload-btn">🚀 Spara direkt till servern</button>
             </div>
 
             <!-- Playtest / Game simulator -->
