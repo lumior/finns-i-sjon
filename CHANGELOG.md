@@ -252,3 +252,27 @@ Helt omskriven Canvas-rendering för kortleksgeneratorn. Tidigare visade alla ko
 - **Räknare** på korthögen visar antal kort kvar.
 - Generering av 52 kort sker asynkront vid första "Blanda lek" eller första kortdraget.
 - Baksidan renderas dynamiskt från kortbaksidesinställningarna.
+
+## 2026-05-28 — Admin: Fas 11 — Undo/Redo + Auto-spara
+
+### ↩️ Undo/Redo med historik
+
+- **Historik-stack** som sparar snapshots av hela state (max 50 steg):
+  - `cardData`, `rankData`, `suitSettings`, `backSettings`, `symbolMode`, `themeName`
+- **Debounced inspelning**: Ändringar sparas till historiken 600ms efter att användaren slutat ändra (undviker att varje tangenttryck blir ett steg).
+- **Event delegation**: Alla `input`/`change` inom creator-tab fångas automatiskt.
+- **Knappar**: "↩️ Ångra" och "↪️ Gör om" i historik-baren ovanför editorn.
+- **Keyboard shortcuts**:
+  - `Ctrl+Z` — Ångra
+  - `Ctrl+Y` eller `Ctrl+Shift+Z` — Gör om
+- **`restoreState()`** — återställer allt state och synkar alla UI-element (simple + advanced inputs, previewer, settings, symbolMode, etc.).
+
+### 💾 Auto-spara till localStorage
+
+- **Sparar automatiskt** var 10:e sekund till `localStorage`.
+- **Status-indikator** visar "Sparad" i historik-baren.
+- **Vid sidladdning**: Om ett utkast finns frågar en `confirm()`-dialog:
+  - "Det finns ett osparat utkast från för X min sedan. Vill du återställa det?"
+  - Vid "Ja": återställs allt state och historiken nollställs med utkastet som bas.
+  - Vid "Nej": auto-sparad data rensas.
+- **`clearAutoSave()`** — rensar localStorage (anropas vid lyckad export eller när användaren väljer att inte återställa).

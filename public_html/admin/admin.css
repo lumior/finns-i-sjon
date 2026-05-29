@@ -216,6 +216,53 @@ body {
     margin-bottom: var(--space-lg);
 }
 
+/* History bar */
+.history-bar {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+    margin-bottom: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px dashed rgba(99, 102, 241, 0.3);
+    border-radius: var(--radius-md);
+    flex-wrap: wrap;
+}
+
+.history-btn {
+    padding: 6px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.history-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.history-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.autosave-status {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--success);
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+.autosave-status.error {
+    color: var(--danger);
+}
+
 /* Template bar */
 .template-bar {
     display: flex;

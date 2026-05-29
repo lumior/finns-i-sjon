@@ -101,6 +101,322 @@ let playtestReady = false;
 let playtestGenerating = false;
 
 /* ========================================
+   FAS 11: UNDO/REDO + AUTO-SPARA
+   ======================================== */
+const HISTORY_LIMIT = 50;
+let historyStack = [];
+let historyIndex = -1;
+let historyPaused = false;
+let autoSaveInterval = null;
+let historyDebounceTimer = null;
+
+function getStateSnapshot() {
+    return {
+        cardData: JSON.parse(JSON.stringify(cardData)),
+        rankData: JSON.parse(JSON.stringify(rankData)),
+        suitSettings: JSON.parse(JSON.stringify(suitSettings)),
+        backSettings: JSON.parse(JSON.stringify(backSettings)),
+        symbolMode: symbolMode,
+        themeName: document.getElementById('theme-name') ? document.getElementById('theme-name').value : ''
+    };
+}
+
+function restoreState(snapshot) {
+    historyPaused = true;
+
+    cardData = JSON.parse(JSON.stringify(snapshot.cardData));
+    rankData = JSON.parse(JSON.stringify(snapshot.rankData));
+    suitSettings = JSON.parse(JSON.stringify(snapshot.suitSettings));
+    backSettings = JSON.parse(JSON.stringify(snapshot.backSettings));
+    symbolMode = snapshot.symbolMode;
+
+    const themeInput = document.getElementById('theme-name');
+    if (themeInput && snapshot.themeName !== undefined) {
+        themeInput.value = snapshot.themeName;
+    }
+
+    // Synka alla UI
+    RANKS.forEach(rank => {
+        updateRankPreview(rank);
+        const simpleEmoji = document.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
+        const simpleFile = document.querySelector(`.rank-file-input[data-rank="${rank}"]`);
+        if (simpleEmoji) {
+            simpleEmoji.value = rankData[rank] && rankData[rank].type === 'emoji' ? rankData[rank].value : '';
+        }
+        if (simpleFile) {
+            simpleFile.value = '';
+        }
+    });
+
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            updateMiniPreview(suit, rank);
+            const advEmoji = document.querySelector(`.card-emoji-input[data-suit="${suit}"][data-rank="${rank}"]`);
+            const advFile = document.querySelector(`.card-file-input[data-suit="${suit}"][data-rank="${rank}"]`);
+            if (advEmoji) {
+                const d = cardData[suit][rank];
+                advEmoji.value = d && d.type === 'emoji' ? d.value : '';
+            }
+            if (advFile) {
+                advFile.value = '';
+            }
+        });
+        updateProgress(suit);
+
+        const bgInput = document.querySelector(`.suit-bg-color[data-suit="${suit}"]`);
+        const gradInput = document.querySelector(`.suit-gradient[data-suit="${suit}"]`);
+        const patInput = document.querySelector(`.suit-pattern[data-suit="${suit}"]`);
+        if (bgInput) {
+            bgInput.value = suitSettings[suit].bgColor;
+        }
+        if (gradInput) {
+            gradInput.value = suitSettings[suit].gradient;
+        }
+        if (patInput) {
+            patInput.value = suitSettings[suit].pattern;
+        }
+    });
+
+    const backBg = document.getElementById('back-bg-color');
+    const backPat = document.getElementById('back-pattern');
+    const backCenter = document.getElementById('back-center');
+    const symCheck = document.getElementById('symbol-mode-checkbox');
+    if (backBg) {
+        backBg.value = backSettings.bgColor;
+    }
+    if (backPat) {
+        backPat.value = backSettings.pattern;
+    }
+    if (backCenter) {
+        backCenter.value = backSettings.center || '';
+    }
+    if (symCheck) {
+        symCheck.checked = symbolMode;
+    }
+
+    updateAllProgress();
+    updateBatchStats();
+    updateLivePreview();
+    updateCardBackPreview();
+    updateHistoryButtons();
+
+    historyPaused = false;
+}
+
+function pushHistory() {
+    if (historyPaused) {
+        return;
+    }
+
+    // Debounce: vänta 500ms utan nya ändringar innan vi sparar
+    if (historyDebounceTimer) {
+        clearTimeout(historyDebounceTimer);
+    }
+    historyDebounceTimer = setTimeout(() => {
+        _doPushHistory();
+    }, 500);
+}
+
+function _doPushHistory() {
+    if (historyPaused) {
+        return;
+    }
+
+    // Ta bort all framtid om vi är mitt i historiken
+    if (historyIndex < historyStack.length - 1) {
+        historyStack = historyStack.slice(0, historyIndex + 1);
+    }
+
+    historyStack.push(getStateSnapshot());
+
+    // Begränsa historikens storlek
+    if (historyStack.length > HISTORY_LIMIT) {
+        historyStack.shift();
+    } else {
+        historyIndex++;
+    }
+
+    updateHistoryButtons();
+}
+
+function undo() {
+    if (historyIndex <= 0) {
+        return;
+    }
+    historyIndex--;
+    restoreState(historyStack[historyIndex]);
+    showToast('↩️ Ångrade senaste ändring');
+}
+
+function redo() {
+    if (historyIndex >= historyStack.length - 1) {
+        return;
+    }
+    historyIndex++;
+    restoreState(historyStack[historyIndex]);
+    showToast('↪️ Gjorde om ändring');
+}
+
+function initHistoryKeyboard() {
+    document.addEventListener('keydown', e => {
+        if (e.ctrlKey || e.metaKey) {
+            if (e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+            } else if ((e.key === 'y') || (e.key === 'z' && e.shiftKey)) {
+                e.preventDefault();
+                redo();
+            }
+        }
+    });
+}
+
+function initHistoryAutoCapture() {
+    // Fånga alla input/change inom creator-tab för historik
+    const creatorTab = document.getElementById('creator-tab');
+    if (!creatorTab) {
+        return;
+    }
+
+    let captureTimer = null;
+    const triggerCapture = () => {
+        if (captureTimer) {
+            clearTimeout(captureTimer);
+        }
+        captureTimer = setTimeout(() => {
+            pushHistory();
+        }, 600);
+    };
+
+    creatorTab.addEventListener('input', e => {
+        // Ignorera temanamn-inputen (den sparas separat)
+        if (e.target.id === 'theme-name') {
+            return;
+        }
+        triggerCapture();
+    });
+
+    creatorTab.addEventListener('change', e => {
+        if (e.target.id === 'theme-name') {
+            return;
+        }
+        triggerCapture();
+    });
+
+    // Fånga klick på bulk-, template- och batch-knappar
+    creatorTab.addEventListener('click', e => {
+        const btn = e.target.closest('button');
+        if (!btn) {
+            return;
+        }
+        const id = btn.id;
+        if (id === 'template-apply-btn' || id === 'fill-random-btn' ||
+            id === 'clear-all-btn' || id === 'import-config-btn' ||
+            id === 'export-config-btn') {
+            setTimeout(() => pushHistory(), 100);
+        }
+    });
+}
+
+function updateHistoryButtons() {
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+    if (undoBtn) {
+        undoBtn.disabled = historyIndex <= 0;
+    }
+    if (redoBtn) {
+        redoBtn.disabled = historyIndex >= historyStack.length - 1;
+    }
+}
+
+/* ========================================
+   AUTO-SPARA TILL LOCALSTORAGE
+   ======================================== */
+function autoSave() {
+    const draft = {
+        version: 2,
+        timestamp: Date.now(),
+        ...getStateSnapshot()
+    };
+    try {
+        localStorage.setItem('finnsisjon_admin_draft', JSON.stringify(draft));
+        updateAutoSaveStatus('Sparad');
+    } catch {
+        updateAutoSaveStatus('Kunde inte spara', true);
+    }
+}
+
+function loadAutoSave() {
+    try {
+        const raw = localStorage.getItem('finnsisjon_admin_draft');
+        if (!raw) {
+            return null;
+        }
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
+function clearAutoSave() {
+    localStorage.removeItem('finnsisjon_admin_draft');
+    updateAutoSaveStatus('');
+}
+
+function updateAutoSaveStatus(text, isError) {
+    const el = document.getElementById('autosave-status');
+    if (!el) {
+        return;
+    }
+    el.textContent = text;
+    el.classList.toggle('error', !!isError);
+}
+
+function promptRestoreDraft() {
+    const draft = loadAutoSave();
+    if (!draft || !draft.timestamp) {
+        return;
+    }
+
+    const age = Date.now() - draft.timestamp;
+    const hours = Math.floor(age / 3600000);
+    const mins = Math.floor((age % 3600000) / 60000);
+    const timeText = hours > 0 ? `${hours} tim ${mins} min` : `${mins} min`;
+
+    const hasContent = Object.keys(draft.rankData || {}).length > 0 ||
+        SUITS.some(s => Object.keys(draft.cardData[s] || {}).length > 0);
+
+    if (!hasContent) {
+        clearAutoSave();
+        return;
+    }
+
+    if (confirm(`Det finns ett osparat utkast från för ${timeText} sedan. Vill du återställa det?`)) {
+        restoreState(draft);
+        showToast('📂 Utkast återställt från auto-sparad data');
+        setTimeout(() => {
+            historyStack = [getStateSnapshot()];
+            historyIndex = 0;
+            updateHistoryButtons();
+        }, 300);
+    } else {
+        clearAutoSave();
+        setTimeout(() => {
+            historyStack = [getStateSnapshot()];
+            historyIndex = 0;
+            updateHistoryButtons();
+        }, 100);
+    }
+}
+
+function startAutoSave() {
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+    }
+    autoSaveInterval = setInterval(autoSave, 10000);
+}
+
+/* ========================================
    INIT
    ======================================== */
 document.addEventListener('DOMContentLoaded', () => {
@@ -116,11 +432,22 @@ document.addEventListener('DOMContentLoaded', () => {
     initCardBack();
     initConfigIO();
     initPlaytest();
+    initHistoryKeyboard();
+    initHistoryAutoCapture();
     bindEvents();
     updateModeVisibility();
     updateLivePreview();
     updateCardBackPreview();
     updateBatchStats();
+
+    // Fas 11: Spara initialt tillstånd i historiken
+    pushHistory();
+
+    // Fas 11: Kolla om det finns auto-sparat utkast
+    promptRestoreDraft();
+
+    // Fas 11: Starta auto-spara
+    startAutoSave();
 });
 
 /* ========================================
@@ -1717,6 +2044,7 @@ async function importConfig(file) {
         updateLivePreview();
 
         showToast('📂 Konfiguration laddad!');
+        setTimeout(() => pushHistory(), 200);
     } catch (err) {
         showToast('Kunde inte läsa filen: ' + err.message, 'error');
         console.error(err);
@@ -2119,6 +2447,22 @@ function bindEvents() {
     }
     if (clearAllBtn) {
         clearAllBtn.addEventListener('click', clearAllCards);
+    }
+
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+    if (undoBtn) {
+        undoBtn.addEventListener('click', undo);
+    }
+    if (redoBtn) {
+        redoBtn.addEventListener('click', redo);
+    }
+
+    const themeInput = document.getElementById('theme-name');
+    if (themeInput) {
+        themeInput.addEventListener('input', () => {
+            setTimeout(() => pushHistory(), 800);
+        });
     }
 }
 
