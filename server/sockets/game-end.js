@@ -35,7 +35,7 @@ function createHandleGameEnd(io, roomManager, Game, User, ELO) {
 
                 const newRatings = ELO.calculateNewRatings(ratings, positions);
 
-                const eloPromises = newRatings.map(async (rating) => {
+                const eloPromises = newRatings.map(async rating => {
                     await User.updateElo(rating.userId, rating.newRating);
                     await Game.addParticipant(
                         gameId,
@@ -59,7 +59,7 @@ function createHandleGameEnd(io, roomManager, Game, User, ELO) {
 
             const playerPromises = standings
                 .filter(p => p.userId)
-                .map(async (player) => {
+                .map(async player => {
                     const isWinner = !isTie && player.rank === 1;
                     await User.updateStats(player.userId, {
                         games_played: 1,

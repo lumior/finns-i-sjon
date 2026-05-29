@@ -683,7 +683,11 @@ class GameEngine {
             };
         }
 
-        const { drawnCard, newPairs, fishedSuccess, luckyMessage, gameOver, nextPlayerId } = this._processAskFish(asker, target, rank);
+        const { drawnCard, newPairs, fishedSuccess, luckyMessage, gameOver, nextPlayerId } = this._processAskFish(
+            asker,
+            target,
+            rank
+        );
         const nextPlayerObj = this.players.find(p => p.socketId === nextPlayerId || p.id === nextPlayerId);
 
         this.debugLog('askForCards FISH', {
@@ -822,7 +826,11 @@ class GameEngine {
             this.addLog('system', `🚫 ${target.name} försökte ljuga men har inte ${rank}:an! Fisk!`);
         }
 
-        const { drawnCard, newPairs, fishedSuccess, luckyMessage, gameOver, nextPlayerId } = this._processAskFish(asker, target, rank);
+        const { drawnCard, newPairs, fishedSuccess, luckyMessage, gameOver, nextPlayerId } = this._processAskFish(
+            asker,
+            target,
+            rank
+        );
         const nextPlayerObj = this.players.find(p => p.socketId === nextPlayerId || p.id === nextPlayerId);
 
         this.debugLog('respondToAsk FISH', {
@@ -1154,10 +1162,7 @@ class GameEngine {
         // 3. Alla utom en har gett upp
         if ((allHandsEmpty && deckEmpty) || activePlayers.length < 2) {
             this.debugLog('checkGameOver GAME_OVER', {
-                reason:
-                    allHandsEmpty && deckEmpty
-                        ? 'all empty'
-                        : 'too few players'
+                reason: allHandsEmpty && deckEmpty ? 'all empty' : 'too few players'
             });
             this.state = GAME_STATES.FINISHED;
             this.endTime = Date.now();
