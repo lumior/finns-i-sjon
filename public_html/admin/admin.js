@@ -3023,29 +3023,26 @@ function blobToDataUrl(blob) {
     });
 }
 
-async function fetchAIImage(prompt, seed, signal) {
+async function fetchAIImage(prompt, seed) {
     const encoded = encodeURIComponent(prompt);
     const url = `https://image.pollinations.ai/prompt/${encoded}?width=400&height=560&nologo=true&seed=${seed}`;
 
-    // Timeout: avbryt efter 30 sekunder
-    const timeoutId = setTimeout(() => {
-        if (signal && !signal.aborted) {
-            // Vi kan inte aborta här utan egen controller, men generateAICards hanterar det via AbortController
-        }
-    }, 30000);
-
-    try {
-        const res = await fetch(url, { signal });
-        clearTimeout(timeoutId);
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-        }
-        const blob = await res.blob();
-        return blobToDataUrl(blob);
-    } catch (err) {
-        clearTimeout(timeoutId);
-        throw err;
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
     }
+    const blob = await res.blob();
+    return blobToDataUrl(blob);
+}
+
+function withTimeout(promise, ms) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Timeout')), ms);
+        promise.then(
+            val => { clearTimeout(timer); resolve(val); },
+            err => { clearTimeout(timer); reject(err); }
+        );
+    });
 }
 
 function initAIGrid() {
@@ -3182,19 +3179,13 @@ async function generateAICards() {
             const maxRetries = 2;
 
             while (!success && retries <= maxRetries && !signal.aborted) {
-                // Timeout per bild: 30 sekunder
-                const imgController = new AbortController();
-                const timeoutId = setTimeout(() => imgController.abort(), 30000);
-
                 try {
-                    const dataUrl = await fetchAIImage(prompt, seed, imgController.signal);
-                    clearTimeout(timeoutId);
+                    const dataUrl = await withTimeout(fetchAIImage(prompt, seed), 25000);
                     cardData[suit][rank] = { type: 'image', value: dataUrl };
                     updateMiniPreview(suit, rank);
                     updateAICell(suit, rank, 'done', dataUrl);
                     success = true;
                 } catch (err) {
-                    clearTimeout(timeoutId);
                     retries++;
                     if (retries <= maxRetries && !signal.aborted) {
                         await new Promise(r => setTimeout(r, 2000));
