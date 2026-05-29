@@ -3025,7 +3025,9 @@ function blobToDataUrl(blob) {
 
 async function fetchAIImage(prompt, seed) {
     const encoded = encodeURIComponent(prompt);
-    const url = `https://image.pollinations.ai/prompt/${encoded}?width=400&height=560&nologo=true&seed=${seed}`;
+    // Pollinations.ai stödjer endast vissa storlekar. 400x560 hänger sig,
+    // 512x512 ger 402. 1024x1024 fungerar på ~0.3s och skalas ned i canvas.
+    const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&seed=${seed}`;
 
     const res = await fetch(url);
     if (!res.ok) {
