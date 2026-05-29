@@ -8,6 +8,7 @@ class GameSocket {
         this.listeners = new Map();
         this.token = localStorage.getItem('token');
         this.forwardedEvents = new Set();
+        this.forwardedHandlers = new Map();
     }
 
     connect() {
@@ -24,9 +25,6 @@ class GameSocket {
         if (this.token) {
             options.auth.token = this.token;
         }
-        
-        // Rensa gamla forwarders vid ny anslutning
-        this.forwardedEvents.clear();
         
         this.socket = io(options);
         this.setupBaseListeners();
@@ -91,11 +89,21 @@ class GameSocket {
     }
 
     reattachForwardedListeners() {
-        // När vi reconnectar, återanslut alla tidigare forwarders
+        // Ta bort gamla forwarders från tidigare socket
+        for (const [event, handler] of this.forwardedHandlers) {
+            if (this.socket) {
+                this.socket.off(event, handler);
+            }
+        }
+        this.forwardedHandlers.clear();
+
+        // Återanslut alla tidigare forwarders på nya socketen
         for (const event of this.forwardedEvents) {
-            this.socket.on(event, (data) => {
+            const handler = (data) => {
                 this.trigger(event, data);
-            });
+            };
+            this.forwardedHandlers.set(event, handler);
+            this.socket.on(event, handler);
         }
     }
 
@@ -105,12 +113,14 @@ class GameSocket {
         }
         this.listeners.get(event).add(callback);
         
-        // Om vi har en socket, registrera forwarder
-        if (this.socket) {
+        // Om vi har en socket och eventet inte redan forwardas, registrera forwarder
+        if (this.socket && !this.forwardedEvents.has(event)) {
             this.forwardedEvents.add(event);
-            this.socket.on(event, (data) => {
+            const handler = (data) => {
                 this.trigger(event, data);
-            });
+            };
+            this.forwardedHandlers.set(event, handler);
+            this.socket.on(event, handler);
         }
         
         return this;
@@ -159,6 +169,7 @@ class GameSocket {
             this.connected = false;
         }
         this.forwardedEvents.clear();
+        this.forwardedHandlers.clear();
     }
 
     reconnect() {

@@ -1,6 +1,23 @@
 const { GAME_STATES } = require('../utils/constants');
 
 function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handleGameEnd) {
+    function broadcastToRoom(game, event, basePayload, includeGameState = false) {
+        game.players.forEach(player => {
+            if (player.connected) {
+                const payload = includeGameState
+                    ? { ...basePayload, gameState: game.getPublicState(player.socketId) }
+                    : { ...basePayload };
+                io.to(player.socketId).emit(event, payload);
+            }
+        });
+        game.spectators.forEach(spectatorId => {
+            const payload = includeGameState
+                ? { ...basePayload, gameState: game.getSpectatorState() }
+                : { ...basePayload };
+            io.to(spectatorId).emit(event, payload);
+        });
+    }
+
     return function onConnection(socket) {
         console.log(`🔌 Anslutning: ${socket.id} ${socket.user ? `(${socket.user.username})` : '(gäst)'}`);
 
@@ -261,16 +278,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
             game.startGame();
             game.onGameEnd = () => handleGameEnd(game, room);
 
-            game.players.forEach(player => {
-                const state = game.getPublicState(player.socketId);
-                io.to(player.socketId).emit('game_started', { gameState: state });
-            });
-
-            game.spectators.forEach(spectatorId => {
-                io.to(spectatorId).emit('game_started', {
-                    gameState: game.getSpectatorState()
-                });
-            });
+            broadcastToRoom(game, 'game_started', {}, true);
 
             const currentPlayer = game.getCurrentPlayer();
             if (currentPlayer && currentPlayer.isAI) {
@@ -322,21 +330,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                     return;
                 }
 
-                game.players.forEach(player => {
-                    if (player.connected) {
-                        io.to(player.socketId).emit('turn_result', {
-                            ...result,
-                            gameState: game.getPublicState(player.socketId)
-                        });
-                    }
-                });
-
-                game.spectators.forEach(spectatorId => {
-                    io.to(spectatorId).emit('turn_result', {
-                        ...result,
-                        gameState: game.getSpectatorState()
-                    });
-                });
+                broadcastToRoom(game, 'turn_result', result, true);
 
                 const nextPlayer = game.getCurrentPlayer();
                 if (nextPlayer && nextPlayer.isAI) {
@@ -389,21 +383,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 return;
             }
 
-            game.players.forEach(player => {
-                if (player.connected) {
-                    io.to(player.socketId).emit('turn_result', {
-                        ...result,
-                        gameState: game.getPublicState(player.socketId)
-                    });
-                }
-            });
-
-            game.spectators.forEach(spectatorId => {
-                io.to(spectatorId).emit('turn_result', {
-                    ...result,
-                    gameState: game.getSpectatorState()
-                });
-            });
+            broadcastToRoom(game, 'turn_result', result, true);
 
             const nextPlayer = game.getCurrentPlayer();
             if (nextPlayer && nextPlayer.isAI) {
@@ -426,13 +406,17 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
             if (chatMsg) {
                 io.to(room.game.roomId).emit('chat_message', chatMsg);
 
-                const player = game.players.find(p => p.socketId === socket.id);
-                if (player && player.userId) {
-                    const chatAchievements = game.checkAchievements(player, 'chat');
-                    for (const achievement of chatAchievements) {
-                        await User.addAchievement(player.userId, achievement);
-                        io.to(socket.id).emit('achievement_unlocked', { achievement });
+                try {
+                    const player = game.players.find(p => p.socketId === socket.id);
+                    if (player && player.userId) {
+                        const chatAchievements = game.checkAchievements(player, 'chat');
+                        for (const achievement of chatAchievements) {
+                            await User.addAchievement(player.userId, achievement);
+                            io.to(socket.id).emit('achievement_unlocked', { achievement });
+                        }
                     }
+                } catch (achievementError) {
+                    console.error('Fel vid chat-achievement:', achievementError);
                 }
             }
         });
@@ -477,12 +461,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 if (result.gameOver) {
                     handleGameEnd(room.game, room);
                 } else {
-                    room.game.players.forEach(player => {
-                        io.to(player.socketId).emit('game_state_update', room.game.getPublicState(player.socketId));
-                    });
-                    room.game.spectators.forEach(spectatorId => {
-                        io.to(spectatorId).emit('game_state_update', room.game.getSpectatorState());
-                    });
+                    broadcastToRoom(room.game, 'game_state_update', {}, true);
 
                     const nextPlayer = room.game.getCurrentPlayer();
                     if (nextPlayer?.isAI) {
@@ -556,20 +535,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                             if (pendingResult.gameOver) {
                                 handleGameEnd(game, result.room);
                             } else {
-                                game.players.forEach(p => {
-                                    if (p.connected) {
-                                        io.to(p.socketId).emit('turn_result', {
-                                            ...pendingResult,
-                                            gameState: game.getPublicState(p.socketId)
-                                        });
-                                    }
-                                });
-                                game.spectators.forEach(spectatorId => {
-                                    io.to(spectatorId).emit('turn_result', {
-                                        ...pendingResult,
-                                        gameState: game.getSpectatorState()
-                                    });
-                                });
+                                broadcastToRoom(game, 'turn_result', pendingResult, true);
                                 const nextPlayer = game.getCurrentPlayer();
                                 if (nextPlayer?.isAI) {
                                     setTimeout(() => game.makeAIMove(io), 1500);

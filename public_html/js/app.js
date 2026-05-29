@@ -156,7 +156,6 @@ function setupEventListeners() {
         e.preventDefault();
         confirmJoinRoom();
     });
-    document.getElementById('confirm-join').addEventListener('click', confirmJoinRoom);
     document.getElementById('error-close-btn').addEventListener('click', closeError);
     document.getElementById('room-search').addEventListener('input', filterRooms);
     document.getElementById('room-filter').addEventListener('change', filterRooms);

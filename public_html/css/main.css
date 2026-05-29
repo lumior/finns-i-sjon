@@ -1159,3 +1159,16 @@ body {
         width: 100%;
     }
 }
+
+/* ── Tillgänglighet: reducera rörelse ── */
+@media (prefers-reduced-motion: reduce) {
+    .float-card {
+        animation: none !important;
+    }
+    .hero-card {
+        animation: none !important;
+    }
+    .particle-bg {
+        display: none;
+    }
+}

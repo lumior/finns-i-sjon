@@ -36,6 +36,8 @@
                     <small>Endast små bokstäver, siffror och bindestreck.</small>
                 </div>
 
+                <div class="template-bar" id="template-selector"></div>
+
                 <div class="mode-toggle">
                     <button class="mode-btn active" data-mode="simple" id="mode-simple">
                         🎯 Enkelt läge
@@ -49,6 +51,14 @@
 
                 <div class="suits-intro">
                     <p id="mode-description">Sätt en emoji eller bild per valör — alla fyra färger får samma.</p>
+                </div>
+            </div>
+
+            <!-- Live preview -->
+            <div class="live-preview-wrap" id="live-preview-wrap">
+                <div class="live-preview-card">
+                    <canvas id="live-preview-canvas" width="400" height="560"></canvas>
+                    <div class="live-preview-label" id="live-preview-label">A ♥️ Hjärter</div>
                 </div>
             </div>
 
@@ -77,6 +87,42 @@
 
             <!-- Suit panels -->
             <div id="suit-panels"></div>
+
+            <!-- Card back designer -->
+            <div class="card-back-section" id="card-back-section">
+                <h4>🃏 Kortbaksida</h4>
+                <p class="card-back-desc">Designa baksidan som visas när korten ligger på bordet.</p>
+                <div class="form-row">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Bakgrundsfärg</label>
+                        <input type="color" id="back-bg-color" value="#1a2744">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Mönster</label>
+                        <select id="back-pattern">
+                            <option value="none">Inget</option>
+                            <option value="dots">Prickar</option>
+                            <option value="crosshatch">Korsrutigt</option>
+                            <option value="circles">Ringar</option>
+                            <option value="diagonal">Diagonala linjer</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Center-symbol</label>
+                        <input type="text" id="back-center" placeholder="🎣" maxlength="2">
+                    </div>
+                </div>
+                <div class="card-back-preview-wrap">
+                    <canvas id="back-preview-canvas" width="400" height="560"></canvas>
+                </div>
+            </div>
+
+            <!-- Config import/export -->
+            <div class="config-actions">
+                <button class="btn btn-secondary" id="export-config-btn">💾 Spara konfiguration (JSON)</button>
+                <input type="file" id="import-config-input" accept=".json,application/json" style="display:none;">
+                <button class="btn btn-secondary" id="import-config-btn">📂 Ladda konfiguration</button>
+            </div>
 
             <div class="creator-actions">
                 <button class="btn btn-secondary" id="preview-btn">👁️ Förhandsgranska alla 52</button>

@@ -120,7 +120,8 @@ finns-i-sjon-pro/
 │   ├── game/
 │   │   ├── GameEngine.test.js
 │   │   ├── CardDeck.test.js
-│   │   └── AIPlayer.test.js
+│   │   ├── AIPlayer.test.js
+│   │   └── RoomManager.test.js
 │   └── utils/
 │       └── elo.test.js
 │
@@ -210,13 +211,15 @@ npm run format:check  # Prettier --check (används i CI)
 - **Ramverk:** Jest med Node-miljö (`testEnvironment: 'node'`)
 - **Testmönster:** `**/tests/**/*.test.js`
 - **Coverage:** Samlas från `server/**/*.js`, exkluderar `server/server.js` och `server/config/database.js`
+- **Coverage-thresholds:** `branches: 25`, `functions: 30`, `lines: 30`, `statements: 30` (se `jest.config.js`).
 - **Viktigt:** Jest körs alltid med `--forceExit` eftersom Socket.IO kan hålla event-loopen vid liv.
-- **CI:** GitHub Actions kör `npm run lint`, `npm run format:check`, och `npm test -- --forceExit` vid varje push/PR till `main`.
+- **CI:** GitHub Actions kör `npm audit`, `npm run lint`, `npm run format:check`, och `npm test -- --forceExit` vid varje push/PR till `main`.
 
 ### Existerande testfiler
-- `tests/game/GameEngine.test.js` — Spelregler, turhantering, utdelning, återanslutning
+- `tests/game/GameEngine.test.js` — Spelregler, turhantering, utdelning, återanslutning, ask/surrender
 - `tests/game/CardDeck.test.js` — Kortlekslogik
 - `tests/game/AIPlayer.test.js` — AI-beteenden och minne
+- `tests/game/RoomManager.test.js` — Rums-CRUD, join/leave/kick, reconnect
 - `tests/utils/elo.test.js` — ELO-beräkningar
 
 ---
@@ -224,7 +227,8 @@ npm run format:check  # Prettier --check (används i CI)
 ## 7. Säkerhetsöverväganden
 
 ### Autentisering
-- JWT med 7 dagars giltighet. `JWT_SECRET` **måste** bytas i produktion.
+- JWT med 7 dagars giltighet (`expiresIn: '7d'`).
+- `JWT_SECRET` **måste** vara satt i produktion (`NODE_ENV=production`). Servern kastar ett fel och avbryter uppstarten om den saknas. Fallback i kod (`'default-secret-change-me'`) gäller endast för utveckling.
 - Token skickas i `Authorization: Bearer <token>`-header för REST, och i `socket.handshake.auth.token` för Socket.IO.
 - Auth-middleware sätter `req.user` / `socket.user` till `null` vid saknad/ogiltig token (aldrig hårda fel).
 - Middleware läser även token från `req.cookies.token` och `req.query.token` som fallback.
@@ -254,7 +258,7 @@ npm run format:check  # Prettier --check (används i CI)
 
 Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 
-1. **PostgreSQL** — om `DATABASE_URL` är satt (Railway-standard)
+1. **PostgreSQL** — om `DATABASE_URL` är satt (Railway-standard). SSL: `rejectUnauthorized: false` i produktion.
 2. **MariaDB/MySQL** — om `DB_HOST` etc. är satt
 3. **SQLite3** — fallback för utveckling (`DB_PATH=./database/game.db`), såvida inte `DB_FALLBACK=false`
 
@@ -263,7 +267,7 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` — MariaDB
 - `DB_PATH` — SQLite-sökväg
 - `DB_FALLBACK=false` — inaktiverar SQLite-fallback och tvingar fram MariaDB
-- `RATE_LIMIT_WINDOW` / `RATE_LIMIT_MAX` — valfria rate-limit-överskridningar
+- `RATE_LIMIT_WINDOW` / `RATE_LIMIT_MAX` — valfria rate-limit-överskridningar (från `.env.example`: 900000 ms / 100)
 - `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` — valfria anpassade TURN-servrar
 
 ### Tabeller
@@ -296,6 +300,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 - **Namespace:** Default `/`
 - **Auth-middleware:** `Auth.socketAuth` körs före `connection`-event
 - **Huvudmodul:** `server/sockets/index.js` sätter ihop `handlers.js` och `game-end.js`
+- **Server-konfig:** `pingTimeout: 60000`, `pingInterval: 10000`
 
 ### Klient → Server (utöver grundläggande rumshantering)
 | Event | Beskrivning |
@@ -320,6 +325,8 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 | Event | Beskrivning |
 |-------|-------------|
 | `room_created` / `room_joined` / `spectator_joined` | Bekräftelser |
+| `reconnected` | Återanslutning lyckades (roomId, gameState, chatHistory) |
+| `reconnect_failed` | Återanslutning misslyckades |
 | `game_started` | Spelet har börjat |
 | `game_state_update` | Allmän state-uppdatering |
 | `turn_result` | Resultat av ett drag (innehåller `gameState`, `aiReasoning` för AI-drag) |
@@ -331,6 +338,8 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 | `ai_added` / `ai_removed` | AI-händelser |
 | `settings_updated` / `ready_status_update` | Rumstillstånd |
 | `achievement_unlocked` | Achievement upplåst |
+| `lobby_update` | Uppdatering av publik rumslista |
+| `left_room` | Bekräftelse att du lämnat rummet |
 | `error` | Felmeddelande |
 
 ### Två ask-flöden
@@ -339,6 +348,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 
 ### Timeout och återanslutning
 - **Tur-timer:** 45 sekunder (`TURN_TIMEOUT`). Om en spelare inte svarar på en `card_request` i tid auto-löser servern förfrågan som "Fisk!" via `autoResolvePendingAsk()`.
+- **AI-drag-fördröjning:** 1500 ms (2000 ms vid spelets första drag).
 - **Disconnect-grace:** Vid `disconnect` väntar servern **60 sekunder** innan `forceRemove` körs, vilket ger utrymme för återanslutning.
 - **Reconnection:** Klienten sparar `previousSocketId` och `reconnectToken` i `localStorage`; vid återanslutning skickas `reconnect_attempt`.
 
@@ -384,7 +394,7 @@ Varje färg-mapp innehåller 13 bildfiler: `A.png`, `2.png` … `10.png`, `J.png
 1. Repo på GitHub, kopplat till Railway
 2. `Procfile` anger startkommando: `web: node server/server.js`
 3. Miljövariabler i Railway:
-   - `JWT_SECRET` — lång slumpmässig sträng
+   - `JWT_SECRET` — lång slumpmässig sträng (minst 64 tecken rekommenderas)
    - `NODE_ENV=production`
    - `PORT=3000`
    - `DATABASE_URL` — för PostgreSQL (rekommenderat för persistent data)
@@ -392,7 +402,7 @@ Varje färg-mapp innehåller 13 bildfiler: `A.png`, `2.png` … `10.png`, `J.png
    - `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` — valfria anpassade TURN-servrar
    - `DB_FALLBACK=false` — rekommenderas i prod för att undvika SQLite
 
-**Viktigt:** På Railways gratisplan är filsystemet "ephemeral". Använd PostgreSQL (`DATABASE_URL`) för att inte förlora användardata vid omstart.
+**Viktigt:** På Railways gratisplan är filsystemet "ephemeral". Använd PostgreSQL (`DATABASE_URL`) för att inte förlora användardata vid omstart. Servern kör `app.set('trust proxy', 1)` för korrekt rate-limiting bakom Railways proxy.
 
 **Se även:** `DEPLOY_RAILWAY.md` för en mer detaljerad steg-för-steg-guide.
 
@@ -425,6 +435,34 @@ npm run dev
 2. Vid speländringar: använd `roomManager.getRoomBySocket(socket.id)` för att hämta aktuellt rum
 3. Använd `io.to(roomId).emit(...)` för broadcast och `socket.emit(...)` för direktsvar
 
+### Att broadcasta till rum med individuell gameState
+Använd den interna helper-funktionen `broadcastToRoom(io, game, event, basePayload, includeGameState = false)` inuti `createSocketHandlers`. Den skickar individuell `gameState` per spelare via `game.getPublicState()` och spectator-state via `game.getSpectatorState()`. Undvik att manuellt loopa över `game.players` och `game.spectators` — detta mönster upprepades på 5+ ställen och är nu centraliserat.
+
+### Att ändra spelregler (ask/fisk)
+Spelmotorn använder två privata metoder för gemensam logik:
+- `_processAskSuccess(asker, target, rank, matchingCards)` — hanterar kortöverföring, par-bildning, achievements och gameOver.
+- `_processAskFish(asker, target, rank)` — hanterar fiskning, kortdragning, lucky fish och tur-övergång.
+
+Både `askForCards()` (synkront, AI-motståndare) och `respondToAsk()` (asynkront, mänskliga spelare) anropar dessa. Lägg inte till duplicerad logik i någon av dem — extraktera istället till en ny privat metod.
+
+### Frontend — event delegation
+När du hanterar klick på dynamiskt skapade element (t.ex. kort i handen), använd **event delegation** på förälder-containern istället för individuella `addEventListener` på varje element. Detta förhindrar minnesläckor när element återskapas via `innerHTML`.
+
+Exempel:
+```js
+// Bra — en enda listener på containern
+handContainer.addEventListener('click', (e) => {
+    const cardEl = e.target.closest('.card');
+    if (!cardEl) return;
+    // ...hantera klick
+});
+
+// Undvik — skapar duplicerade listeners vid varje render
+container.querySelectorAll('.card').forEach(el => {
+    el.addEventListener('click', ...);
+});
+```
+
 ### Projektroten — dokumentationskonventioner
 Projektet har en uppsättning markdown-filer i roten som komplement till denna fil:
 - **`ANALYS.md`** — djupanalys av arkitektur, säkerhet, prestanda och UX
@@ -434,10 +472,20 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 - **`CHANGELOG_SESSION_YYYY-MM-DD.md`** / **`CHAT_SESSION_YYYY-MM-DD.md`** — loggar från tidigare utvecklingssessioner
 - **`BUGFIX_*.md`** — dokumentation av specifika buggfixar (t.ex. mobil spectator-buggen)
 
+### CSS — tillgänglighet
+- Lägg alltid till `@media (prefers-reduced-motion: reduce)` när du skapar nya animationer eller transitions. Använd den generiska regeln i `animations.css` som mall, eller lägg till specifika overrides per komponent.
+- Använd aldrig `user-scalable=no` eller `maximum-scale=1.0` i viewport-meta — det bryter WCAG 1.4.4.
+
+### HTML — tillgänglighet
+- **Modaler** måste ha `role="dialog"`, `aria-modal="true"`, och `aria-labelledby` (pekar på rubrikens ID).
+- **Stäng-knappar** med `&times;` måste ha `aria-label="Stäng"` (skärmläsare läser annars bara "times").
+- **Ikon-knappar** utan text måste ha `aria-label` (inte bara `title`, även om `title` är bra för tooltips).
+
 ### Vanliga fallgropar
 - **`README.md` refererar ibland till `public/`** — projektets faktiska statiska mapp är `public_html/`.
 - **`scripts/`** innehåller one-off migrationer (t.ex. `update-user-avatars.js`). De körs manuellt vid behov, inte som en del av byggprocessen.
 - **Kortleksstrukturen** har ändrats från flat (`assets/cards/aubergine/`) till kategoriserad (`assets/cards/vegetable/aubergine/`). Kod som läser teman (t.ex. admin-routes) hanterar båda nivåerna.
+- **`filterChat()` använder word boundaries med svenskt teckenstöd** (`[^a-zåäöA-ZÅÄÖ]`). `\b` fungerar inte korrekt med åäö i JavaScript.
 
 ---
 

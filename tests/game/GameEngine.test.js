@@ -117,4 +117,74 @@ describe('GameEngine', () => {
         expect(standings[0]).toHaveProperty('rank');
         expect(standings[0]).toHaveProperty('pairs');
     });
+
+    test('should validate askForCards', () => {
+        game.addPlayer('socket1', 'Alice');
+        game.addPlayer('socket2', 'Bob');
+        game.startGame();
+
+        // Inte din tur
+        game.currentPlayerIndex = 1;
+        const result = game.askForCards('socket1', game.players[1].id, 'A');
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('Inte din tur');
+
+        // Kan inte fråga sig själv
+        game.currentPlayerIndex = 0;
+        const result2 = game.askForCards('socket1', game.players[0].id, 'A');
+        expect(result2.success).toBe(false);
+        expect(result2.error).toBe('Du kan inte fråga dig själv');
+
+        // Måste ha kortet själv
+        game.players[0].hand = [];
+        const result3 = game.askForCards('socket1', game.players[1].id, 'A');
+        expect(result3.success).toBe(false);
+        expect(result3.error).toContain('Du måste ha');
+    });
+
+    test('should handle successful askForCards', () => {
+        game.addPlayer('socket1', 'Alice');
+        game.addPlayer('socket2', 'Bob');
+        game.startGame();
+
+        game.players[0].hand = [{ rank: '5', suit: 'hearts', id: 'h5' }];
+        game.players[1].hand = [
+            { rank: '5', suit: 'diamonds', id: 'd5' },
+            { rank: '5', suit: 'clubs', id: 'c5' }
+        ];
+        game.currentPlayerIndex = 0;
+
+        const result = game.askForCards('socket1', game.players[1].id, '5');
+        expect(result.success).toBe(true);
+        expect(result.gotCards).toBe(true);
+        expect(result.cards.length).toBe(2);
+        expect(game.players[0].successfulAsks).toBe(1);
+    });
+
+    test('should handle fish in askForCards', () => {
+        game.addPlayer('socket1', 'Alice');
+        game.addPlayer('socket2', 'Bob');
+        game.startGame();
+
+        game.players[0].hand = [{ rank: '5', suit: 'hearts', id: 'h5' }];
+        game.players[1].hand = [{ rank: 'K', suit: 'diamonds', id: 'dk' }];
+        game.currentPlayerIndex = 0;
+
+        const result = game.askForCards('socket1', game.players[1].id, '5');
+        expect(result.success).toBe(true);
+        expect(result.gotCards).toBe(false);
+        expect(result.drawnCard).toBeDefined();
+        expect(game.players[0].failedAsks).toBe(1);
+    });
+
+    test('should handle surrender', () => {
+        game.addPlayer('socket1', 'Alice');
+        game.addPlayer('socket2', 'Bob');
+        game.startGame();
+
+        const result = game.surrender('socket1');
+        expect(result.success).toBe(true);
+        expect(result.player.surrendered).toBe(true);
+        expect(game.players[0].connected).toBe(false);
+    });
 });

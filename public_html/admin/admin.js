@@ -29,6 +29,35 @@ const SUIT_FOLDERS = {
     clubs: 'pepper',
     spades: 'potato'
 };
+const SUIT_ACCENTS = {
+    hearts: '#ff6b6b',
+    diamonds: '#4dabf7',
+    clubs: '#51cf66',
+    spades: '#be4bdb'
+};
+
+const TEMPLATES = {
+    fruit: {
+        name: 'Frukt',
+        ranks: { A: '🍎', '2': '🍊', '3': '🍇', '4': '🍓', '5': '🍑', '6': '🍒', '7': '🍍', '8': '🥝', '9': '🍋', '10': '🍉', J: '🥭', Q: '🍐', K: '🍌' }
+    },
+    vegetable: {
+        name: 'Grönsaker',
+        ranks: { A: '🥕', '2': '🥦', '3': '🌽', '4': '🍆', '5': '🧅', '6': '🥬', '7': '🫑', '8': '🥒', '9': '🍄', '10': '🧄', J: '🌶️', Q: '🫛', K: '🥔' }
+    },
+    animal: {
+        name: 'Djur',
+        ranks: { A: '🦁', '2': '🦊', '3': '🐻', '4': '🐼', '5': '🐨', '6': '🐯', '7': '🐷', '8': '🐸', '9': '🐙', '10': '🦉', J: '🦅', Q: '🦋', K: '🐺' }
+    },
+    vehicle: {
+        name: 'Fordon',
+        ranks: { A: '🚗', '2': '🚕', '3': '🚌', '4': '🚓', '5': '🚑', '6': '🚒', '7': '🚜', '8': '🚲', '9': '🛵', '10': '🚁', J: '🚂', Q: '✈️', K: '🚀' }
+    },
+    sport: {
+        name: 'Sport',
+        ranks: { A: '⚽', '2': '🏀', '3': '🏈', '4': '⚾', '5': '🎾', '6': '🏐', '7': '🏉', '8': '🎱', '9': '🏓', '10': '🏸', J: '🥊', Q: '⛳', K: '🏆' }
+    }
+};
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 560;
 
@@ -40,14 +69,24 @@ let cardData = {
 };
 let rankData = {};
 let suitSettings = {
-    hearts: { bgColor: '#7c1d1d', gradient: 'radial' },
-    diamonds: { bgColor: '#1d3a7c', gradient: 'radial' },
-    clubs: { bgColor: '#1d5c1d', gradient: 'radial' },
-    spades: { bgColor: '#3d1d5c', gradient: 'radial' }
+    hearts: { bgColor: '#7c1d1d', gradient: 'radial', pattern: 'dots' },
+    diamonds: { bgColor: '#1d3a7c', gradient: 'radial', pattern: 'dots' },
+    clubs: { bgColor: '#1d5c1d', gradient: 'radial', pattern: 'dots' },
+    spades: { bgColor: '#3d1d5c', gradient: 'radial', pattern: 'dots' }
 };
 let generatedImages = {};
 let activeSuit = 'hearts';
 let editMode = 'simple';
+
+let livePreviewRank = 'A';
+let livePreviewSuit = 'hearts';
+let livePreviewTimeout = null;
+
+let backSettings = {
+    bgColor: '#1a2744',
+    pattern: 'crosshatch',
+    center: '🎣'
+};
 
 /* ========================================
    INIT
@@ -56,11 +95,17 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     loadThemes();
     initModeToggle();
+    initTemplates();
     initSimpleEditor();
     initSuitPanels();
     initSuitTabs();
+    initLivePreview();
+    initCardBack();
+    initConfigIO();
     bindEvents();
     updateModeVisibility();
+    updateLivePreview();
+    updateCardBackPreview();
 });
 
 /* ========================================
@@ -204,6 +249,77 @@ function syncAdvancedToSimple() {
 /* ========================================
    SIMPLE EDITOR (per rank)
    ======================================== */
+function initTemplates() {
+    const container = document.getElementById('template-selector');
+    if (!container) {
+        return;
+    }
+    container.innerHTML = `
+        <label>Välj mall:</label>
+        <select id="template-select">
+            <option value="">-- Välj en färdig mall --</option>
+            ${Object.entries(TEMPLATES).map(([key, t]) => `<option value="${key}">${t.name}</option>`).join('')}
+        </select>
+        <button id="template-apply-btn" class="template-btn">Applicera</button>
+    `;
+
+    document.getElementById('template-apply-btn').addEventListener('click', () => {
+        const key = document.getElementById('template-select').value;
+        if (!key) {
+            showToast('Välj en mall först!', 'error');
+            return;
+        }
+        applyTemplate(key);
+    });
+}
+
+function applyTemplate(key) {
+    const template = TEMPLATES[key];
+    if (!template) {
+        return;
+    }
+
+    // Töm befintlig data
+    SUITS.forEach(suit => {
+        cardData[suit] = {};
+    });
+    rankData = {};
+
+    // Fyll med template-data
+    RANKS.forEach(rank => {
+        const emoji = template.ranks[rank];
+        if (emoji) {
+            rankData[rank] = { type: 'emoji', value: emoji };
+            SUITS.forEach(suit => {
+                cardData[suit][rank] = { type: 'emoji', value: emoji };
+            });
+        }
+    });
+
+    // Uppdatera UI
+    RANKS.forEach(rank => {
+        updateRankPreview(rank);
+        const simpleEmojiInput = document.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
+        if (simpleEmojiInput) {
+            simpleEmojiInput.value = rankData[rank] ? rankData[rank].value : '';
+        }
+    });
+
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            updateMiniPreview(suit, rank);
+            const advEmojiInput = document.querySelector(`.card-emoji-input[data-suit="${suit}"][data-rank="${rank}"]`);
+            if (advEmojiInput) {
+                advEmojiInput.value = cardData[suit][rank] ? cardData[suit][rank].value : '';
+            }
+        });
+        updateProgress(suit);
+    });
+
+    updateAllProgress();
+    showToast(`Mallen "${template.name}" applicerad på alla 52 kort!`);
+}
+
 function initSimpleEditor() {
     const container = document.getElementById('simple-editor');
     container.innerHTML = RANKS.map(rank => `
@@ -226,6 +342,9 @@ function initSimpleEditor() {
             const fileInput = container.querySelector(`.rank-file-input[data-rank="${rank}"]`);
             if (fileInput) fileInput.value = '';
             updateAllProgress();
+            livePreviewRank = rank;
+            livePreviewSuit = 'hearts';
+            queueLivePreview();
         });
     });
 
@@ -242,6 +361,9 @@ function initSimpleEditor() {
                 const emojiInput = container.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
                 if (emojiInput) emojiInput.value = '';
                 updateAllProgress();
+                livePreviewRank = rank;
+                livePreviewSuit = 'hearts';
+                queueLivePreview();
             };
             reader.readAsDataURL(file);
         });
@@ -314,6 +436,17 @@ function initSuitPanels() {
                         <option value="radial" ${suitSettings[suit].gradient === 'radial' ? 'selected' : ''}>Radial (mitten)</option>
                     </select>
                 </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Mönster</label>
+                    <select class="suit-pattern" data-suit="${suit}">
+                        <option value="none" ${suitSettings[suit].pattern === 'none' ? 'selected' : ''}>Inget</option>
+                        <option value="dots" ${suitSettings[suit].pattern === 'dots' ? 'selected' : ''}>Prickar</option>
+                        <option value="grid" ${suitSettings[suit].pattern === 'grid' ? 'selected' : ''}>Rutnät</option>
+                        <option value="diamonds" ${suitSettings[suit].pattern === 'diamonds' ? 'selected' : ''}>Diamanter</option>
+                        <option value="waves" ${suitSettings[suit].pattern === 'waves' ? 'selected' : ''}>Vågor</option>
+                        <option value="stars" ${suitSettings[suit].pattern === 'stars' ? 'selected' : ''}>Stjärnor</option>
+                    </select>
+                </div>
             </div>
 
             <div class="bulk-fill">
@@ -332,12 +465,26 @@ function initSuitPanels() {
     // Bind suit settings
     document.querySelectorAll('.suit-bg-color').forEach(input => {
         input.addEventListener('input', e => {
-            suitSettings[e.target.dataset.suit].bgColor = e.target.value;
+            const suit = e.target.dataset.suit;
+            suitSettings[suit].bgColor = e.target.value;
+            livePreviewSuit = suit;
+            queueLivePreview();
         });
     });
     document.querySelectorAll('.suit-gradient').forEach(input => {
         input.addEventListener('change', e => {
-            suitSettings[e.target.dataset.suit].gradient = e.target.value;
+            const suit = e.target.dataset.suit;
+            suitSettings[suit].gradient = e.target.value;
+            livePreviewSuit = suit;
+            queueLivePreview();
+        });
+    });
+    document.querySelectorAll('.suit-pattern').forEach(input => {
+        input.addEventListener('change', e => {
+            const suit = e.target.dataset.suit;
+            suitSettings[suit].pattern = e.target.value;
+            livePreviewSuit = suit;
+            queueLivePreview();
         });
     });
 
@@ -379,6 +526,9 @@ function initCardsEditor(suit) {
             const fileInput = container.querySelector(`.card-file-input[data-suit="${s}"][data-rank="${rank}"]`);
             if (fileInput) fileInput.value = '';
             updateProgress(s);
+            livePreviewRank = rank;
+            livePreviewSuit = s;
+            queueLivePreview();
         });
     });
 
@@ -396,6 +546,9 @@ function initCardsEditor(suit) {
                 const emojiInput = container.querySelector(`.card-emoji-input[data-suit="${s}"][data-rank="${rank}"]`);
                 if (emojiInput) emojiInput.value = '';
                 updateProgress(s);
+                livePreviewRank = rank;
+                livePreviewSuit = s;
+                queueLivePreview();
             };
             reader.readAsDataURL(file);
         });
@@ -422,149 +575,650 @@ function updateProgress(suit) {
 }
 
 /* ========================================
-   CANVAS KORT-RENDERING
+   CANVAS KORT-RENDERING — FAS 1
    ======================================== */
-function renderCardToCanvas(rank, suit) {
-    const canvas = document.getElementById('card-canvas');
-    const ctx = canvas.getContext('2d');
-    // Avancerat läge har prio; fallback till enkelt läge per valör
-    const data = cardData[suit][rank] || rankData[rank];
-    const settings = suitSettings[suit];
+
+const CORNER_RADIUS = 24;
+
+function drawRoundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+function renderCardBackground(ctx, settings) {
     const bgColor = settings.bgColor;
     const gradientType = settings.gradient;
 
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // Bakgrund
     ctx.save();
+    drawRoundedRect(ctx, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, CORNER_RADIUS);
+    ctx.clip();
+
+    // Grundgradient
     if (gradientType === 'linear-down') {
         const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
         grad.addColorStop(0, bgColor);
-        grad.addColorStop(1, lightenColor(bgColor, 30));
+        grad.addColorStop(1, lightenColor(bgColor, 35));
         ctx.fillStyle = grad;
     } else if (gradientType === 'linear-up') {
         const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-        grad.addColorStop(0, lightenColor(bgColor, 30));
+        grad.addColorStop(0, lightenColor(bgColor, 35));
         grad.addColorStop(1, bgColor);
         ctx.fillStyle = grad;
     } else if (gradientType === 'radial') {
-        const grad = ctx.createRadialGradient(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 20, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH);
-        grad.addColorStop(0, lightenColor(bgColor, 40));
-        grad.addColorStop(1, bgColor);
+        const grad = ctx.createRadialGradient(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 10, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH);
+        grad.addColorStop(0, lightenColor(bgColor, 50));
+        grad.addColorStop(0.6, bgColor);
+        grad.addColorStop(1, darkenColor(bgColor, 15));
         ctx.fillStyle = grad;
     } else {
         ctx.fillStyle = bgColor;
     }
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    ctx.restore();
 
-    // Textur-prickar
+    // Mönster
+    renderPattern(ctx, settings);
+
+    // Subtil inre skugga för djup
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 8;
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 1;
+    drawRoundedRect(ctx, 2, 2, CANVAS_WIDTH - 4, CANVAS_HEIGHT - 4, CORNER_RADIUS - 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    ctx.restore();
+}
+
+function renderPattern(ctx, settings) {
+    const pattern = settings.pattern || 'none';
+    if (pattern === 'none') {
+        return;
+    }
+
     ctx.save();
-    ctx.globalAlpha = 0.03;
-    ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 80; i++) {
-        const x = Math.random() * CANVAS_WIDTH;
-        const y = Math.random() * CANVAS_HEIGHT;
-        const r = Math.random() * 3 + 1;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
+    const bgColor = settings.bgColor;
+    const patternColor = lightenColor(bgColor, 60);
+
+    if (pattern === 'dots') {
+        ctx.fillStyle = patternColor;
+        ctx.globalAlpha = 0.12;
+        for (let y = 20; y < CANVAS_HEIGHT; y += 30) {
+            for (let x = 20; x < CANVAS_WIDTH; x += 30) {
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    } else if (pattern === 'grid') {
+        ctx.strokeStyle = patternColor;
+        ctx.globalAlpha = 0.1;
+        ctx.lineWidth = 1;
+        for (let x = 20; x < CANVAS_WIDTH; x += 40) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, CANVAS_HEIGHT);
+            ctx.stroke();
+        }
+        for (let y = 20; y < CANVAS_HEIGHT; y += 40) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(CANVAS_WIDTH, y);
+            ctx.stroke();
+        }
+    } else if (pattern === 'diamonds') {
+        ctx.fillStyle = patternColor;
+        ctx.globalAlpha = 0.1;
+        for (let y = 0; y < CANVAS_HEIGHT + 30; y += 35) {
+            for (let x = 0; x < CANVAS_WIDTH + 30; x += 35) {
+                const offset = (Math.floor(y / 35) % 2) * 17.5;
+                ctx.beginPath();
+                ctx.moveTo(x + offset, y - 10);
+                ctx.lineTo(x + offset + 10, y);
+                ctx.lineTo(x + offset, y + 10);
+                ctx.lineTo(x + offset - 10, y);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+    } else if (pattern === 'waves') {
+        ctx.strokeStyle = patternColor;
+        ctx.globalAlpha = 0.12;
+        ctx.lineWidth = 2;
+        for (let y = 15; y < CANVAS_HEIGHT; y += 25) {
+            ctx.beginPath();
+            for (let x = 0; x < CANVAS_WIDTH; x += 10) {
+                ctx.lineTo(x, y + Math.sin(x * 0.04) * 8);
+            }
+            ctx.stroke();
+        }
+    } else if (pattern === 'stars') {
+        ctx.fillStyle = patternColor;
+        ctx.globalAlpha = 0.15;
+        const starPositions = [
+            [40, 40], [120, 90], [200, 50], [280, 110], [360, 40],
+            [80, 160], [160, 200], [240, 170], [320, 210], [380, 150],
+            [50, 280], [130, 320], [210, 290], [290, 330], [370, 270],
+            [90, 400], [180, 440], [260, 410], [340, 450], [380, 390],
+            [60, 500], [150, 530], [230, 510], [310, 540]
+        ];
+        starPositions.forEach(([x, y]) => {
+            ctx.beginPath();
+            ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.08;
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.15;
+        });
     }
     ctx.restore();
+}
 
-    // Ram
+function renderCardBorder(ctx) {
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(12, 12, CANVAS_WIDTH - 24, CANVAS_HEIGHT - 24);
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(18, 18, CANVAS_WIDTH - 36, CANVAS_HEIGHT - 36);
+
+    // Yttre guld-liknande ram
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 3;
+    drawRoundedRect(ctx, 14, 14, CANVAS_WIDTH - 28, CANVAS_HEIGHT - 28, CORNER_RADIUS - 8);
+    ctx.stroke();
+
+    // Inre accent-linje
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1.5;
+    drawRoundedRect(ctx, 22, 22, CANVAS_WIDTH - 44, CANVAS_HEIGHT - 44, CORNER_RADIUS - 14);
+    ctx.stroke();
+
+    // Hörn-ornament
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    const ornamentSize = 10;
+    const positions = [
+        [28, 28], [CANVAS_WIDTH - 28, 28],
+        [28, CANVAS_HEIGHT - 28], [CANVAS_WIDTH - 28, CANVAS_HEIGHT - 28]
+    ];
+    positions.forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, ornamentSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    ctx.restore();
+}
+
+function renderCornerRank(ctx, rank, suit) {
+    const suitIcon = SUIT_ICONS[suit];
+    const color = '#ffffff';
+
+    // Övre vänster
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 6;
+    ctx.font = 'bold 38px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(rank, 26, 48);
+    ctx.font = '24px serif';
+    ctx.fillText(suitIcon, 26, 74);
     ctx.restore();
 
-    // Rank — övre vänster
+    // Nedre höger (roterad)
     ctx.save();
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(0,0,0,0.4)';
-    ctx.shadowBlur = 8;
-    ctx.font = 'bold 42px -apple-system, sans-serif';
-    ctx.fillText(rank, 28, 58);
-    ctx.restore();
-
-    // Rank — nedre höger (roterad)
-    ctx.save();
-    ctx.translate(CANVAS_WIDTH - 28, CANVAS_HEIGHT - 58);
+    ctx.translate(CANVAS_WIDTH - 26, CANVAS_HEIGHT - 48);
     ctx.rotate(Math.PI);
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = 'rgba(0,0,0,0.4)';
-    ctx.shadowBlur = 8;
-    ctx.font = 'bold 42px -apple-system, sans-serif';
+    ctx.fillStyle = color;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 6;
+    ctx.font = 'bold 38px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'left';
     ctx.fillText(rank, 0, 0);
+    ctx.font = '24px serif';
+    ctx.fillText(suitIcon, 0, 26);
+    ctx.restore();
+}
+
+function getPipPositions(rank) {
+    const topY = 105;
+    const midTopY = 185;
+    const midY = 280;
+    const midBotY = 375;
+    const botY = 455;
+    const leftX = 88;
+    const rightX = CANVAS_WIDTH - 88;
+    const cx = CANVAS_WIDTH / 2;
+
+    const positions = {
+        '2':  [{x: cx, y: topY}, {x: cx, y: botY, rotate: 180}],
+        '3':  [{x: cx, y: topY}, {x: cx, y: midY}, {x: cx, y: botY, rotate: 180}],
+        '4':  [{x: leftX, y: topY}, {x: rightX, y: topY}, {x: leftX, y: botY, rotate: 180}, {x: rightX, y: botY, rotate: 180}],
+        '5':  [{x: leftX, y: topY}, {x: rightX, y: topY}, {x: cx, y: midY}, {x: leftX, y: botY, rotate: 180}, {x: rightX, y: botY, rotate: 180}],
+        '6':  [{x: leftX, y: topY}, {x: rightX, y: topY}, {x: leftX, y: midY}, {x: rightX, y: midY}, {x: leftX, y: botY, rotate: 180}, {x: rightX, y: botY, rotate: 180}],
+        '7':  [{x: leftX, y: topY}, {x: rightX, y: topY}, {x: cx, y: midTopY}, {x: leftX, y: midY}, {x: rightX, y: midY}, {x: leftX, y: botY, rotate: 180}, {x: rightX, y: botY, rotate: 180}],
+        '8':  [{x: leftX, y: topY}, {x: rightX, y: topY}, {x: leftX, y: midTopY}, {x: rightX, y: midTopY}, {x: leftX, y: midBotY, rotate: 180}, {x: rightX, y: midBotY, rotate: 180}, {x: leftX, y: botY, rotate: 180}, {x: rightX, y: botY, rotate: 180}],
+        '9':  [{x: leftX, y: topY}, {x: rightX, y: topY}, {x: cx, y: midTopY - 20}, {x: leftX, y: midTopY + 30}, {x: rightX, y: midTopY + 30}, {x: cx, y: midY}, {x: leftX, y: botY, rotate: 180}, {x: rightX, y: botY, rotate: 180}, {x: cx, y: midBotY, rotate: 180}],
+        '10': [{x: leftX, y: topY}, {x: rightX, y: topY}, {x: leftX, y: midTopY - 10}, {x: rightX, y: midTopY - 10}, {x: leftX, y: midTopY + 50}, {x: rightX, y: midTopY + 50}, {x: leftX, y: midBotY, rotate: 180}, {x: rightX, y: midBotY, rotate: 180}, {x: leftX, y: botY, rotate: 180}, {x: rightX, y: botY, rotate: 180}]
+    };
+    return positions[rank] || [];
+}
+
+function renderPips(ctx, emoji, positions) {
+    ctx.save();
+    ctx.font = '52px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 8;
+
+    positions.forEach(pos => {
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        if (pos.rotate) {
+            ctx.rotate((pos.rotate * Math.PI) / 180);
+        }
+        ctx.fillText(emoji, 0, 0);
+        ctx.restore();
+    });
+    ctx.restore();
+}
+
+function renderFaceCard(ctx, rank, suit, data) {
+    const cx = CANVAS_WIDTH / 2;
+    const cy = CANVAS_HEIGHT / 2;
+    const suitIcon = SUIT_ICONS[suit];
+    const accent = SUIT_ACCENTS[suit];
+
+    const titles = {
+        A: { label: 'ESS', subtitle: suitIcon, crown: '👑', crown2: '👑', frame: 'elegant' },
+        J: { label: 'KNEKT', subtitle: 'Riddare', crown: '⚔️', crown2: '🛡️', frame: 'angular' },
+        Q: { label: 'DAM', subtitle: 'Drottning', crown: '👑', crown2: '💎', frame: 'round' },
+        K: { label: 'KUNG', subtitle: 'Konung', crown: '👑', crown2: '⚜️', frame: 'royal' }
+    };
+    const info = titles[rank];
+
+    // === FAS 2: Unik ram per face card ===
+    renderFaceCardFrame(ctx, rank, info.frame, accent);
+
+    // === Banner med accent-färg ===
+    ctx.save();
+    const bannerY = cy - 68;
+    const bannerGrad = ctx.createLinearGradient(cx - 130, bannerY, cx + 130, bannerY);
+    bannerGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    bannerGrad.addColorStop(0.15, hexToRgba(accent, 0.25));
+    bannerGrad.addColorStop(0.5, hexToRgba(accent, 0.45));
+    bannerGrad.addColorStop(0.85, hexToRgba(accent, 0.25));
+    bannerGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = bannerGrad;
+    ctx.fillRect(cx - 150, bannerY - 22, 300, 44);
+
+    // Övre och nedre linje på bannern
+    ctx.strokeStyle = hexToRgba(accent, 0.5);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - 100, bannerY - 22);
+    ctx.lineTo(cx + 100, bannerY - 22);
+    ctx.moveTo(cx - 100, bannerY + 22);
+    ctx.lineTo(cx + 100, bannerY + 22);
+    ctx.stroke();
     ctx.restore();
 
-    // Huvudinnehåll
-    if (data) {
-        if (data.type === 'emoji' && data.value) {
+    // === Kronor/ikoner ovanför och under ===
+    if (info.crown) {
+        ctx.save();
+        ctx.font = '36px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = hexToRgba(accent, 0.6);
+        ctx.shadowBlur = 12;
+        ctx.fillText(info.crown, cx - 30, cy - 118);
+        if (info.crown2) {
+            ctx.fillText(info.crown2, cx + 30, cy - 118);
+        }
+        ctx.restore();
+    }
+
+    // === Titel ===
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(info.label, cx, cy - 68);
+    ctx.restore();
+
+    // === Subtitle ===
+    ctx.save();
+    ctx.fillStyle = hexToRgba('#ffffff', 0.85);
+    ctx.font = '15px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(info.subtitle, cx, cy - 42);
+    ctx.restore();
+
+    // === Kronor under titeln ===
+    ctx.save();
+    ctx.font = '20px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.4;
+    ctx.fillText(suitIcon, cx - 12, cy - 24);
+    ctx.fillText(suitIcon, cx + 12, cy - 24);
+    ctx.restore();
+
+    // === Huvudinnehåll (emoji eller bild) ===
+    if (data && data.value) {
+        if (data.type === 'emoji') {
             ctx.save();
-            ctx.font = '180px serif';
+            ctx.font = '150px serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowColor = 'rgba(0,0,0,0.35)';
             ctx.shadowBlur = 20;
-            ctx.fillText(data.value, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+            ctx.fillText(data.value, cx, cy + 35);
             ctx.restore();
-            return Promise.resolve();
-        } else if (data.type === 'image' && data.value) {
-            return new Promise(resolve => {
-                const img = new Image();
-                img.onload = () => {
-                    ctx.save();
-                    const size = 260;
-                    const x = (CANVAS_WIDTH - size) / 2;
-                    const y = (CANVAS_HEIGHT - size) / 2;
-                    const r = 16;
-
-                    ctx.beginPath();
-                    ctx.moveTo(x + r, y);
-                    ctx.lineTo(x + size - r, y);
-                    ctx.quadraticCurveTo(x + size, y, x + size, y + r);
-                    ctx.lineTo(x + size, y + size - r);
-                    ctx.quadraticCurveTo(x + size, y + size, x + size - r, y + size);
-                    ctx.lineTo(x + r, y + size);
-                    ctx.quadraticCurveTo(x, y + size, x, y + size - r);
-                    ctx.lineTo(x, y + r);
-                    ctx.quadraticCurveTo(x, y, x + r, y);
-                    ctx.closePath();
-                    ctx.clip();
-
-                    ctx.drawImage(img, x, y, size, size);
-                    ctx.restore();
-
-                    // Ram runt bilden
-                    ctx.save();
-                    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.moveTo(x + r, y);
-                    ctx.lineTo(x + size - r, y);
-                    ctx.quadraticCurveTo(x + size, y, x + size, y + r);
-                    ctx.lineTo(x + size, y + size - r);
-                    ctx.quadraticCurveTo(x + size, y + size, x + size - r, y + size);
-                    ctx.lineTo(x + r, y + size);
-                    ctx.quadraticCurveTo(x, y + size, x, y + size - r);
-                    ctx.lineTo(x, y + r);
-                    ctx.quadraticCurveTo(x, y, x + r, y);
-                    ctx.closePath();
-                    ctx.stroke();
-                    ctx.restore();
-
-                    resolve();
-                };
-                img.onerror = resolve;
-                img.src = data.value;
-            });
+        } else if (data.type === 'image') {
+            return renderCenterImage(ctx, data.value, 210);
         }
     }
+    return Promise.resolve();
+}
+
+function renderFaceCardFrame(ctx, rank, frameType, accent) {
+    const pad = 36;
+    const w = CANVAS_WIDTH - pad * 2;
+    const h = CANVAS_HEIGHT - pad * 2;
+    const r = frameType === 'round' ? 60 : (frameType === 'royal' ? 8 : 20);
+
+    ctx.save();
+
+    if (frameType === 'elegant') {
+        // A = dubbel rundad ram med guld-känsla
+        ctx.strokeStyle = hexToRgba(accent, 0.5);
+        ctx.lineWidth = 2;
+        drawRoundedRect(ctx, pad, pad, w, h, r);
+        ctx.stroke();
+        ctx.strokeStyle = hexToRgba(accent, 0.25);
+        ctx.lineWidth = 1;
+        drawRoundedRect(ctx, pad + 6, pad + 6, w - 12, h - 12, r - 4);
+        ctx.stroke();
+        // Hörn-prickar
+        ctx.fillStyle = hexToRgba(accent, 0.6);
+        const corners = [
+            [pad + 10, pad + 10], [CANVAS_WIDTH - pad - 10, pad + 10],
+            [pad + 10, CANVAS_HEIGHT - pad - 10], [CANVAS_WIDTH - pad - 10, CANVAS_HEIGHT - pad - 10]
+        ];
+        corners.forEach(([x, y]) => {
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    } else if (frameType === 'angular') {
+        // J = spetsig ram med pil-hörn
+        ctx.strokeStyle = hexToRgba(accent, 0.45);
+        ctx.lineWidth = 2.5;
+        const inset = 12;
+        ctx.beginPath();
+        ctx.moveTo(pad + inset, pad);
+        ctx.lineTo(CANVAS_WIDTH - pad - inset, pad);
+        ctx.lineTo(CANVAS_WIDTH - pad, pad + inset);
+        ctx.lineTo(CANVAS_WIDTH - pad, CANVAS_HEIGHT - pad - inset);
+        ctx.lineTo(CANVAS_WIDTH - pad - inset, CANVAS_HEIGHT - pad);
+        ctx.lineTo(pad + inset, CANVAS_HEIGHT - pad);
+        ctx.lineTo(pad, CANVAS_HEIGHT - pad - inset);
+        ctx.lineTo(pad, pad + inset);
+        ctx.closePath();
+        ctx.stroke();
+        // Inre linje
+        ctx.strokeStyle = hexToRgba(accent, 0.2);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    } else if (frameType === 'round') {
+        // Q = mjuk oval ram
+        ctx.strokeStyle = hexToRgba(accent, 0.4);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, w / 2 - 10, h / 2 - 10, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        // Prick-kedja runt ovalen
+        ctx.fillStyle = hexToRgba(accent, 0.5);
+        for (let a = 0; a < Math.PI * 2; a += 0.25) {
+            const rx = w / 2 - 4;
+            const ry = h / 2 - 4;
+            const x = CANVAS_WIDTH / 2 + Math.cos(a) * rx;
+            const y = CANVAS_HEIGHT / 2 + Math.sin(a) * ry;
+            ctx.beginPath();
+            ctx.arc(x, y, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    } else if (frameType === 'royal') {
+        // K = tjock kunglig ram med kron-hörn
+        ctx.strokeStyle = hexToRgba(accent, 0.55);
+        ctx.lineWidth = 3;
+        drawRoundedRect(ctx, pad, pad, w, h, r);
+        ctx.stroke();
+        // Inre ram
+        ctx.strokeStyle = hexToRgba(accent, 0.25);
+        ctx.lineWidth = 1.5;
+        drawRoundedRect(ctx, pad + 8, pad + 8, w - 16, h - 16, r);
+        ctx.stroke();
+        // Kron-symboler i hörnen
+        ctx.font = '18px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = hexToRgba(accent, 0.7);
+        ctx.fillText('♛', pad + 14, pad + 14);
+        ctx.fillText('♛', CANVAS_WIDTH - pad - 14, pad + 14);
+        ctx.fillText('♛', pad + 14, CANVAS_HEIGHT - pad - 14);
+        ctx.fillText('♛', CANVAS_WIDTH - pad - 14, CANVAS_HEIGHT - pad - 14);
+    }
+
+    ctx.restore();
+}
+
+function hexToRgba(hex, alpha) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const R = (num >> 16) & 0xff;
+    const G = (num >> 8) & 0xff;
+    const B = num & 0xff;
+    return `rgba(${R},${G},${B},${alpha})`;
+}
+
+function renderCenterEmoji(ctx, emoji, size) {
+    ctx.save();
+    ctx.font = `${size}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 16;
+    ctx.fillText(emoji, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+    ctx.restore();
+}
+
+function renderCenterImage(ctx, dataUrl, size) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            ctx.save();
+            const x = (CANVAS_WIDTH - size) / 2;
+            const y = (CANVAS_HEIGHT - size) / 2;
+            const r = 18;
+
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + size - r, y);
+            ctx.quadraticCurveTo(x + size, y, x + size, y + r);
+            ctx.lineTo(x + size, y + size - r);
+            ctx.quadraticCurveTo(x + size, y + size, x + size - r, y + size);
+            ctx.lineTo(x + r, y + size);
+            ctx.quadraticCurveTo(x, y + size, x, y + size - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.clip();
+
+            ctx.drawImage(img, x, y, size, size);
+            ctx.restore();
+
+            // Ram runt bilden
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + size - r, y);
+            ctx.quadraticCurveTo(x + size, y, x + size, y + r);
+            ctx.lineTo(x + size, y + size - r);
+            ctx.quadraticCurveTo(x + size, y + size, x + size - r, y + size);
+            ctx.lineTo(x + r, y + size);
+            ctx.quadraticCurveTo(x, y + size, x, y + size - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+
+            resolve();
+        };
+        img.onerror = resolve;
+        img.src = dataUrl;
+    });
+}
+
+function darkenColor(hex, percent) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.max(0, (num >> 16) - amt);
+    const G = Math.max(0, ((num >> 8) & 0x00ff) - amt);
+    const B = Math.max(0, (num & 0x0000ff) - amt);
+    return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
+}
+
+function renderGloss(ctx) {
+    // Diagonal glans-linje över kortet
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    const grad = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    grad.addColorStop(0, 'rgba(255,255,255,0)');
+    grad.addColorStop(0.35, 'rgba(255,255,255,0)');
+    grad.addColorStop(0.5, 'rgba(255,255,255,0.12)');
+    grad.addColorStop(0.65, 'rgba(255,255,255,0)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    drawRoundedRect(ctx, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, CORNER_RADIUS);
+    ctx.fill();
+    ctx.restore();
+}
+
+function renderTexture(ctx) {
+    // Subtil linen-textur med små kors
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 0.5;
+    for (let y = 8; y < CANVAS_HEIGHT; y += 8) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(CANVAS_WIDTH, y);
+        ctx.stroke();
+    }
+    for (let x = 8; x < CANVAS_WIDTH; x += 8) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, CANVAS_HEIGHT);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function renderVignette(ctx) {
+    // Mörkare kanter för att dra ögat mot mitten
+    ctx.save();
+    const grad = ctx.createRadialGradient(
+        CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH * 0.35,
+        CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH * 0.75
+    );
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(0.7, 'rgba(0,0,0,0.03)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.12)');
+    ctx.fillStyle = grad;
+    drawRoundedRect(ctx, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, CORNER_RADIUS);
+    ctx.fill();
+    ctx.restore();
+}
+
+function renderDropShadow(ctx) {
+    // Skugga runt kortet
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 12;
+    ctx.fillStyle = 'rgba(0,0,0,0.01)';
+    drawRoundedRect(ctx, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, CORNER_RADIUS);
+    ctx.fill();
+    ctx.restore();
+}
+
+async function renderCardToCanvas(rank, suit) {
+    const canvas = document.getElementById('card-canvas');
+    const ctx = canvas.getContext('2d');
+    const data = cardData[suit][rank] || rankData[rank];
+    const settings = suitSettings[suit];
+
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // 0. Skugga (målas först, under allt)
+    renderDropShadow(ctx);
+
+    // 1. Bakgrund med rundade hörn
+    renderCardBackground(ctx, settings);
+
+    // 2. Ram och ornament
+    renderCardBorder(ctx);
+
+    // 3. Corner rank med färgsymbol
+    renderCornerRank(ctx, rank, suit);
+
+    // 4. Huvudinnehåll — pip-mönster, face card, eller emoji/bild
+    if (data && data.value) {
+        if (['J', 'Q', 'K', 'A'].includes(rank)) {
+            await renderFaceCard(ctx, rank, suit, data);
+        } else if (['2', '3', '4', '5', '6', '7', '8', '9', '10'].includes(rank)) {
+            const positions = getPipPositions(rank);
+            if (data.type === 'emoji') {
+                renderPips(ctx, data.value, positions);
+            } else if (data.type === 'image') {
+                await renderCenterImage(ctx, data.value, 200);
+            }
+        } else {
+            if (data.type === 'emoji') {
+                renderCenterEmoji(ctx, data.value, 160);
+            } else if (data.type === 'image') {
+                await renderCenterImage(ctx, data.value, 220);
+            }
+        }
+    }
+
+    // 5. Fas 4: Effekter ovanpå allt
+    renderTexture(ctx);
+    renderVignette(ctx);
+    renderGloss(ctx);
 
     return Promise.resolve();
 }
@@ -581,9 +1235,375 @@ function lightenColor(hex, percent) {
     return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
 }
 
+/* ========================================
+   FAS 5: LIVE PREVIEW
+   ======================================== */
+function initLivePreview() {
+    // När man klickar på ett kort i simple editor, sätt det som preview
+    document.getElementById('simple-editor').addEventListener('click', e => {
+        const row = e.target.closest('.rank-row');
+        if (row) {
+            livePreviewRank = row.dataset.rank;
+            livePreviewSuit = 'hearts';
+            queueLivePreview();
+        }
+    });
+
+    // När man klickar på ett kort i advanced editor, sätt det som preview
+    document.getElementById('suit-panels').addEventListener('click', e => {
+        const item = e.target.closest('.card-editor-item');
+        if (item) {
+            const panel = item.closest('.suit-panel');
+            livePreviewRank = item.dataset.rank;
+            livePreviewSuit = panel ? panel.id.replace('panel-', '') : activeSuit;
+            queueLivePreview();
+        }
+    });
+
+    // När man byter färg-tab, uppdatera preview till första ifyllda kortet
+    document.getElementById('suit-tabs-wrapper').addEventListener('click', e => {
+        const tab = e.target.closest('.suit-tab');
+        if (tab) {
+            const suit = tab.dataset.suit;
+            livePreviewSuit = suit;
+            const firstFilled = RANKS.find(r => cardData[suit][r] && cardData[suit][r].value);
+            livePreviewRank = firstFilled || 'A';
+            queueLivePreview();
+        }
+    });
+}
+
+function queueLivePreview() {
+    if (livePreviewTimeout) {
+        clearTimeout(livePreviewTimeout);
+    }
+    livePreviewTimeout = setTimeout(() => {
+        updateLivePreview();
+    }, 80);
+}
+
+async function updateLivePreview() {
+    const canvas = document.getElementById('live-preview-canvas');
+    const label = document.getElementById('live-preview-label');
+    const wrap = document.getElementById('live-preview-wrap');
+
+    if (!canvas || !label) {
+        return;
+    }
+
+    // Rendera till det dolda card-canvas först, sedan kopiera
+    await renderCardToCanvas(livePreviewRank, livePreviewSuit);
+
+    const srcCanvas = document.getElementById('card-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(srcCanvas, 0, 0);
+
+    label.textContent = `${livePreviewRank} ${SUIT_ICONS[livePreviewSuit]} ${SUIT_NAMES[livePreviewSuit]}`;
+    wrap.classList.add('active');
+}
+
+/* ========================================
+   FAS 6: KORTBAKSIDA
+   ======================================== */
+function initCardBack() {
+    const bgInput = document.getElementById('back-bg-color');
+    const patternInput = document.getElementById('back-pattern');
+    const centerInput = document.getElementById('back-center');
+
+    if (bgInput) {
+        bgInput.addEventListener('input', e => {
+            backSettings.bgColor = e.target.value;
+            queueCardBackPreview();
+        });
+    }
+    if (patternInput) {
+        patternInput.addEventListener('change', e => {
+            backSettings.pattern = e.target.value;
+            queueCardBackPreview();
+        });
+    }
+    if (centerInput) {
+        centerInput.addEventListener('input', e => {
+            backSettings.center = e.target.value;
+            queueCardBackPreview();
+        });
+    }
+}
+
+let cardBackTimeout = null;
+function queueCardBackPreview() {
+    if (cardBackTimeout) {
+        clearTimeout(cardBackTimeout);
+    }
+    cardBackTimeout = setTimeout(() => {
+        updateCardBackPreview();
+    }, 80);
+}
+
+function updateCardBackPreview() {
+    const canvas = document.getElementById('back-preview-canvas');
+    if (!canvas) {
+        return;
+    }
+    renderCardBackToCanvas(canvas);
+}
+
+function renderCardBackToCanvas(targetCanvas) {
+    const canvas = targetCanvas || document.getElementById('card-canvas');
+    const ctx = canvas.getContext('2d');
+    const settings = backSettings;
+
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // 1. Bakgrund med rundade hörn
+    ctx.save();
+    drawRoundedRect(ctx, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, CORNER_RADIUS);
+    ctx.clip();
+
+    // Grundfärg
+    ctx.fillStyle = settings.bgColor;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Mönster
+    const patternColor = lightenColor(settings.bgColor, 50);
+    ctx.save();
+    if (settings.pattern === 'dots') {
+        ctx.fillStyle = patternColor;
+        ctx.globalAlpha = 0.15;
+        for (let y = 24; y < CANVAS_HEIGHT; y += 32) {
+            for (let x = 24; x < CANVAS_WIDTH; x += 32) {
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    } else if (settings.pattern === 'crosshatch') {
+        ctx.strokeStyle = patternColor;
+        ctx.globalAlpha = 0.12;
+        ctx.lineWidth = 1;
+        for (let i = -CANVAS_HEIGHT; i < CANVAS_WIDTH + CANVAS_HEIGHT; i += 20) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i + CANVAS_HEIGHT, CANVAS_HEIGHT);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(i + CANVAS_HEIGHT, 0);
+            ctx.lineTo(i, CANVAS_HEIGHT);
+            ctx.stroke();
+        }
+    } else if (settings.pattern === 'circles') {
+        ctx.strokeStyle = patternColor;
+        ctx.globalAlpha = 0.15;
+        ctx.lineWidth = 1.5;
+        for (let y = 0; y < CANVAS_HEIGHT + 40; y += 40) {
+            for (let x = 0; x < CANVAS_WIDTH + 40; x += 40) {
+                ctx.beginPath();
+                ctx.arc(x, y, 14, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+    } else if (settings.pattern === 'diagonal') {
+        ctx.strokeStyle = patternColor;
+        ctx.globalAlpha = 0.12;
+        ctx.lineWidth = 1.5;
+        for (let i = -CANVAS_HEIGHT; i < CANVAS_WIDTH; i += 24) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i + CANVAS_HEIGHT, CANVAS_HEIGHT);
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+
+    // Ram
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 3;
+    drawRoundedRect(ctx, 16, 16, CANVAS_WIDTH - 32, CANVAS_HEIGHT - 32, CORNER_RADIUS - 10);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1.5;
+    drawRoundedRect(ctx, 26, 26, CANVAS_WIDTH - 52, CANVAS_HEIGHT - 52, CORNER_RADIUS - 16);
+    ctx.stroke();
+
+    // Center-symbol
+    if (settings.center) {
+        ctx.save();
+        ctx.font = '100px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillText(settings.center, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+        ctx.restore();
+    }
+
+    // Corner-ornament
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    const ornamentPositions = [
+        [32, 32], [CANVAS_WIDTH - 32, 32],
+        [32, CANVAS_HEIGHT - 32], [CANVAS_WIDTH - 32, CANVAS_HEIGHT - 32]
+    ];
+    ornamentPositions.forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Effekter
+    renderTexture(ctx);
+    renderVignette(ctx);
+
+    ctx.restore();
+}
+
+/* ========================================
+   FAS 7: IMPORT/EXPORT JSON
+   ======================================== */
+function initConfigIO() {
+    const exportBtn = document.getElementById('export-config-btn');
+    const importBtn = document.getElementById('import-config-btn');
+    const importInput = document.getElementById('import-config-input');
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportConfig);
+    }
+    if (importBtn && importInput) {
+        importBtn.addEventListener('click', () => importInput.click());
+        importInput.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) {
+                importConfig(file);
+            }
+            importInput.value = '';
+        });
+    }
+}
+
+function exportConfig() {
+    const config = {
+        version: 1,
+        themeName: document.getElementById('theme-name').value.trim(),
+        cardData: JSON.parse(JSON.stringify(cardData)),
+        rankData: JSON.parse(JSON.stringify(rankData)),
+        suitSettings: JSON.parse(JSON.stringify(suitSettings)),
+        backSettings: JSON.parse(JSON.stringify(backSettings))
+    };
+
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${config.themeName || 'kortlek'}-config.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('💾 Konfiguration sparad som JSON!');
+}
+
+async function importConfig(file) {
+    try {
+        const text = await file.text();
+        const config = JSON.parse(text);
+
+        if (!config.cardData || !config.suitSettings) {
+            showToast('Ogiltig konfigurationsfil!', 'error');
+            return;
+        }
+
+        // Återställ data
+        if (config.cardData) {
+            cardData = config.cardData;
+        }
+        if (config.rankData) {
+            rankData = config.rankData;
+        }
+        if (config.suitSettings) {
+            suitSettings = config.suitSettings;
+        }
+        if (config.backSettings) {
+            backSettings = config.backSettings;
+        }
+        if (config.themeName) {
+            document.getElementById('theme-name').value = config.themeName;
+        }
+
+        // Uppdatera alla UI-element
+        RANKS.forEach(rank => {
+            updateRankPreview(rank);
+            const simpleEmoji = document.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
+            const simpleFile = document.querySelector(`.rank-file-input[data-rank="${rank}"]`);
+            if (simpleEmoji) {
+                simpleEmoji.value = rankData[rank] && rankData[rank].type === 'emoji' ? rankData[rank].value : '';
+            }
+            if (simpleFile) {
+                simpleFile.value = '';
+            }
+        });
+
+        SUITS.forEach(suit => {
+            RANKS.forEach(rank => {
+                updateMiniPreview(suit, rank);
+                const advEmoji = document.querySelector(`.card-emoji-input[data-suit="${suit}"][data-rank="${rank}"]`);
+                const advFile = document.querySelector(`.card-file-input[data-suit="${suit}"][data-rank="${rank}"]`);
+                if (advEmoji) {
+                    const d = cardData[suit][rank];
+                    advEmoji.value = d && d.type === 'emoji' ? d.value : '';
+                }
+                if (advFile) {
+                    advFile.value = '';
+                }
+            });
+            updateProgress(suit);
+
+            // Uppdatera suit settings inputs
+            const bgInput = document.querySelector(`.suit-bg-color[data-suit="${suit}"]`);
+            const gradInput = document.querySelector(`.suit-gradient[data-suit="${suit}"]`);
+            const patInput = document.querySelector(`.suit-pattern[data-suit="${suit}"]`);
+            if (bgInput) {
+                bgInput.value = suitSettings[suit].bgColor;
+            }
+            if (gradInput) {
+                gradInput.value = suitSettings[suit].gradient;
+            }
+            if (patInput) {
+                patInput.value = suitSettings[suit].pattern;
+            }
+        });
+
+        // Uppdatera back settings
+        const backBg = document.getElementById('back-bg-color');
+        const backPat = document.getElementById('back-pattern');
+        const backCenter = document.getElementById('back-center');
+        if (backBg) {
+            backBg.value = backSettings.bgColor;
+        }
+        if (backPat) {
+            backPat.value = backSettings.pattern;
+        }
+        if (backCenter) {
+            backCenter.value = backSettings.center || '';
+        }
+
+        updateAllProgress();
+        updateCardBackPreview();
+        updateLivePreview();
+
+        showToast('📂 Konfiguration laddad!');
+    } catch (err) {
+        showToast('Kunde inte läsa filen: ' + err.message, 'error');
+        console.error(err);
+    }
+}
+
 function showToast(message, type = 'success') {
     const existing = document.querySelector('.toast');
-    if (existing) existing.remove();
+    if (existing) {
+        existing.remove();
+    }
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -678,11 +1698,12 @@ async function generateAndDownload() {
         syncSimpleToAdvanced();
     }
 
-    showToast('Genererar 52 kort... Det kan ta några sekunder.');
+    showToast('Genererar kortlek... Det kan ta några sekunder.');
 
     const zip = new JSZip();
     const root = zip.folder(themeName);
 
+    // 52 kort
     for (const suit of SUITS) {
         const folder = root.folder(SUIT_FOLDERS[suit]);
         for (const rank of RANKS) {
@@ -692,6 +1713,15 @@ async function generateAndDownload() {
             folder.file(`${rank}.png`, base64, { base64: true });
         }
     }
+
+    // Kortbaksida
+    const backCanvas = document.createElement('canvas');
+    backCanvas.width = CANVAS_WIDTH;
+    backCanvas.height = CANVAS_HEIGHT;
+    renderCardBackToCanvas(backCanvas);
+    const backDataUrl = backCanvas.toDataURL('image/png');
+    const backBase64 = backDataUrl.split(',')[1];
+    root.file('back.png', backBase64, { base64: true });
 
     const content = await zip.generateAsync({ type: 'blob' });
     saveAs(content, `${themeName}-kortlek.zip`);

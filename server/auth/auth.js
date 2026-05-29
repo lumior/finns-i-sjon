@@ -1,6 +1,10 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET måste vara satt i produktion');
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
 
 class Auth {

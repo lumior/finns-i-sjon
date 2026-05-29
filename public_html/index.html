@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Finns i sjön PRO – Multiplayer Kortspel</title>
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/animations.css">
@@ -249,11 +249,11 @@
         <p>Finns i sjön PRO © 2026 – Ett svenskt kortspel för hela världen</p>
     </footer>
 
-    <div id="login-modal" class="modal hidden">
+    <div id="login-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
         <div class="modal-overlay"></div>
         <div class="modal-content">
-            <button class="modal-close">&times;</button>
-            <h2>Logga in</h2>
+            <button class="modal-close" aria-label="Stäng">&times;</button>
+            <h2 id="login-modal-title">Logga in</h2>
             <form id="login-form">
                 <div class="form-group">
                     <label for="login-username">Användarnamn</label>
@@ -269,11 +269,11 @@
         </div>
     </div>
 
-    <div id="register-modal" class="modal hidden">
+    <div id="register-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="register-modal-title">
         <div class="modal-overlay"></div>
         <div class="modal-content">
-            <button class="modal-close">&times;</button>
-            <h2>Registrera dig</h2>
+            <button class="modal-close" aria-label="Stäng">&times;</button>
+            <h2 id="register-modal-title">Registrera dig</h2>
             <form id="register-form">
                 <div class="form-group">
                     <label for="reg-username">Användarnamn</label>
@@ -297,20 +297,20 @@
         </div>
     </div>
 
-    <div id="error-modal" class="modal hidden">
+    <div id="error-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="error-modal-title">
         <div class="modal-overlay"></div>
         <div class="modal-content modal-small">
-            <h3>⚠️ Oops!</h3>
+            <h3 id="error-modal-title">⚠️ Oops!</h3>
             <p id="error-message"></p>
             <button id="error-close-btn" class="btn btn-primary">Stäng</button>
         </div>
     </div>
 
-    <div id="join-room-modal" class="modal hidden">
+    <div id="join-room-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="join-room-modal-title">
         <div class="modal-overlay"></div>
         <form class="modal-content" id="join-room-form">
-            <button type="button" class="modal-close">&times;</button>
-            <h2>Gå med i bord</h2>
+            <button type="button" class="modal-close" aria-label="Stäng">&times;</button>
+            <h2 id="join-room-modal-title">Gå med i bord</h2>
             <div class="join-info">
                 <p>Bord: <span id="join-room-name"></span></p>
                 <p>Värd: <span id="join-room-host"></span></p>

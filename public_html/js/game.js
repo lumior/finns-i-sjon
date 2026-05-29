@@ -398,6 +398,36 @@ class GameClient {
             document.getElementById('host-menu').classList.toggle('hidden');
         });
         
+        // Event delegation för kort-klick vid pending card request
+        const handContainer = document.getElementById('player-hand');
+        if (handContainer) {
+            handContainer.addEventListener('click', (e) => {
+                const cardEl = e.target.closest('.card');
+                if (!cardEl || !this.pendingCardRequest) return;
+                if (cardEl.classList.contains('card-request-highlight')) {
+                    this.respondToAskClick(true, this.pendingCardRequest.rank);
+                }
+            });
+        }
+        
+        // Card request-knappar (registreras en gång, använder pendingCardRequest-state)
+        const giveBtn = document.getElementById('card-request-give');
+        if (giveBtn) {
+            giveBtn.addEventListener('click', () => {
+                if (this.pendingCardRequest) {
+                    this.respondToAskClick(true, this.pendingCardRequest.rank);
+                }
+            });
+        }
+        const fiskBtnEl = document.getElementById('card-request-fisk');
+        if (fiskBtnEl) {
+            fiskBtnEl.addEventListener('click', () => {
+                if (this.pendingCardRequest) {
+                    this.respondToAskClick(false, this.pendingCardRequest.rank);
+                }
+            });
+        }
+        
         document.getElementById('add-ai-btn').addEventListener('click', () => {
             this.showAddAIModal();
         });
@@ -696,6 +726,7 @@ class GameClient {
             if (!isAIMode && !this.isHost) {
                 const deckThemeGroup = document.getElementById('setting-deck-theme')?.closest('.form-group');
                 if (deckThemeGroup) deckThemeGroup.style.display = 'none';
+                const deckToggle = document.getElementById('deck-toggle');
                 if (deckToggle) deckToggle.style.display = 'none';
             }
         }
@@ -1344,9 +1375,6 @@ class GameClient {
                 if (cardData && cardData.rank === requestedRank) {
                     cardEl.classList.add('card-request-highlight');
                     matchingCards.push(cardEl);
-                    cardEl.addEventListener('click', () => {
-                        this.respondToAskClick(true, requestedRank);
-                    });
                 }
             });
             
@@ -1665,17 +1693,7 @@ class GameClient {
             this.renderHand(this.gameState.yourHand, this.gameState.yourPairs);
         }
         
-        // Ge-knapp handler (primär på mobil)
-        if (giveBtn) {
-            giveBtn.onclick = () => {
-                this.respondToAskClick(true, rank);
-            };
-        }
-        
-        // Fisk!-knapp handler
-        fiskBtn.onclick = () => {
-            this.respondToAskClick(false, rank);
-        };
+        // Knapphanterare registreras en gång i setupUI via event delegation
         
         // Ingen synlig countdown — servern hanterar timeout automatiskt
     }

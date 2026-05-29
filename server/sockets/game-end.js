@@ -1,7 +1,6 @@
 function createHandleGameEnd(io, roomManager, Game, User, ELO) {
     return async function handleGameEnd(game, _room) {
         const standings = game.calculateWinner();
-        game.getGameData();
 
         try {
             let winnerId = null;
@@ -36,7 +35,7 @@ function createHandleGameEnd(io, roomManager, Game, User, ELO) {
 
                 const newRatings = ELO.calculateNewRatings(ratings, positions);
 
-                for (const rating of newRatings) {
+                const eloPromises = newRatings.map(async (rating) => {
                     await User.updateElo(rating.userId, rating.newRating);
                     await Game.addParticipant(
                         gameId,
@@ -52,13 +51,15 @@ function createHandleGameEnd(io, roomManager, Game, User, ELO) {
                         newRating: rating.newRating,
                         change: rating.change
                     });
-                }
+                });
+                await Promise.all(eloPromises);
             }
 
             const isTie = standings.filter(s => s.rank === 1).length > 1;
 
-            for (const player of standings) {
-                if (player.userId) {
+            const playerPromises = standings
+                .filter(p => p.userId)
+                .map(async (player) => {
                     const isWinner = !isTie && player.rank === 1;
                     await User.updateStats(player.userId, {
                         games_played: 1,
@@ -67,10 +68,11 @@ function createHandleGameEnd(io, roomManager, Game, User, ELO) {
                         total_pairs: player.pairs
                     });
 
+                    const userBeforeUpdate = await User.findById(player.userId);
                     const gamePlayer = game.players.find(p => p.id === player.id);
                     const achievements = game.checkAchievements(gamePlayer, 'game_end', {
                         isWinner,
-                        isFirstWin: isWinner && player.gamesPlayed === 0,
+                        isFirstWin: isWinner && userBeforeUpdate && userBeforeUpdate.games_played === 0,
                         hasAI: standings.some(s => s.isAI),
                         opponentCount: standings.length - 1
                     });
@@ -78,8 +80,8 @@ function createHandleGameEnd(io, roomManager, Game, User, ELO) {
                     for (const achievement of achievements) {
                         await User.addAchievement(player.userId, achievement);
                     }
-                }
-            }
+                });
+            await Promise.all(playerPromises);
 
             game.players.forEach(player => {
                 if (player.connected) {
