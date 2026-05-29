@@ -1292,10 +1292,10 @@ class GameClient {
         const useImageDeck = deckTheme !== 'standard';
         
         const suitToVeggie = {
-            hearts: 'pepper',      // paprika
-            diamonds: 'radish',    // rädisa
-            clubs: 'potato',       // potatis
-            spades: 'aubergine'    // aubergine
+            hearts: 'aubergine',
+            diamonds: 'radish',
+            clubs: 'pepper',
+            spades: 'potato'
         };
         
         container.innerHTML = sortedHand.map((card, index) => {
@@ -1522,10 +1522,10 @@ class GameClient {
         
         const suits = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
         const suitToVeggie = {
-            hearts: 'pepper',      // paprika
-            diamonds: 'radish',    // rädisa
-            clubs: 'potato',       // potatis
-            spades: 'aubergine'    // aubergine
+            hearts: 'aubergine',
+            diamonds: 'radish',
+            clubs: 'pepper',
+            spades: 'potato'
         };
         const myRanks = [...new Set(this.gameState.yourHand.map(c => c.rank))];
         const rankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];

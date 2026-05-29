@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadRooms();
     loadLeaderboard();
     updateOnlineStats();
+    loadDeckThemes();
     startRoomsPolling();
     
     if (window.socket) {
@@ -259,6 +260,56 @@ function stopRoomsPolling() {
     if (roomsRefreshInterval) {
         clearInterval(roomsRefreshInterval);
         roomsRefreshInterval = null;
+    }
+}
+
+async function loadDeckThemes() {
+    try {
+        const response = await fetch('/api/admin/themes');
+        if (!response.ok) {
+            return;
+        }
+        const data = await response.json();
+        if (!data.success || !data.themes) {
+            return;
+        }
+
+        const select = document.getElementById('create-deck-theme');
+        if (!select) {
+            return;
+        }
+
+        // Behåll standardalternativet
+        const standardOption = select.querySelector('option[value="standard"]');
+        select.innerHTML = '';
+        if (standardOption) {
+            select.appendChild(standardOption);
+        } else {
+            const opt = document.createElement('option');
+            opt.value = 'standard';
+            opt.textContent = 'Standard ♠♥♦♣';
+            select.appendChild(opt);
+        }
+
+        // Lägg till dynamiska teman
+        for (const theme of data.themes) {
+            if (theme.folder === 'standard') {
+                continue;
+            }
+            const option = document.createElement('option');
+            option.value = theme.folder;
+            const status = theme.complete ? '' : ' (ofullständig)';
+            option.textContent = theme.name + status;
+            select.appendChild(option);
+        }
+
+        // Återställ tidigare val från localStorage om det finns
+        const saved = localStorage.getItem('deckTheme');
+        if (saved && select.querySelector(`option[value="${saved}"]`)) {
+            select.value = saved;
+        }
+    } catch (error) {
+        console.warn('Kunde inte ladda teman:', error.message);
     }
 }
 
