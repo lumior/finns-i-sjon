@@ -199,3 +199,35 @@ Helt omskriven Canvas-rendering för kortleksgeneratorn. Tidigare visade alla ko
   - Live preview-labeln visar bara färg, t.ex. "♥️ Hjärter" istället för "A ♥️ Hjärter"
 - **Användningsfall**: Memory-spel, temakort för barn, eller rena bildkortlekar där man bara matchar symboler utan koppling till traditionella spelkort.
 - **Export/import**: `symbolMode` sparas och läses in med JSON-konfigurationen.
+
+## 2026-05-28 — Admin: Fas 8–9 (bakgrundsbilder, batch-åtgärder, validering)
+
+### 🖼️ Fas 8: Bakgrundsbilder per färg
+
+- **Uppladdningsbar bakgrundsbild** per färg i advanced-läget:
+  - File-input + "❌"-knapp för att ta bort bilden
+  - Bilden ritas som `object-fit: cover` över hela kortet
+  - Gradient/färg läggs ovanpå med 75% opacitet så färgkänslan bevaras
+  - Mönster och effekter (textur, vignette) ritas ovanpå som vanligt
+- **`renderCardBackground()`** är nu `async` och anropar `renderBgImage()` vid behov.
+- **`renderBgImage()`** — laddar bild via `Image()` och ritar med cover-skala.
+- **`bgImage`** läggs till i `suitSettings` per färg.
+
+### 🎲 Fas 9: Batch-åtgärder och validering
+
+- **Statistik-ruta**: Visar "X/52 kort ifyllda" med färgkodning:
+  - 🟢 Grönt när alla 52 är klara
+  - 🔴 Rött när inga är ifyllda
+  - 🟠 Orange för allt däremellan
+- **"🎲 Fyll tomma med slumpade emojis"**:
+  - Fyller alla tomma kort med unika emojis från en pool på 117 symboler (frukt, grönsaker, djur, fordon, sport, natur, väder)
+  - Undviker dubletter om möjligt
+  - Uppdaterar både simple och advanced UI
+- **"🗑️ Rensa alla kort"**:
+  - Tömmer all data med `confirm()`-dialog
+  - Rensar alla input-fält och previewer
+- **Validering före export**:
+  - Om 0/52 kort → felmeddelande, export stoppas
+  Om < 52/52 kort → `confirm()`-dialog: "Endast X/52 kort är ifyllda. Vill du fortsätta ändå?"
+  - Full kortlek → export går direkt igenom
+- **`updateBatchStats()`** anropas automatiskt vid varje ändring, mall-applicering, import och init.

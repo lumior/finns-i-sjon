@@ -499,6 +499,47 @@ body {
     font-size: 0.8rem;
 }
 
+/* Background image row */
+.bg-image-row {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+    margin-bottom: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: rgba(59, 130, 246, 0.05);
+    border-radius: var(--radius-md);
+    border: 1px dashed rgba(59, 130, 246, 0.2);
+    flex-wrap: wrap;
+}
+
+.bg-image-row label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.bg-image-row input[type="file"] {
+    flex: 1;
+    min-width: 150px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.suit-clear-bg {
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.suit-clear-bg:hover {
+    background: rgba(239, 68, 68, 0.15);
+}
+
 /* Suit panels */
 .suit-panel {
     display: none;
@@ -684,6 +725,56 @@ body {
     font-weight: 700;
     color: var(--accent);
     letter-spacing: 0.5px;
+}
+
+/* Batch section */
+.batch-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    text-align: center;
+}
+
+.batch-stats {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: var(--space-md);
+}
+
+.batch-stats.complete {
+    color: var(--success);
+}
+
+.batch-stats.incomplete {
+    color: var(--danger);
+}
+
+.batch-buttons {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-small {
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.25);
 }
 
 /* Card back section */

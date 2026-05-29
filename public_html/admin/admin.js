@@ -58,6 +58,16 @@ const TEMPLATES = {
         ranks: { A: '⚽', '2': '🏀', '3': '🏈', '4': '⚾', '5': '🎾', '6': '🏐', '7': '🏉', '8': '🎱', '9': '🏓', '10': '🏸', J: '🥊', Q: '⛳', K: '🏆' }
     }
 };
+const RANDOM_EMOJI_POOL = [
+    '🍎','🍊','🍇','🍓','🍑','🍒','🍍','🥝','🍋','🍉','🥭','🍐','🍌',
+    '🥕','🥦','🌽','🍆','🧅','🥬','🫑','🥒','🍄','🧄','🌶️','🫛','🥔',
+    '🦁','🦊','🐻','🐼','🐨','🐯','🐷','🐸','🐙','🦉','🦅','🦋','🐺',
+    '🚗','🚕','🚌','🚓','🚑','🚒','🚜','🚲','🛵','🚁','🚂','✈️','🚀',
+    '⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🥊','⛳','🏆',
+    '🌸','🌺','🌻','🌹','🌷','🌵','🌲','🌳','🍁','🍄','🌼','🌿','☘️',
+    '⭐','🌙','☀️','☁️','⚡','❄️','🔥','💧','🌈','☂️','🌊','🌍','🪐'
+];
+
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 560;
 
@@ -69,10 +79,10 @@ let cardData = {
 };
 let rankData = {};
 let suitSettings = {
-    hearts: { bgColor: '#7c1d1d', gradient: 'radial', pattern: 'dots' },
-    diamonds: { bgColor: '#1d3a7c', gradient: 'radial', pattern: 'dots' },
-    clubs: { bgColor: '#1d5c1d', gradient: 'radial', pattern: 'dots' },
-    spades: { bgColor: '#3d1d5c', gradient: 'radial', pattern: 'dots' }
+    hearts: { bgColor: '#7c1d1d', gradient: 'radial', pattern: 'dots', bgImage: null },
+    diamonds: { bgColor: '#1d3a7c', gradient: 'radial', pattern: 'dots', bgImage: null },
+    clubs: { bgColor: '#1d5c1d', gradient: 'radial', pattern: 'dots', bgImage: null },
+    spades: { bgColor: '#3d1d5c', gradient: 'radial', pattern: 'dots', bgImage: null }
 };
 let generatedImages = {};
 let activeSuit = 'hearts';
@@ -108,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateModeVisibility();
     updateLivePreview();
     updateCardBackPreview();
+    updateBatchStats();
 });
 
 /* ========================================
@@ -319,6 +330,8 @@ function applyTemplate(key) {
     });
 
     updateAllProgress();
+    updateBatchStats();
+    queueLivePreview();
     showToast(`Mallen "${template.name}" applicerad på alla 52 kort!`);
 }
 
@@ -356,6 +369,7 @@ function initSimpleEditor() {
             const fileInput = container.querySelector(`.rank-file-input[data-rank="${rank}"]`);
             if (fileInput) fileInput.value = '';
             updateAllProgress();
+            updateBatchStats();
             livePreviewRank = rank;
             livePreviewSuit = 'hearts';
             queueLivePreview();
@@ -375,6 +389,7 @@ function initSimpleEditor() {
                 const emojiInput = container.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
                 if (emojiInput) emojiInput.value = '';
                 updateAllProgress();
+                updateBatchStats();
                 livePreviewRank = rank;
                 livePreviewSuit = 'hearts';
                 queueLivePreview();
@@ -463,6 +478,12 @@ function initSuitPanels() {
                 </div>
             </div>
 
+            <div class="bg-image-row">
+                <label>Bakgrundsbild:</label>
+                <input type="file" class="suit-bg-image" data-suit="${suit}" accept="image/*">
+                <button class="suit-clear-bg" data-suit="${suit}">❌</button>
+            </div>
+
             <div class="bulk-fill">
                 <label>Fyll alla med emoji:</label>
                 <input type="text" class="bulk-emoji" data-suit="${suit}" placeholder="t.ex. 🚗" maxlength="2">
@@ -502,6 +523,36 @@ function initSuitPanels() {
         });
     });
 
+    // Bind background image upload
+    document.querySelectorAll('.suit-bg-image').forEach(input => {
+        input.addEventListener('change', e => {
+            const suit = e.target.dataset.suit;
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                suitSettings[suit].bgImage = ev.target.result;
+                livePreviewSuit = suit;
+                queueLivePreview();
+                showToast(`Bakgrundsbild uppladdad för ${SUIT_NAMES[suit]}!`);
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // Bind clear background image
+    document.querySelectorAll('.suit-clear-bg').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const suit = e.target.dataset.suit;
+            suitSettings[suit].bgImage = null;
+            const fileInput = document.querySelector(`.suit-bg-image[data-suit="${suit}"]`);
+            if (fileInput) fileInput.value = '';
+            livePreviewSuit = suit;
+            queueLivePreview();
+            showToast(`Bakgrundsbild borttagen för ${SUIT_NAMES[suit]}`);
+        });
+    });
+
     // Bind bulk fill
     document.querySelectorAll('.bulk-btn').forEach(btn => {
         btn.addEventListener('click', e => {
@@ -513,6 +564,8 @@ function initSuitPanels() {
                 updateMiniPreview(suit, rank);
             });
             updateProgress(suit);
+            updateBatchStats();
+            queueLivePreview();
             showToast(`${SUIT_NAMES[suit]} fylld med ${emoji}!`);
         });
     });
@@ -540,6 +593,7 @@ function initCardsEditor(suit) {
             const fileInput = container.querySelector(`.card-file-input[data-suit="${s}"][data-rank="${rank}"]`);
             if (fileInput) fileInput.value = '';
             updateProgress(s);
+            updateBatchStats();
             livePreviewRank = rank;
             livePreviewSuit = s;
             queueLivePreview();
@@ -560,6 +614,7 @@ function initCardsEditor(suit) {
                 const emojiInput = container.querySelector(`.card-emoji-input[data-suit="${s}"][data-rank="${rank}"]`);
                 if (emojiInput) emojiInput.value = '';
                 updateProgress(s);
+                updateBatchStats();
                 livePreviewRank = rank;
                 livePreviewSuit = s;
                 queueLivePreview();
@@ -608,7 +663,7 @@ function drawRoundedRect(ctx, x, y, w, h, r) {
     ctx.closePath();
 }
 
-function renderCardBackground(ctx, settings) {
+async function renderCardBackground(ctx, settings) {
     const bgColor = settings.bgColor;
     const gradientType = settings.gradient;
 
@@ -616,7 +671,12 @@ function renderCardBackground(ctx, settings) {
     drawRoundedRect(ctx, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, CORNER_RADIUS);
     ctx.clip();
 
-    // Grundgradient
+    // 1. Bakgrundsbild (om uppladdad)
+    if (settings.bgImage) {
+        await renderBgImage(ctx, settings.bgImage);
+    }
+
+    // 2. Grundgradient (ritas ovanpå bild med viss transparens om bild finns)
     if (gradientType === 'linear-down') {
         const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
         grad.addColorStop(0, bgColor);
@@ -636,12 +696,18 @@ function renderCardBackground(ctx, settings) {
     } else {
         ctx.fillStyle = bgColor;
     }
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Mönster
+    // Om bakgrundsbild finns, lägg en gradient ovanpå med 75% opacitet för att behålla färgkänslan
+    if (settings.bgImage) {
+        ctx.globalAlpha = 0.75;
+    }
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.globalAlpha = 1;
+
+    // 3. Mönster
     renderPattern(ctx, settings);
 
-    // Subtil inre skugga för djup
+    // 4. Subtil inre skugga för djup
     ctx.shadowColor = 'rgba(0,0,0,0.35)';
     ctx.shadowBlur = 20;
     ctx.shadowOffsetX = 0;
@@ -654,6 +720,24 @@ function renderCardBackground(ctx, settings) {
     ctx.shadowOffsetY = 0;
 
     ctx.restore();
+}
+
+function renderBgImage(ctx, dataUrl) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            // Rita bilden så att den täcker hela kortet (object-fit: cover)
+            const scale = Math.max(CANVAS_WIDTH / img.width, CANVAS_HEIGHT / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            const x = (CANVAS_WIDTH - w) / 2;
+            const y = (CANVAS_HEIGHT - h) / 2;
+            ctx.drawImage(img, x, y, w, h);
+            resolve();
+        };
+        img.onerror = resolve;
+        img.src = dataUrl;
+    });
 }
 
 function renderPattern(ctx, settings) {
@@ -1201,7 +1285,7 @@ async function renderCardToCanvas(rank, suit) {
     renderDropShadow(ctx);
 
     // 1. Bakgrund med rundade hörn
-    renderCardBackground(ctx, settings);
+    await renderCardBackground(ctx, settings);
 
     // 2. Ram och ornament
     renderCardBorder(ctx);
@@ -1658,9 +1742,173 @@ function showToast(message, type = 'success') {
 /* ========================================
    EVENTS
    ======================================== */
+/* ========================================
+   FAS 9: BATCH-ÅTGÄRDER OCH VALIDERING
+   ======================================== */
+function updateBatchStats() {
+    const stats = document.getElementById('batch-stats');
+    if (!stats) {
+        return;
+    }
+
+    let filled = 0;
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            const data = cardData[suit][rank] || rankData[rank];
+            if (data && data.value) {
+                filled++;
+            }
+        });
+    });
+
+    stats.textContent = `${filled}/52 kort ifyllda`;
+    stats.classList.remove('complete', 'incomplete');
+    if (filled === 52) {
+        stats.classList.add('complete');
+    } else if (filled === 0) {
+        stats.classList.add('incomplete');
+    }
+}
+
+function fillRandomEmpty() {
+    let filled = 0;
+    const usedEmojis = new Set();
+
+    // Samla redan använda emojis
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            const data = cardData[suit][rank] || rankData[rank];
+            if (data && data.value) {
+                usedEmojis.add(data.value);
+            }
+        });
+    });
+
+    // Fyll tomma kort
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            const data = cardData[suit][rank] || rankData[rank];
+            if (!data || !data.value) {
+                // Välj en slumpad emoji som inte redan används (om möjligt)
+                let pool = RANDOM_EMOJI_POOL.filter(e => !usedEmojis.has(e));
+                if (pool.length === 0) {
+                    pool = RANDOM_EMOJI_POOL;
+                }
+                const emoji = pool[Math.floor(Math.random() * pool.length)];
+
+                cardData[suit][rank] = { type: 'emoji', value: emoji };
+                usedEmojis.add(emoji);
+                updateMiniPreview(suit, rank);
+                filled++;
+            }
+        });
+        updateProgress(suit);
+    });
+
+    // Synka simple mode
+    RANKS.forEach(rank => {
+        const values = SUITS.map(suit => cardData[suit][rank]).filter(Boolean);
+        if (values.length === 4 && values.every(v => v.type === values[0].type && v.value === values[0].value)) {
+            rankData[rank] = { ...values[0] };
+        }
+        updateRankPreview(rank);
+        const simpleEmoji = document.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
+        if (simpleEmoji) {
+            simpleEmoji.value = rankData[rank] && rankData[rank].type === 'emoji' ? rankData[rank].value : '';
+        }
+    });
+
+    updateAllProgress();
+    updateBatchStats();
+    queueLivePreview();
+
+    if (filled > 0) {
+        showToast(`🎲 ${filled} tomma kort fyllda med slumpade emojis!`);
+    } else {
+        showToast('Alla kort är redan ifyllda!');
+    }
+}
+
+function clearAllCards() {
+    if (!confirm('Är du säker på att du vill rensa ALLA kort? Detta går inte att ångra.')) {
+        return;
+    }
+
+    SUITS.forEach(suit => {
+        cardData[suit] = {};
+    });
+    rankData = {};
+
+    // Rensa alla UI-inputs
+    RANKS.forEach(rank => {
+        updateRankPreview(rank);
+        const simpleEmoji = document.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
+        const simpleFile = document.querySelector(`.rank-file-input[data-rank="${rank}"]`);
+        if (simpleEmoji) {
+            simpleEmoji.value = '';
+        }
+        if (simpleFile) {
+            simpleFile.value = '';
+        }
+    });
+
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            updateMiniPreview(suit, rank);
+            const advEmoji = document.querySelector(`.card-emoji-input[data-suit="${suit}"][data-rank="${rank}"]`);
+            const advFile = document.querySelector(`.card-file-input[data-suit="${suit}"][data-rank="${rank}"]`);
+            if (advEmoji) {
+                advEmoji.value = '';
+            }
+            if (advFile) {
+                advFile.value = '';
+            }
+        });
+        updateProgress(suit);
+    });
+
+    updateAllProgress();
+    updateBatchStats();
+    queueLivePreview();
+    showToast('🗑️ Alla kort rensade!');
+}
+
+function validateBeforeExport() {
+    let filled = 0;
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            const data = cardData[suit][rank] || rankData[rank];
+            if (data && data.value) filled++;
+        });
+    });
+
+    if (filled === 0) {
+        showToast('Kortleken är tom! Fyll i minst några kort först.', 'error');
+        return false;
+    }
+
+    if (filled < 52) {
+        const proceed = confirm(`Endast ${filled}/52 kort är ifyllda. Vill du fortsätta ändå? Ofyllda kort kommer att renderas tomma.`);
+        if (!proceed) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function bindEvents() {
     document.getElementById('preview-btn').addEventListener('click', generatePreviews);
     document.getElementById('generate-btn').addEventListener('click', generateAndDownload);
+
+    const fillRandomBtn = document.getElementById('fill-random-btn');
+    const clearAllBtn = document.getElementById('clear-all-btn');
+    if (fillRandomBtn) {
+        fillRandomBtn.addEventListener('click', fillRandomEmpty);
+    }
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', clearAllCards);
+    }
 }
 
 async function generatePreviews() {
@@ -1720,16 +1968,8 @@ async function generateAndDownload() {
         return;
     }
 
-    const hasAnyContent = SUITS.some(suit =>
-        RANKS.some(rank => {
-            const data = cardData[suit][rank] || rankData[rank];
-            return data && data.value;
-        })
-    );
-    if (!hasAnyContent) {
-        showToast('Välj minst en emoji eller bild för något kort!', 'error');
-        return;
-    }
+    // Fas 9: Validera före export
+    if (!validateBeforeExport()) return;
 
     // Säkerställ att enkelt läge-data finns i cardData innan generering
     if (editMode === 'simple') {
