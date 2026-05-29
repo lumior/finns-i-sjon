@@ -3,6 +3,8 @@
    Hanterar 52 kort (4 färger × 13 valörer)
    ======================================== */
 
+/* global JSZip, saveAs */
+
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
 const SUIT_NAMES = {
@@ -16,12 +18,6 @@ const SUIT_ICONS = {
     diamonds: '♦️',
     clubs: '♣️',
     spades: '♠️'
-};
-const SUIT_COLORS = {
-    hearts: '#dc2626',
-    diamonds: '#dc2626',
-    clubs: '#1e293b',
-    spades: '#1e293b'
 };
 const SUIT_FOLDERS = {
     hearts: 'aubergine',
@@ -192,7 +188,7 @@ function initModeToggle() {
 }
 
 function switchMode(mode) {
-    if (mode === editMode) return;
+    if (mode === editMode) {return;}
 
     if (mode === 'advanced') {
         // Sprid enkla valör-data till alla färger
@@ -373,7 +369,7 @@ function initSimpleEditor() {
             rankData[rank] = { type: 'emoji', value: e.target.value };
             updateRankPreview(rank);
             const fileInput = container.querySelector(`.rank-file-input[data-rank="${rank}"]`);
-            if (fileInput) fileInput.value = '';
+            if (fileInput) {fileInput.value = '';}
             updateAllProgress();
             updateBatchStats();
             livePreviewRank = rank;
@@ -386,14 +382,14 @@ function initSimpleEditor() {
         input.addEventListener('change', e => {
             const rank = e.target.dataset.rank;
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) {return;}
 
             const reader = new FileReader();
             reader.onload = ev => {
                 rankData[rank] = { type: 'image', value: ev.target.result };
                 updateRankPreview(rank);
                 const emojiInput = container.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
-                if (emojiInput) emojiInput.value = '';
+                if (emojiInput) {emojiInput.value = '';}
                 updateAllProgress();
                 updateBatchStats();
                 livePreviewRank = rank;
@@ -534,7 +530,7 @@ function initSuitPanels() {
         input.addEventListener('change', e => {
             const suit = e.target.dataset.suit;
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) {return;}
             const reader = new FileReader();
             reader.onload = ev => {
                 suitSettings[suit].bgImage = ev.target.result;
@@ -552,7 +548,7 @@ function initSuitPanels() {
             const suit = e.target.dataset.suit;
             suitSettings[suit].bgImage = null;
             const fileInput = document.querySelector(`.suit-bg-image[data-suit="${suit}"]`);
-            if (fileInput) fileInput.value = '';
+            if (fileInput) {fileInput.value = '';}
             livePreviewSuit = suit;
             queueLivePreview();
             showToast(`Bakgrundsbild borttagen för ${SUIT_NAMES[suit]}`);
@@ -564,7 +560,7 @@ function initSuitPanels() {
         btn.addEventListener('click', e => {
             const suit = e.target.dataset.suit;
             const emoji = document.querySelector(`.bulk-emoji[data-suit="${suit}"]`).value.trim();
-            if (!emoji) return;
+            if (!emoji) {return;}
             RANKS.forEach(rank => {
                 cardData[suit][rank] = { type: 'emoji', value: emoji };
                 updateMiniPreview(suit, rank);
@@ -597,7 +593,7 @@ function initCardsEditor(suit) {
             cardData[s][rank] = { type: 'emoji', value: e.target.value };
             updateMiniPreview(s, rank);
             const fileInput = container.querySelector(`.card-file-input[data-suit="${s}"][data-rank="${rank}"]`);
-            if (fileInput) fileInput.value = '';
+            if (fileInput) {fileInput.value = '';}
             updateProgress(s);
             updateBatchStats();
             livePreviewRank = rank;
@@ -611,14 +607,14 @@ function initCardsEditor(suit) {
             const s = e.target.dataset.suit;
             const rank = e.target.dataset.rank;
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) {return;}
 
             const reader = new FileReader();
             reader.onload = ev => {
                 cardData[s][rank] = { type: 'image', value: ev.target.result };
                 updateMiniPreview(s, rank);
                 const emojiInput = container.querySelector(`.card-emoji-input[data-suit="${s}"][data-rank="${rank}"]`);
-                if (emojiInput) emojiInput.value = '';
+                if (emojiInput) {emojiInput.value = '';}
                 updateProgress(s);
                 updateBatchStats();
                 livePreviewRank = rank;
@@ -2184,7 +2180,7 @@ async function generateAndDownload() {
     }
 
     // Fas 9: Validera före export
-    if (!validateBeforeExport()) return;
+    if (!validateBeforeExport()) {return;}
 
     // Säkerställ att enkelt läge-data finns i cardData innan generering
     if (editMode === 'simple') {
