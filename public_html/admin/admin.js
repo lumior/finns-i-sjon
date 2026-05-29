@@ -3147,34 +3147,39 @@ async function generateAICards() {
         cancelBtn.classList.remove('hidden');
     }
 
+    const isSimple = editMode === 'simple';
+    const total = isSimple ? 13 : 52;
+
     initAIGrid();
-    updateAIProgress(0, 52, 'Startar generering...');
-    showToast('🤖 Startar AI-generering av 52 kort. Tid: ~2–5 minuter (30 sek max per bild).');
+    updateAIProgress(0, total, 'Startar generering...');
+    showToast(`🤖 Startar AI-generering av ${total} kort. Tid: ~${isSimple ? '20–40' : '2–5'} sekunder per bild.`);
 
     let completed = 0;
     let errors = 0;
-    const total = 52;
 
-    for (const suit of SUITS) {
+    if (isSimple) {
+        // Enkelt läge: generera bara 13 unika valörer, synka sedan till alla färger
         for (const rank of RANKS) {
             if (signal.aborted) {
                 break;
             }
 
-            const data = cardData[suit][rank] || rankData[rank];
+            const data = rankData[rank];
             if (!data || !data.value) {
-                updateAICell(suit, rank, 'error');
-                errors++;
+                SUITS.forEach(s => updateAICell(s, rank, 'error'));
+                errors += 4;
                 completed++;
                 updateAIProgress(completed, total, `${completed}/${total} — hoppade över tomt kort`);
                 continue;
             }
 
-            updateAICell(suit, rank, 'processing');
-            updateAIProgress(completed, total, `${completed}/${total} — genererar ${SUIT_NAMES[suit]} ${rank}...`);
+            // Visa processing på första cellen för denna valör
+            updateAICell(SUITS[0], rank, 'processing');
+            updateAIProgress(completed, total, `${completed}/${total} — genererar ${rank}...`);
 
-            const prompt = buildPrompt(rank, suit, data, suitSettings[suit]);
-            const seed = simpleHash(themeName + suit + rank + data.value);
+            // Använd hjärter-färgens inställningar som standard för enkelt läge
+            const prompt = buildPrompt(rank, SUITS[0], data, suitSettings[SUITS[0]]);
+            const seed = simpleHash(themeName + rank + data.value);
 
             let success = false;
             let retries = 0;
@@ -3183,9 +3188,12 @@ async function generateAICards() {
             while (!success && retries <= maxRetries && !signal.aborted) {
                 try {
                     const dataUrl = await withTimeout(fetchAIImage(prompt, seed), 25000);
-                    cardData[suit][rank] = { type: 'image', value: dataUrl };
-                    updateMiniPreview(suit, rank);
-                    updateAICell(suit, rank, 'done', dataUrl);
+                    rankData[rank] = { type: 'image', value: dataUrl };
+                    SUITS.forEach(s => {
+                        cardData[s][rank] = { type: 'image', value: dataUrl };
+                        updateMiniPreview(s, rank);
+                        updateAICell(s, rank, 'done', dataUrl);
+                    });
                     success = true;
                 } catch (err) {
                     retries++;
@@ -3196,15 +3204,66 @@ async function generateAICards() {
             }
 
             if (!success) {
-                updateAICell(suit, rank, 'error');
-                errors++;
+                SUITS.forEach(s => updateAICell(s, rank, 'error'));
+                errors += 4;
             }
 
             completed++;
             updateAIProgress(completed, total, `${completed}/${total} klara${errors > 0 ? ` (${errors} fel)` : ''}`);
         }
-        if (signal.aborted) {
-            break;
+    } else {
+        // Avancerat läge: generera alla 52 kort individuellt
+        for (const suit of SUITS) {
+            for (const rank of RANKS) {
+                if (signal.aborted) {
+                    break;
+                }
+
+                const data = cardData[suit][rank];
+                if (!data || !data.value) {
+                    updateAICell(suit, rank, 'error');
+                    errors++;
+                    completed++;
+                    updateAIProgress(completed, total, `${completed}/${total} — hoppade över tomt kort`);
+                    continue;
+                }
+
+                updateAICell(suit, rank, 'processing');
+                updateAIProgress(completed, total, `${completed}/${total} — genererar ${SUIT_NAMES[suit]} ${rank}...`);
+
+                const prompt = buildPrompt(rank, suit, data, suitSettings[suit]);
+                const seed = simpleHash(themeName + suit + rank + data.value);
+
+                let success = false;
+                let retries = 0;
+                const maxRetries = 2;
+
+                while (!success && retries <= maxRetries && !signal.aborted) {
+                    try {
+                        const dataUrl = await withTimeout(fetchAIImage(prompt, seed), 25000);
+                        cardData[suit][rank] = { type: 'image', value: dataUrl };
+                        updateMiniPreview(suit, rank);
+                        updateAICell(suit, rank, 'done', dataUrl);
+                        success = true;
+                    } catch (err) {
+                        retries++;
+                        if (retries <= maxRetries && !signal.aborted) {
+                            await new Promise(r => setTimeout(r, 2000));
+                        }
+                    }
+                }
+
+                if (!success) {
+                    updateAICell(suit, rank, 'error');
+                    errors++;
+                }
+
+                completed++;
+                updateAIProgress(completed, total, `${completed}/${total} klara${errors > 0 ? ` (${errors} fel)` : ''}`);
+            }
+            if (signal.aborted) {
+                break;
+            }
         }
     }
 
@@ -3220,12 +3279,12 @@ async function generateAICards() {
     }
 
     if (signal.aborted) {
-        showToast(`⛔ Generering avbruten. ${completed - errors}/${total} kort färdiga.`);
+        showToast(`⛔ Generering avbruten. ${completed - errors}/${total} unika bilder färdiga.`);
     } else if (errors > 0) {
         showToast(`⚠️ Generering klar med ${errors} fel. Klicka på röda celler för att se vilka.`);
         pushHistory();
     } else {
-        showToast('✅ AI-generering klar! Alla 52 kort genererade.');
+        showToast(`✅ AI-generering klar! ${total} unika bilder genererade.`);
         pushHistory();
     }
 }
