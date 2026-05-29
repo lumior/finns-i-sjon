@@ -276,3 +276,30 @@ Helt omskriven Canvas-rendering för kortleksgeneratorn. Tidigare visade alla ko
   - Vid "Ja": återställs allt state och historiken nollställs med utkastet som bas.
   - Vid "Nej": auto-sparad data rensas.
 - **`clearAutoSave()`** — rensar localStorage (anropas vid lyckad export eller när användaren väljer att inte återställa).
+
+## 2026-05-28 — Admin: Fas 12 — Mass-uppladdning av bilder (drag & drop)
+
+### 🖼️ Drag & drop för flera bilder
+
+- **Drop-zone** i creator-form med tydlig visuell feedback:
+  - Standard: dashed border med grönaktig bakgrund
+  - Hover: starkare färg
+  - Drag-over: solid border + scale(1.01)
+- **Klicka för att välja** — fungerar också som fil-input
+- **Stödjer 1–52 bilder** med smart auto-fördelning:
+
+| Antal bilder | Fördelning |
+|-------------|------------|
+| **52** | 1 bild per kort (A→K i Hjärter, Ruter, Klöver, Spader) |
+| **13** | 1 bild per valör (alla 4 färger får samma bild för samma valör) |
+| **4** | 1 bild per färg (alla 13 valörer i samma färg får samma bild) |
+| **1** | Samma bild för alla 52 kort |
+| **>52** | Använder första 52 |
+| **>13** | Använder första 13 |
+| **>4** | Använder första 4 |
+
+- **Preview-modal** visar alla 52 kort med deras tilldelade bilder innan confirm:
+  - Grid med 70px-kort och label under varje
+  - "Avbryt" / "Applicera"-knappar
+  - Klicka utanför modal för att stänga
+- **`applyBulkImages()`** — applicerar bilderna, synkar simple mode, uppdaterar previewer, batch-stats, historik och live preview.

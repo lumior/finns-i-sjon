@@ -432,6 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initCardBack();
     initConfigIO();
     initPlaytest();
+    initBulkUpload();
     initHistoryKeyboard();
     initHistoryAutoCapture();
     bindEvents();
@@ -2074,6 +2075,238 @@ function initPlaytest() {
     if (deckPile) {
         deckPile.addEventListener('click', drawCard);
     }
+}
+
+/* ========================================
+   FAS 12: MASS-UPPLADDNING (DRAG & DROP)
+   ======================================== */
+function initBulkUpload() {
+    const zone = document.getElementById('bulk-drop-zone');
+    const input = document.getElementById('bulk-drop-input');
+    if (!zone || !input) {
+        return;
+    }
+
+    zone.addEventListener('click', () => input.click());
+    input.addEventListener('change', e => {
+        if (e.target.files.length > 0) {
+            processBulkFiles(Array.from(e.target.files));
+        }
+    });
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        zone.addEventListener(eventName, () => zone.classList.add('drag-over'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, () => zone.classList.remove('drag-over'), false);
+    });
+
+    zone.addEventListener('drop', e => {
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        if (files.length > 0) {
+            processBulkFiles(files);
+        }
+    });
+}
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+async function processBulkFiles(files) {
+    if (files.length === 0) {
+        return;
+    }
+
+    showToast(`Läser ${files.length} bilder...`);
+    const images = await readFiles(files);
+
+    const distribution = distributeImages(images);
+    if (!distribution) {
+        showToast('Kunde inte fördela bilderna. Prova 1, 4, 13 eller 52 bilder.', 'error');
+        return;
+    }
+
+    showBulkPreview(distribution, files.length);
+}
+
+function readFiles(files) {
+    return Promise.all(
+        files.map(file => new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(file);
+        }))
+    );
+}
+
+function distributeImages(images) {
+    const count = images.length;
+    const distribution = {};
+
+    if (count === 52) {
+        // 1 bild per kort: Hjärter A→K, Ruter A→K, Klöver A→K, Spader A→K
+        let idx = 0;
+        SUITS.forEach(suit => {
+            distribution[suit] = {};
+            RANKS.forEach(rank => {
+                distribution[suit][rank] = images[idx++];
+            });
+        });
+        return { type: 'all', label: '1 bild per kort (52)', distribution };
+    }
+
+    if (count === 13) {
+        // 1 bild per valör: alla färger får samma bild för samma valör
+        SUITS.forEach(suit => {
+            distribution[suit] = {};
+            RANKS.forEach((rank, idx) => {
+                distribution[suit][rank] = images[idx];
+            });
+        });
+        return { type: 'rank', label: '1 bild per valör (13)', distribution };
+    }
+
+    if (count === 4) {
+        // 1 bild per färg: alla valörer i samma färg får samma bild
+        SUITS.forEach((suit, idx) => {
+            distribution[suit] = {};
+            RANKS.forEach(rank => {
+                distribution[suit][rank] = images[idx];
+            });
+        });
+        return { type: 'suit', label: '1 bild per färg (4)', distribution };
+    }
+
+    if (count === 1) {
+        // 1 bild för alla kort
+        SUITS.forEach(suit => {
+            distribution[suit] = {};
+            RANKS.forEach(rank => {
+                distribution[suit][rank] = images[0];
+            });
+        });
+        return { type: 'single', label: 'Samma bild för alla kort (1)', distribution };
+    }
+
+    // För andra antal: fördela så många som möjligt (rundar ner till närmaste stödda)
+    if (count > 52) {
+        return distributeImages(images.slice(0, 52));
+    }
+    if (count > 13) {
+        return distributeImages(images.slice(0, 13));
+    }
+    if (count > 4) {
+        return distributeImages(images.slice(0, 4));
+    }
+
+    return null;
+}
+
+function showBulkPreview(distro, fileCount) {
+    const overlay = document.createElement('div');
+    overlay.className = 'bulk-preview-overlay';
+    overlay.id = 'bulk-preview-overlay';
+
+    let itemsHtml = '';
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            const img = distro.distribution[suit][rank];
+            const label = symbolMode
+                ? `${SUIT_ICONS[suit]}`
+                : `${rank} ${SUIT_ICONS[suit]}`;
+            itemsHtml += `
+                <div class="bulk-preview-item">
+                    <img src="${img}" alt="${rank} ${suit}">
+                    <div class="bulk-preview-label">${label}</div>
+                </div>
+            `;
+        });
+    });
+
+    overlay.innerHTML = `
+        <div class="bulk-preview-modal">
+            <h4>🖼️ Fördelning: ${distro.label}</h4>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:var(--space-md);">
+                ${fileCount} bild(er) uppladdade. Så här kommer de att fördelas:
+            </p>
+            <div class="bulk-preview-grid">${itemsHtml}</div>
+            <div class="bulk-preview-actions">
+                <button class="btn btn-secondary" id="bulk-cancel-btn">Avbryt</button>
+                <button class="btn btn-primary" id="bulk-apply-btn">Applicera</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('bulk-cancel-btn').addEventListener('click', closeBulkPreview);
+    document.getElementById('bulk-apply-btn').addEventListener('click', () => {
+        applyBulkImages(distro.distribution);
+        closeBulkPreview();
+    });
+
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) {
+            closeBulkPreview();
+        }
+    });
+}
+
+function closeBulkPreview() {
+    const overlay = document.getElementById('bulk-preview-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+function applyBulkImages(distribution) {
+    SUITS.forEach(suit => {
+        RANKS.forEach(rank => {
+            const img = distribution[suit][rank];
+            if (img) {
+                cardData[suit][rank] = { type: 'image', value: img };
+                updateMiniPreview(suit, rank);
+            }
+        });
+        updateProgress(suit);
+    });
+
+    // Synka simple mode
+    RANKS.forEach(rank => {
+        const values = SUITS.map(suit => cardData[suit][rank]).filter(Boolean);
+        if (values.length === 4 && values.every(v => v.type === values[0].type && v.value === values[0].value)) {
+            rankData[rank] = { ...values[0] };
+        } else {
+            const first = values.find(v => v && v.value);
+            if (first) {
+                rankData[rank] = { ...first };
+            }
+        }
+        updateRankPreview(rank);
+        const simpleEmoji = document.querySelector(`.rank-emoji-input[data-rank="${rank}"]`);
+        const simpleFile = document.querySelector(`.rank-file-input[data-rank="${rank}"]`);
+        if (simpleEmoji) {
+            simpleEmoji.value = '';
+        }
+        if (simpleFile) {
+            simpleFile.value = '';
+        }
+    });
+
+    updateAllProgress();
+    updateBatchStats();
+    queueLivePreview();
+    pushHistory();
+    showToast('🖼️ Bilder applicerade på kortleken!');
 }
 
 async function prepareDeck() {
