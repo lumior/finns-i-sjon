@@ -127,6 +127,7 @@ let backSettings = {
     center: '🎣'
 };
 let symbolMode = false;
+let aiFullCard = false; // Om true täcker AI-bilden hela kortet (ingen Canvas-overlay)
 let loadedTheme = null; // Namnet på det tema som för närvarande är laddat för redigering
 
 let playtestDeck = [];
@@ -202,19 +203,33 @@ function buildPrompt(rank, suit, data, settings) {
     const itemDesc = EMOJI_DESCRIPTIONS[data?.value] || (data?.value || 'a symbol');
     const colorName = hexToColorName(settings?.bgColor || '#333333');
     const patternDesc = patternToDescription(settings?.pattern || 'solid');
-    const style = 'Vector illustration, flat design, no text';
+    const style = 'Vector illustration, flat design';
 
+    // Full-card-läge: AI genererar hela kortet med valörer och ram
+    if (aiFullCard) {
+        const suitName = suit === 'hearts' ? 'hearts' : suit === 'diamonds' ? 'diamonds' : suit === 'clubs' ? 'clubs' : 'spades';
+        if (rank === 'A') {
+            return `Playing card ace of ${suitName}, ${itemDesc} theme, ${colorName} ${patternDesc} background, ornate border, rank A and ${suitName} symbol in corners, ${style}`;
+        }
+        if (['J', 'Q', 'K'].includes(rank)) {
+            const face = { J: 'Jack', Q: 'Queen', K: 'King' };
+            return `Playing card ${face[rank]} of ${suitName}, ${itemDesc} portrait, ${colorName} ${patternDesc} background, ornate royal border, rank ${rank} and ${suitName} symbol in corners, ${style}`;
+        }
+        return `Playing card ${rank} of ${suitName}, ${itemDesc}, ${num} arranged symmetrically, ${colorName} ${patternDesc} background, ornate border, rank ${rank} and ${suitName} symbol in corners, ${style}`;
+    }
+
+    // Standard-läge: AI genererar bara center-innehållet
     if (rank === 'A') {
-        return `${itemDesc}, centered, golden ornate frame, ${colorName} ${patternDesc} background, ${style}`;
+        return `${itemDesc}, centered, golden ornate frame, ${colorName} ${patternDesc} background, ${style}, no text`;
     }
 
     if (['J', 'Q', 'K'].includes(rank)) {
         const titles = { J: 'brave knight', Q: 'elegant queen', K: 'powerful king' };
-        return `${itemDesc}, ${titles[rank]} portrait, ornate frame, ${colorName} ${patternDesc} background, ${style}`;
+        return `${itemDesc}, ${titles[rank]} portrait, ornate frame, ${colorName} ${patternDesc} background, ${style}, no text`;
     }
 
     const num = parseInt(rank, 10);
-    return `${itemDesc}, ${num} symmetric arranged, ${colorName} ${patternDesc} background, ${style}`;
+    return `${itemDesc}, ${num} symmetric arranged, ${colorName} ${patternDesc} background, ${style}, no text`;
 }
 
 function simpleHash(str) {
@@ -243,6 +258,7 @@ function getStateSnapshot() {
         suitSettings: JSON.parse(JSON.stringify(suitSettings)),
         backSettings: JSON.parse(JSON.stringify(backSettings)),
         symbolMode: symbolMode,
+        aiFullCard: aiFullCard,
         editMode: editMode,
         themeName: document.getElementById('theme-name') ? document.getElementById('theme-name').value : ''
     };
@@ -256,6 +272,7 @@ function restoreState(snapshot) {
     suitSettings = JSON.parse(JSON.stringify(snapshot.suitSettings));
     backSettings = JSON.parse(JSON.stringify(snapshot.backSettings));
     symbolMode = snapshot.symbolMode;
+    aiFullCard = snapshot.aiFullCard || false;
     if (snapshot.editMode) {
         editMode = snapshot.editMode;
     }
@@ -311,6 +328,7 @@ function restoreState(snapshot) {
     const backPat = document.getElementById('back-pattern');
     const backCenter = document.getElementById('back-center');
     const symCheck = document.getElementById('symbol-mode-checkbox');
+    const fullCardCheck = document.getElementById('ai-full-card-checkbox');
     if (backBg) {
         backBg.value = backSettings.bgColor;
     }
@@ -322,6 +340,9 @@ function restoreState(snapshot) {
     }
     if (symCheck) {
         symCheck.checked = symbolMode;
+    }
+    if (fullCardCheck) {
+        fullCardCheck.checked = aiFullCard;
     }
 
     updateAllProgress();
@@ -1741,6 +1762,18 @@ function renderDropShadow(ctx) {
     ctx.restore();
 }
 
+async function renderFullCardImage(ctx, dataUrl) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            resolve();
+        };
+        img.onerror = resolve;
+        img.src = dataUrl;
+    });
+}
+
 async function renderCardToCanvas(rank, suit) {
     const canvas = document.getElementById('card-canvas');
     const ctx = canvas.getContext('2d');
@@ -1748,6 +1781,12 @@ async function renderCardToCanvas(rank, suit) {
     const settings = suitSettings[suit];
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Full-card-läge: AI-bilden täcker hela kortet
+    if (aiFullCard && data && data.type === 'image' && data.value) {
+        await renderFullCardImage(ctx, data.value);
+        return Promise.resolve();
+    }
 
     // 0. Skugga (målas först, under allt)
     renderDropShadow(ctx);
@@ -2903,11 +2942,19 @@ function bindEvents() {
     // AI-generering
     const aiGenerateBtn = document.getElementById('ai-generate-btn');
     const aiCancelBtn = document.getElementById('ai-cancel-btn');
+    const aiFullCardCheck = document.getElementById('ai-full-card-checkbox');
     if (aiGenerateBtn) {
         aiGenerateBtn.addEventListener('click', generateAICards);
     }
     if (aiCancelBtn) {
         aiCancelBtn.addEventListener('click', cancelAIGeneration);
+    }
+    if (aiFullCardCheck) {
+        aiFullCardCheck.addEventListener('change', () => {
+            aiFullCard = aiFullCardCheck.checked;
+            pushHistory();
+            updateLivePreview();
+        });
     }
 }
 
