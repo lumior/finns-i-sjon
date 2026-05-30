@@ -152,6 +152,11 @@ registerSocketHandlers(io, roomManager, {
     escapeHtml
 });
 
+// Återställ temafiler från databasen vid start (Railway ephemeral filesystem)
+db.restoreThemeFiles().catch(err => {
+    console.error('Fel vid återställning av temafiler:', err.message);
+});
+
 server.listen(PORT, '0.0.0.0', () => {
     console.log('🎣 ==========================================');
     console.log('🎴  FINNS I SJÖN PRO - Top-Notch Edition');

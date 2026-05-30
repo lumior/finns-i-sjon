@@ -155,6 +155,17 @@ class Database {
                 )
             `);
 
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS theme_files (
+                    id SERIAL PRIMARY KEY,
+                    theme_name VARCHAR(50) NOT NULL,
+                    file_path VARCHAR(100) NOT NULL,
+                    file_data TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(theme_name, file_path)
+                )
+            `);
+
             // Index för prestanda
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
@@ -352,7 +363,10 @@ class Database {
                 `CREATE TABLE IF NOT EXISTS achievements (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, achievement_type TEXT, unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, achievement_type))`
             );
             this.db.run(
-                `CREATE TABLE IF NOT EXISTS game_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, snapshot TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+                `CREATE TABLE IF NOT EXISTS game_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, snapshot TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS theme_files (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_name TEXT NOT NULL, file_path TEXT NOT NULL, file_data TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_name, file_path))`,
                 () => {
                     console.log('✅ SQLite fallback tables initialized');
                 }
@@ -454,6 +468,145 @@ class Database {
             }
         } catch (err) {
             console.error('Failed to save game snapshot:', err.message);
+        }
+    }
+
+    /* ========================================
+       TEMA-FILSYNK: DB ↔ Filystem
+       ======================================== */
+
+    async saveThemeFiles(themeName) {
+        const fs = require('fs');
+        const path = require('path');
+        const CARDS_DIR = path.join(__dirname, '../../public_html/assets/cards');
+        const themePath = path.join(CARDS_DIR, themeName);
+
+        if (!fs.existsSync(themePath)) {
+            console.warn(`Tema ${themeName} finns inte på filsystemet, hoppar över DB-sparning`);
+            return;
+        }
+
+        const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        const SUIT_FOLDERS = ['aubergine', 'radish', 'pepper', 'potato'];
+        let saved = 0;
+
+        try {
+            // Rensa gamla poster för detta tema
+            if (this.isPostgres) {
+                await this.run('DELETE FROM theme_files WHERE theme_name = $1', [themeName]);
+            } else {
+                await this.run('DELETE FROM theme_files WHERE theme_name = ?', [themeName]);
+            }
+
+            // Spara alla kortfiler
+            for (const folder of SUIT_FOLDERS) {
+                const suitPath = path.join(themePath, folder);
+                if (!fs.existsSync(suitPath)) {
+                    continue;
+                }
+                for (const rank of RANKS) {
+                    const filePath = path.join(suitPath, `${rank}.png`);
+                    if (fs.existsSync(filePath)) {
+                        const base64 = fs.readFileSync(filePath).toString('base64');
+                        const dbPath = `${themeName}/${folder}/${rank}.png`;
+                        if (this.isPostgres) {
+                            await this.run(
+                                'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES ($1, $2, $3)',
+                                [themeName, dbPath, base64]
+                            );
+                        } else {
+                            await this.run(
+                                'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES (?, ?, ?)',
+                                [themeName, dbPath, base64]
+                            );
+                        }
+                        saved++;
+                    }
+                }
+            }
+
+            // Spara back.png om den finns
+            const backPath = path.join(themePath, 'back.png');
+            if (fs.existsSync(backPath)) {
+                const base64 = fs.readFileSync(backPath).toString('base64');
+                if (this.isPostgres) {
+                    await this.run(
+                        'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES ($1, $2, $3)',
+                        [themeName, `${themeName}/back.png`, base64]
+                    );
+                } else {
+                    await this.run(
+                        'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES (?, ?, ?)',
+                        [themeName, `${themeName}/back.png`, base64]
+                    );
+                }
+                saved++;
+            }
+
+            console.log(`💾 Sparade ${saved} filer för tema ${themeName} till databasen`);
+        } catch (err) {
+            console.error(`Fel vid sparning av tema ${themeName} till DB:`, err.message);
+        }
+    }
+
+    async restoreThemeFiles() {
+        const fs = require('fs');
+        const path = require('path');
+        const CARDS_DIR = path.join(__dirname, '../../public_html/assets/cards');
+
+        try {
+            let rows;
+            if (this.isPostgres) {
+                rows = await this.query('SELECT DISTINCT theme_name FROM theme_files');
+            } else {
+                rows = await this.query('SELECT DISTINCT theme_name FROM theme_files');
+            }
+
+            if (rows.length === 0) {
+                return;
+            }
+
+            let restored = 0;
+            for (const row of rows) {
+                const themeName = row.theme_name;
+
+                // Hämta alla filer för detta tema
+                let files;
+                if (this.isPostgres) {
+                    files = await this.query(
+                        'SELECT file_path, file_data FROM theme_files WHERE theme_name = $1',
+                        [themeName]
+                    );
+                } else {
+                    files = await this.query(
+                        'SELECT file_path, file_data FROM theme_files WHERE theme_name = ?',
+                        [themeName]
+                    );
+                }
+
+                for (const file of files) {
+                    const relativePath = file.file_path.replace(`${themeName}/`, '');
+                    const fullPath = path.join(CARDS_DIR, themeName, relativePath);
+
+                    // Skapa mapp om den inte finns
+                    const dir = path.dirname(fullPath);
+                    if (!fs.existsSync(dir)) {
+                        fs.mkdirSync(dir, { recursive: true });
+                    }
+
+                    // Skriv bara om filen saknas
+                    if (!fs.existsSync(fullPath)) {
+                        fs.writeFileSync(fullPath, Buffer.from(file.file_data, 'base64'));
+                        restored++;
+                    }
+                }
+            }
+
+            if (restored > 0) {
+                console.log(`📂 Återställde ${restored} temafiler från databasen till filsystemet`);
+            }
+        } catch (err) {
+            console.error('Fel vid återställning av temafiler:', err.message);
         }
     }
 }

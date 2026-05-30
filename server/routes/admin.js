@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const router = express.Router();
+const db = require('../config/database');
 
 const CARDS_DIR = path.join(__dirname, '../../public_html/assets/cards');
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -212,6 +213,11 @@ router.post('/themes', (req, res) => {
             fs.writeFileSync(path.join(themePath, 'config.json'), JSON.stringify(config, null, 2));
         }
 
+        // Synka till databasen för persistens (Railway ephemeral filesystem)
+        db.saveThemeFiles(themeName).catch(err => {
+            console.error('DB-synk fel:', err.message);
+        });
+
         res.json({ success: true, saved, theme: themeName, path: `/assets/cards/${themeName}/` });
     } catch (err) {
         console.error('Admin create theme error:', err);
@@ -266,6 +272,11 @@ router.put('/themes/:theme', (req, res) => {
         if (config && typeof config === 'object') {
             fs.writeFileSync(path.join(themePath, 'config.json'), JSON.stringify(config, null, 2));
         }
+
+        // Synka till databasen för persistens
+        db.saveThemeFiles(themeFolder).catch(err => {
+            console.error('DB-synk fel:', err.message);
+        });
 
         res.json({ success: true, saved, theme: themeFolder, path: `/assets/cards/${themeFolder}/` });
     } catch (err) {
