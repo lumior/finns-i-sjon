@@ -54,86 +54,68 @@ const TEMPLATES = {
         ranks: { A: '⚽', '2': '🏀', '3': '🏈', '4': '⚾', '5': '🎾', '6': '🏐', '7': '🏉', '8': '🎱', '9': '🏓', '10': '🏸', J: '🥊', Q: '⛳', K: '🏆' }
     }
 };
-const RANDOM_EMOJI_POOL = [
-    // Frukt & Bär (26)
-    '🍎','🍊','🍇','🍓','🍑','🍒','🍍','🥝','🍋','🍉','🥭','🍐','🍌',
-    '🫐','🍈','🍊','🍋','🍍','🥥','🥑','🍆','🥔','🥕','🌽','🌶️','🫑',
-    // Grönsaker & Örter (20)
-    '🥒','🥬','🧅','🧄','🍄','🥜','🌰','🍞','🥐','🥖','🫓','🥨','🥯',
-    '🥞','🧇','🧀','🍖','🍗','🥩','🥓',
-    // Snabbmat & Sött (26)
-    '🍔','🍟','🍕','🌭','🥪','🌮','🌯','🫔','🥙','🧆','🥚','🍳','🥘',
-    '🍲','🫕','🥣','🥗','🍿','🧈','🧂','🥫','🍱','🍘','🍙','🍚','🍛',
-    // Sötsaker (20)
-    '🍜','🍝','🍠','🍢','🍣','🍤','🍥','🍡','🍦','🍧','🍨','🍩','🍪',
-    '🎂','🍰','🧁','🥧','🍫','🍬','🍭',
-    // Drycker (14)
-    '🍮','🍯','🍼','🥛','☕','🫖','🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻',
-    // Djur — Sällskapsdjur & Bondgård (20)
-    '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷',
-    '🐽','🐸','🐵','🐔','🐧','🐦','🐤',
-    // Djur — Vilda & Hav (26)
-    '🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞',
-    '🐜','🦟','🦗','🕷️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐',
-    // Djur — Fiskar & Däggdjur (20)
-    '🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓',
-    '🦍','🦧','🐘','🦛','🦏','🐪','🐫',
-    // Djur — Små & Australien (14)
-    '🦒','🦘','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩',
-    // Fordon — Land (20)
-    '🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🛻','🚚','🚛',
-    '🚜','🦯','🦽','🦼','🛴','🚲','🛵',
-    // Fordon — Flyg & Vatten (14)
-    '🏍️','🛺','🚨','🚔','🚍','🚘','🚖','🚡','🚠','🚟','🚃','🚋','🚞','🚝',
-    // Fordon — Tåg & Rymd (14)
-    '🚄','🚅','🚈','🚂','🚆','🚇','🚊','🚉','✈️','🛫','🛬','🛩️','💺','🛰️',
-    // Sport (26)
-    '⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸',
-    '🏒','🏑','🥍','🏏','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽',
-    // Musik & Konst (20)
-    '🎨','🎬','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🪕','🎻','🎲',
-    '🎯','🎳','🎮','🎰','🧩','🧸','🪅',
-    // Natur — Väder & Himmel (20)
-    '⭐','🌟','✨','⚡','🔥','💥','☄️','☀️','🌤️','⛅','🌦️','☁️','🌧️',
-    '⛈️','🌩️','❄️','🌨️','☃️','⛄','🌬️',
-    // Natur — Geografi & Vatten (20)
-    '💨','💧','☔','☂️','🌊','🌫️','🌍','🌎','🌏','🪨','🌑','🌒','🌓',
-    '🌔','🌕','🌖','🌗','🌘','🌙','🌚',
-    // Natur — Trädgård (20)
-    '🌛','🌜','🌡️','☀️','🌝','🌞','🪐','🌸','💮','🏵️','🌹','🥀','🌺',
-    '🌻','🌼','🌷','🌱','🪴','🌲','🌳',
-    // Natur — Skog & Löv (14)
-    '🌴','🌵','🌾','🌿','☘️','🍀','🍁','🍂','🍃','🍄','🌰','🦀','🦞','🐚',
-    // Byggnader & Platser (20)
-    '🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭',
-    '🏯','🏰','💒','🗼','🗽','⛪','🕌',
-    // Platser — Monument & Natur (14)
-    '🕍','⛩️','🕋','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','♨️',
-    // Objekt — Ljus & Verktyg (20)
-    '💡','🔦','🕯️','🪔','🧯','🛢️','💸','💵','💴','💶','💷','🪙','💰',
-    '💳','💎','⚖️','🪜','🧰','🪛','🔧',
-    // Objekt — Verktyg & Maskiner (20)
-    '🔨','⚒️','🛠️','⛏️','🪚','🔩','⚙️','🪤','🧱','⛓️','🧲','🔫','💣',
-    '🧱','🔪','🗡️','⚔️','🛡️','🚬','⚰️',
-    // Objekt — Kontor & Papper (14)
-    '🏺','⚱️','🧿','🔮','🪄','💈','⚗️','🔭','🔬','🕳️','💊','💉','🩸','🩹',
-    // Symboler — Hjärtan & Känslor (20)
-    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞',
-    '💓','💗','💖','💘','💝','💟','☮️',
-    // Symboler — Pilar & Former (20)
-    '✝️','☪️','🕉️','☸️','✡️','🔯','🕎','☯️','☦️','🛐','⛎','♈','♉','♊',
-    '♋','♌','♍','♎','♏','♐',
-    // Symboler — Zodiac & Övrigt (14)
-    '♑','♒','♓','🆔','⚛️','🉑','☢️','☣️','📴','📳','🈶','🈚','🈸','🈺',
-    // Människor & Aktiviteter (20)
-    '👶','👧','🧒','👦','👩','🧑','👨','👩‍🦱','🧑‍🦱','👨‍🦱','👩‍🦰','🧑‍🦰','👨‍🦰',
-    '👱‍♀️','👱','👱‍♂️','👩‍🦳','🧑‍🦳','👨‍🦳','👩‍🦲',
-    // Yrken & Aktiviteter (14)
-    '🧑‍🦲','👨‍🦲','🧔‍♀️','🧔','🧔‍♂️','👵','🧓','👴','👲','👳‍♀️','👳','👳‍♂️','🧕','👮',
-    // Kläder & Accessoarer (20)
-    '👕','👖','🧣','🧤','🧥','🦺','👚','👗','👘','🥻','🩱','🩲','🩳',
-    '👙','👛','👜','👝','🛍️','🎒','🩴'
-];
+const EMOJI_CATEGORIES = {
+    all: {
+        name: '🎲 Helt blandat',
+        emojis: null // Byggs dynamiskt från alla andra
+    },
+    fruit: {
+        name: '🍎 Frukt & Grönsaker',
+        emojis: ['🍎','🍊','🍇','🍓','🍑','🍒','🍍','🥝','🍋','🍉','🥭','🍐','🍌','🫐','🍈','🥥','🥑','🍆','🥔','🥕','🌽','🌶️','🫑','🥒','🥬','🧅','🧄','🍄','🥜','🌰','🍞','🥐','🥖','🫓','🥨','🥯','🥞','🧇','🧀','🍖','🍗','🥩','🥓']
+    },
+    food: {
+        name: '🍔 Mat & Dryck',
+        emojis: ['🍔','🍟','🍕','🌭','🥪','🌮','🌯','🫔','🥙','🧆','🥚','🍳','🥘','🍲','🫕','🥣','🥗','🍿','🧈','🧂','🥫','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🍡','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕','🫖','🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻']
+    },
+    animals: {
+        name: '🐻 Djur',
+        emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐽','🐸','🐵','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩']
+    },
+    vehicles: {
+        name: '🚗 Fordon',
+        emojis: ['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🦯','🦽','🦼','🛴','🚲','🛵','🏍️','🛺','🚨','🚔','🚍','🚘','🚖','🚡','🚠','🚟','🚃','🚋','🚞','🚝','🚄','🚅','🚈','🚂','🚆','🚇','🚊','🚉','✈️','🛫','🛬','🛩️','💺','🛰️','🚀','🛸']
+    },
+    sport: {
+        name: '⚽ Sport',
+        emojis: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🎿','🛷','🥌','⛸️','🛼','🎯','🎳','🎮','🎰','🧩']
+    },
+    music: {
+        name: '🎵 Musik & Konst',
+        emojis: ['🎨','🎬','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🪕','🎻','🎲','🎯','🎳','🎮','🎰','🧩','🧸','🪅','🎪','🎭','🖼️','🎨','🧵','🧶']
+    },
+    nature: {
+        name: '🌳 Natur & Väder',
+        emojis: ['⭐','🌟','✨','⚡','🔥','💥','☄️','☀️','🌤️','⛅','🌦️','☁️','🌧️','⛈️','🌩️','❄️','🌨️','☃️','⛄','🌬️','💨','💧','☔','☂️','🌊','🌫️','🌍','🌎','🌏','🪨','🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘','🌙','🌚','🌛','🌜','🌡️','🌝','🌞','🪐','🌸','💮','🏵️','🌹','🥀','🌺','🌻','🌼','🌷','🌱','🪴','🌲','🌳','🌴','🌵','🌾','🌿','☘️','🍀','🍁','🍂','🍃','🍄','🌰','🦀','🦞','🐚']
+    },
+    buildings: {
+        name: '🏰 Byggnader & Platser',
+        emojis: ['🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛩️','🕋','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','♨️']
+    },
+    objects: {
+        name: '🔧 Objekt & Verktyg',
+        emojis: ['💡','🔦','🕯️','🪔','🧯','🛢️','💸','💵','💴','💶','💷','🪙','💰','💳','💎','⚖️','🪜','🧰','🪛','🔧','🔨','⚒️','🛠️','⛏️','🪚','🔩','⚙️','🪤','🧱','⛓️','🧲','🔫','💣','🔪','🗡️','⚔️','🛡️','🚬','⚰️','🏺','⚱️','🧿','🔮','🪄','💈','⚗️','🔭','🔬','🕳️','💊','💉','🩸','🩹']
+    },
+    symbols: {
+        name: '❤️ Symboler & Zodiac',
+        emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉️','☸️','✡️','🔯','🕎','☯️','☦️','🛐','⛎','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓']
+    },
+    people: {
+        name: '👕 Människor & Kläder',
+        emojis: ['👶','👧','🧒','👦','👩','🧑','👨','👱‍♀️','👱','👱‍♂️','👵','🧓','👴','👲','🧕','👮','👕','👖','🧣','🧤','🧥','🦺','👚','👗','👘','🥻','🩱','🩲','🩳','👙','👛','👜','👝','🛍️','🎒','🩴','👞','👟','🥾','🥿','👠','👡','👢']
+    }
+};
+
+// Bygg RANDOM_EMOJI_POOL dynamiskt från alla kategorier
+const RANDOM_EMOJI_POOL = (() => {
+    const all = [];
+    for (const [key, cat] of Object.entries(EMOJI_CATEGORIES)) {
+        if (key === 'all') { continue; }
+        all.push(...cat.emojis);
+    }
+    return all;
+})();
+
+let randomEmojiCategory = 'all'; // Aktuell kategori för slumpning
 
 const EMOJI_DESCRIPTIONS = {
     // Frukt & Bär
@@ -2964,9 +2946,18 @@ function updateBatchStats() {
     }
 }
 
+function getEmojiPool() {
+    const cat = EMOJI_CATEGORIES[randomEmojiCategory];
+    if (cat && cat.emojis) {
+        return cat.emojis;
+    }
+    return RANDOM_EMOJI_POOL;
+}
+
 function fillRandomEmpty() {
     const usedEmojis = new Set();
     let filled = 0;
+    const pool = getEmojiPool();
 
     // Samla redan använda emojis
     RANKS.forEach(rank => {
@@ -2990,11 +2981,11 @@ function fillRandomEmpty() {
             if (rankData[rank] && rankData[rank].value) {
                 return;
             }
-            let pool = RANDOM_EMOJI_POOL.filter(e => !usedEmojis.has(e));
-            if (pool.length === 0) {
-                pool = RANDOM_EMOJI_POOL;
+            let available = pool.filter(e => !usedEmojis.has(e));
+            if (available.length === 0) {
+                available = pool;
             }
-            const emoji = pool[Math.floor(Math.random() * pool.length)];
+            const emoji = available[Math.floor(Math.random() * available.length)];
 
             rankData[rank] = { type: 'emoji', value: emoji };
             usedEmojis.add(emoji);
@@ -3036,11 +3027,11 @@ function fillRandomEmpty() {
             if (data && data.value) {
                 return;
             }
-            let pool = RANDOM_EMOJI_POOL.filter(e => !usedEmojis.has(e));
-            if (pool.length === 0) {
-                pool = RANDOM_EMOJI_POOL;
+            let available = pool.filter(e => !usedEmojis.has(e));
+            if (available.length === 0) {
+                available = pool;
             }
-            const emoji = pool[Math.floor(Math.random() * pool.length)];
+            const emoji = available[Math.floor(Math.random() * available.length)];
 
             cardData[suit][rank] = { type: 'emoji', value: emoji };
             usedEmojis.add(emoji);
@@ -3138,11 +3129,18 @@ function bindEvents() {
 
     const fillRandomBtn = document.getElementById('fill-random-btn');
     const clearAllBtn = document.getElementById('clear-all-btn');
+    const categorySelect = document.getElementById('emoji-category-select');
     if (fillRandomBtn) {
         fillRandomBtn.addEventListener('click', fillRandomEmpty);
     }
     if (clearAllBtn) {
         clearAllBtn.addEventListener('click', clearAllCards);
+    }
+    if (categorySelect) {
+        categorySelect.addEventListener('change', () => {
+            randomEmojiCategory = categorySelect.value;
+            showToast(`Kategori: ${EMOJI_CATEGORIES[randomEmojiCategory]?.name || 'Helt blandat'}`);
+        });
     }
 
     const undoBtn = document.getElementById('undo-btn');

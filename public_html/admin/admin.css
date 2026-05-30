@@ -1117,6 +1117,22 @@ body {
     max-width: 300px;
 }
 
+.emoji-category-select {
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-width: 200px;
+}
+
+.emoji-category-select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
 .btn-danger {
     background: rgba(239, 68, 68, 0.15);
     color: #fca5a5;
