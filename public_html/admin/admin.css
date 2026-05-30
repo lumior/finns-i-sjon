@@ -335,10 +335,10 @@ body {
 
 .ai-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    grid-template-columns: repeat(13, 1fr);
     gap: 6px;
     margin-bottom: var(--space-md);
-    max-height: 200px;
+    max-height: 320px;
     overflow-y: auto;
     padding: var(--space-sm);
     background: rgba(0, 0, 0, 0.2);
