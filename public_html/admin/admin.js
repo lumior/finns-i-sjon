@@ -433,6 +433,7 @@ function buildPrompt(rank, suit, data, settings) {
     const colorName = hexToColorName(settings?.bgColor || '#333333');
     const patternDesc = patternToDescription(settings?.pattern || 'solid');
     const style = 'Vector illustration, flat design';
+    const num = parseInt(rank, 10);
 
     // Full-card-läge: AI genererar hela kortet med valörer och ram
     if (aiFullCard) {
@@ -457,7 +458,6 @@ function buildPrompt(rank, suit, data, settings) {
         return `${itemDesc}, ${titles[rank]} portrait, ornate frame, ${colorName} ${patternDesc} background, ${style}, no text`;
     }
 
-    const num = parseInt(rank, 10);
     return `${itemDesc}, ${num} symmetric arranged, ${colorName} ${patternDesc} background, ${style}, no text`;
 }
 
@@ -3315,13 +3315,11 @@ function blobToDataUrl(blob) {
     });
 }
 
-async function fetchAIImage(prompt, seed) {
+async function fetchAIImage(prompt, seed, signal) {
     const encoded = encodeURIComponent(prompt);
-    // Pollinations.ai ändrar ofta vilka storlekar som är gratis.
-    // 400x560 hänger sig, 512/768/1024 ger 402. 256x256 fungerar på ~0.3s.
     const url = `https://image.pollinations.ai/prompt/${encoded}?width=256&height=256&nologo=true&seed=${seed}`;
 
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
     }
@@ -3329,13 +3327,32 @@ async function fetchAIImage(prompt, seed) {
     return blobToDataUrl(blob);
 }
 
-function withTimeout(promise, ms) {
+function fetchAIImageWithTimeout(prompt, seed, mainSignal, timeoutMs = 45000) {
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Timeout')), ms);
-        promise.then(
-            val => { clearTimeout(timer); resolve(val); },
-            err => { clearTimeout(timer); reject(err); }
-        );
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        // Om huvudsignal avbryts, avbryt också denna bild
+        const onAbort = () => controller.abort();
+        if (mainSignal) {
+            mainSignal.addEventListener('abort', onAbort);
+        }
+
+        fetchAIImage(prompt, seed, controller.signal)
+            .then(dataUrl => {
+                clearTimeout(timer);
+                if (mainSignal) {
+                    mainSignal.removeEventListener('abort', onAbort);
+                }
+                resolve(dataUrl);
+            })
+            .catch(err => {
+                clearTimeout(timer);
+                if (mainSignal) {
+                    mainSignal.removeEventListener('abort', onAbort);
+                }
+                reject(err);
+            });
     });
 }
 
@@ -3479,7 +3496,7 @@ async function generateAICards() {
 
             while (!success && retries <= maxRetries && !signal.aborted) {
                 try {
-                    const dataUrl = await withTimeout(fetchAIImage(prompt, seed), 45000);
+                    const dataUrl = await fetchAIImageWithTimeout(prompt, seed, signal, 45000);
                     rankData[rank] = { type: 'image', value: dataUrl };
                     SUITS.forEach(s => {
                         cardData[s][rank] = { type: 'image', value: dataUrl };
@@ -3532,7 +3549,7 @@ async function generateAICards() {
 
                 while (!success && retries <= maxRetries && !signal.aborted) {
                     try {
-                        const dataUrl = await withTimeout(fetchAIImage(prompt, seed), 45000);
+                        const dataUrl = await fetchAIImageWithTimeout(prompt, seed, signal, 45000);
                         cardData[suit][rank] = { type: 'image', value: dataUrl };
                         updateMiniPreview(suit, rank);
                         updateAICell(suit, rank, 'done', dataUrl);
