@@ -73,7 +73,7 @@ finns-i-sjon-pro/
 │   │   ├── constants.js       # Spelkonstanter, achievements, tillstånd
 │   │   ├── elo.js             # ELO-beräkningsalgoritm
 │   │   ├── sanitize.js        # XSS-sanering (escapeHtml)
-│   │   └── logger.js          # Loggningshjälpare
+│   │   └── logger.js          # Loggningshjälpare (färgad dev / JSON prod)
 │   └── webrtc/
 │       └── signaling.js       # WebRTC-signaling (offer/answer/ICE) via Socket.IO
 │
@@ -116,7 +116,7 @@ finns-i-sjon-pro/
 │       │   └── frukt/         # Frukt-tema (samma färgstruktur)
 │       └── images/            # Avatarer, AI-porträtt, bakgrund
 │
-├── tests/                     # Jest-tester
+├── tests/                     # Jest-tester (backend-enhetstester, inga E2E-tester)
 │   ├── game/
 │   │   ├── GameEngine.test.js
 │   │   ├── CardDeck.test.js
@@ -171,7 +171,7 @@ npm run format:check  # Prettier --check (används i CI)
 **Noteringar:**
 - `npm run init-db` initierar tabeller genom att ladda `database.js` som side-effect (skapar tabeller vid första anrop).
 - `npm test` inkluderar redan `--forceExit`; CI-kommandot `npm test -- --forceExit` dubblerar därför flaggan (ofarligt).
-- CI kör Node.js 20.
+- CI kör Node.js 20 och använder `npm ci` för rena installationer.
 
 ---
 
@@ -184,7 +184,7 @@ npm run format:check  # Prettier --check (används i CI)
 - **Semikolon:** Ja
 - **Citattecken:** Enkla (`'string'`)
 - **Radbredd:** 120 tecken
-- **Pilfunktioner:** Undvik parenteser vid enkel parameter: `x => x + 1`
+- **Pilfunktioner:** Undvik parenteser vid enkel parameter: `x => x + 1` (Prettier: `arrowParens: avoid`)
 - **Trailing commas:** Nej (`trailingComma: none`)
 - **Bracket spacing:** Ja (`{ foo: bar }`)
 
@@ -213,14 +213,17 @@ npm run format:check  # Prettier --check (används i CI)
 - **Coverage:** Samlas från `server/**/*.js`, exkluderar `server/server.js` och `server/config/database.js`
 - **Coverage-thresholds:** `branches: 25`, `functions: 30`, `lines: 30`, `statements: 30` (se `jest.config.js`).
 - **Viktigt:** Jest körs alltid med `--forceExit` eftersom Socket.IO kan hålla event-loopen vid liv.
-- **CI:** GitHub Actions kör `npm audit`, `npm run lint`, `npm run format:check`, och `npm test -- --forceExit` vid varje push/PR till `main`.
+- **CI:** GitHub Actions kör `npm audit --audit-level=moderate` (continue-on-error), `npm run lint`, `npm run format:check`, och `npm test -- --forceExit` vid varje push/PR till `main`.
+- **Inga frontend- eller E2E-tester:** Alla befintliga tester är backend-enhetstester.
 
 ### Existerande testfiler
-- `tests/game/GameEngine.test.js` — Spelregler, turhantering, utdelning, återanslutning, ask/surrender
-- `tests/game/CardDeck.test.js` — Kortlekslogik
-- `tests/game/AIPlayer.test.js` — AI-beteenden och minne
-- `tests/game/RoomManager.test.js` — Rums-CRUD, join/leave/kick, reconnect
-- `tests/utils/elo.test.js` — ELO-beräkningar
+| Fil | Antal tester | Innehåll |
+|-----|--------------|----------|
+| `tests/game/GameEngine.test.js` | 19 | Spelregler, turhantering, utdelning, par, återanslutning, ask/fish/surrender |
+| `tests/game/CardDeck.test.js` | 6 | Kortleksinitiering (52 kort), blanda, dra, `isEmpty`, `remaining` |
+| `tests/game/RoomManager.test.js` | 15 | Rums-CRUD, join/leave (force/soft), kick, reconnect, lösenord, spectator, bannade spelare |
+| `tests/game/AIPlayer.test.js` | 11 | AI-initiering, minne, beslutsfattning, pruning, svårighetsgrader |
+| `tests/utils/elo.test.js` | 4 | ELO-beräkning: vinnare/förlorare, upset-win, 3+ spelare, konstant summa |
 
 ---
 
@@ -232,6 +235,7 @@ npm run format:check  # Prettier --check (används i CI)
 - Token skickas i `Authorization: Bearer <token>`-header för REST, och i `socket.handshake.auth.token` för Socket.IO.
 - Auth-middleware sätter `req.user` / `socket.user` till `null` vid saknad/ogiltig token (aldrig hårda fel).
 - Middleware läser även token från `req.cookies.token` och `req.query.token` som fallback.
+- Token-payload: `{ userId, username, displayName }`.
 
 ### Databas
 - SQL-injektionsskydd: alla queries använder parametriserade uttryck (`?` / `$1`).
@@ -240,7 +244,7 @@ npm run format:check  # Prettier --check (används i CI)
 ### Input-sanering
 - All användarchatt saneras via `escapeHtml()` innan broadcast.
 - `GameEngine.filterChat()` censurerar dessutom svordomar (`fan`, `jävla`, `helvete`, `skit`).
-- Helmet CSP är aktiverat. Justera `contentSecurityPolicy` i `server/server.js` om nya externa resurser läggs till.
+- Helmet CSP är aktiverat. Justera `contentSecurityPolicy` i `server/server.js` om nya externa resurser läggs till. Nuvarande policy tillåter bland annat `fonts.googleapis.com`, `fonts.gstatic.com`, `ws:`, `wss:` och `blob:`.
 
 ### Rate limiting
 - `/api/auth/*`: 10 förfrågningar / 15 minuter
@@ -278,6 +282,7 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `friendships` — vänförfrågningar (status: pending/accepted)
 - `achievements` — upplåsta achievements per användare
 - `game_snapshots` — JSON-snapshots av spelstatus för crash-recovery
+- `theme_files` — base64-kodade kortleksbilder för persistens på ephemeral filesystem
 
 ### Index
 Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
@@ -292,6 +297,12 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 
 ### Snapshots
 - `game_snapshots` sparas asynkront vid state-ändringar, men är **throttlad** till max en gång per 30 sekunder under pågående spel.
+- Snapshots skrivs till databasen men **läses inte automatiskt tillbaka** vid serveromstart eller när ett rum skapas.
+
+### Tema-filsynk (DB ↔ Filsystem)
+- `database.js` innehåller `saveThemeFiles(themeName)` och `restoreThemeFiles()` för att hantera kortleksbilder på Railways ephemeral filesystem.
+- Vid serverstart återställs temafiler från databasen om de saknas på disk (`server.js` anropar `db.restoreThemeFiles()`).
+- Nya teman sparas till både filsystem och databas via admin-API:t.
 
 ---
 
@@ -348,9 +359,14 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 
 ### Timeout och återanslutning
 - **Tur-timer:** 45 sekunder (`TURN_TIMEOUT`). Om en spelare inte svarar på en `card_request` i tid auto-löser servern förfrågan som "Fisk!" via `autoResolvePendingAsk()`.
-- **AI-drag-fördröjning:** 1500 ms (2000 ms vid spelets första drag).
+- **AI-drag-fördröjning:** 1500 ms för normala AI-drag; 2000 ms för spelets första AI-drag. `AIPlayer.js` internt använder 1000–3000 ms för sitt beslutsfattande.
 - **Disconnect-grace:** Vid `disconnect` väntar servern **60 sekunder** innan `forceRemove` körs, vilket ger utrymme för återanslutning.
+- **Rumsrensning:** Om inga mänskliga spelare återstår eller spelet är avslutat schemaläggs rummet för borttagning efter **5 minuter**.
 - **Reconnection:** Klienten sparar `previousSocketId` och `reconnectToken` i `localStorage`; vid återanslutning skickas `reconnect_attempt`.
+- **Tom hand-hantering:** `ensureCurrentPlayerHasCards()` drar automatiskt 1 kort om den aktiva spelaren har 0 kort och leken inte är tom. `nextPlayer()` hoppar över spelare med tom hand om leken är slut.
+
+### Broadcast-helper
+Använd den interna helper-funktionen `broadcastToRoom(io, game, event, basePayload, includeGameState = false)` inuti `createSocketHandlers`. Den skickar individuell `gameState` per spelare via `game.getPublicState()` och spectator-state via `game.getSpectatorState()`. Undvik att manuellt loopa över `game.players` och `game.spectators` — detta mönster upprepades på 5+ ställen och är nu centraliserat.
 
 ---
 
@@ -363,9 +379,12 @@ Klassen `WebRTCSignaling` hanterar P2P-röstchatt via Socket.IO:
 - `webrtc_offer` / `webrtc_answer` / `webrtc_ice_candidate` — standard WebRTC-signaleringsflöde
 - `voice_peer_joined` / `voice_peer_left` / `voice_peers_list` — peer-hantering
 
-ICE-servrar: Google STUN + Open Relay TURN (fallback). Anpassad TURN kan sättas via miljövariabler (`TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`).
+ICE-servrar:
+- **Google STUN:** `stun.l.google.com:19302`, `stun1.l.google.com:19302`
+- **Open Relay TURN (fallback):** `relay.metered.ca:80` och `:443`, credentials `openrelayproject`
+- **Anpassad TURN** via miljövariabler: `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`
 
-**Notering:** `getIceServers()` finns på serversidan men är **inte** exponerad via någon HTTP-route; klienten förväntas ha samma ICE-konfiguration hårdkodad eller hämtad på annat sätt.
+**Notering:** `getIceServers()` finns på serversidan men är **inte** exponerad via någon HTTP-route. Klienten (`public_html/js/voice-chat.js` och `video-chat.js`) har samma ICE-konfiguration hårdkodad.
 
 ---
 
@@ -384,7 +403,7 @@ Varje färg-mapp innehåller 13 bildfiler: `A.png`, `2.png` … `10.png`, `J.png
 
 **Fallback:** Om en bild saknas renderas kortet med standard Unicode (rank + färgsymbol).
 
-**Admin-API:** `server/routes/admin.js` exponerar `/api/admin/themes` och `/api/admin/themes/:theme` för att lista och inspektera teman.
+**Admin-API:** `server/routes/admin.js` exponerar `/api/admin/themes` och `/api/admin/themes/:theme` för att lista och inspektera teman. Admin-panelen finns under `public_html/admin/`.
 
 ---
 
@@ -402,7 +421,7 @@ Varje färg-mapp innehåller 13 bildfiler: `A.png`, `2.png` … `10.png`, `J.png
    - `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` — valfria anpassade TURN-servrar
    - `DB_FALLBACK=false` — rekommenderas i prod för att undvika SQLite
 
-**Viktigt:** På Railways gratisplan är filsystemet "ephemeral". Använd PostgreSQL (`DATABASE_URL`) för att inte förlora användardata vid omstart. Servern kör `app.set('trust proxy', 1)` för korrekt rate-limiting bakom Railways proxy.
+**Viktigt:** På Railways gratisplan är filsystemet "ephemeral". Använd PostgreSQL (`DATABASE_URL`) för att inte förlora användardata vid omstart. Servern kör `app.set('trust proxy', 1)` för korrekt rate-limiting bakom Railways proxy. Temafiler sparas även till databasen (`theme_files`-tabellen) och återställs vid uppstart.
 
 **Se även:** `DEPLOY_RAILWAY.md` för en mer detaljerad steg-för-steg-guide.
 
@@ -463,14 +482,10 @@ container.querySelectorAll('.card').forEach(el => {
 });
 ```
 
-### Projektroten — dokumentationskonventioner
-Projektet har en uppsättning markdown-filer i roten som komplement till denna fil:
-- **`ANALYS.md`** — djupanalys av arkitektur, säkerhet, prestanda och UX
-- **`DEPLOY_RAILWAY.md`** — detaljerad deploy-guide för Railway
-- **`PROJEKTPLAN.md`** — originalplan med achievements, färgpalett, ljudsystem och animationer
-- **`DEBUGGING_LOG.md`** — historisk debugg- och bugfix-logg
-- **`CHANGELOG_SESSION_YYYY-MM-DD.md`** / **`CHAT_SESSION_YYYY-MM-DD.md`** — loggar från tidigare utvecklingssessioner
-- **`BUGFIX_*.md`** — dokumentation av specifika buggfixar (t.ex. mobil spectator-buggen)
+### Frontend — diffing och mobil-UI
+- `game.js` använder DOM-diffing i `renderOpponents()` för att undvika att förstå och återskapa motståndar-kort vid varje state-uppdatering.
+- Mobil-UI har en dedikerad botten-sheet (`#mobile-sheet`), flytande action-knapp (`#mobile-fab`) och separata start-/redo-containrar. Vid ändringar, testa alltid både desktop- och mobil-vy.
+- Lobby (`app.js`) pollar publik rumslista var 10:e sekund (`setInterval`, 10000 ms).
 
 ### CSS — tillgänglighet
 - Lägg alltid till `@media (prefers-reduced-motion: reduce)` när du skapar nya animationer eller transitions. Använd den generiska regeln i `animations.css` som mall, eller lägg till specifika overrides per komponent.
@@ -480,6 +495,15 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 - **Modaler** måste ha `role="dialog"`, `aria-modal="true"`, och `aria-labelledby` (pekar på rubrikens ID).
 - **Stäng-knappar** med `&times;` måste ha `aria-label="Stäng"` (skärmläsare läser annars bara "times").
 - **Ikon-knappar** utan text måste ha `aria-label` (inte bara `title`, även om `title` är bra för tooltips).
+
+### Projektroten — dokumentationskonventioner
+Projektet har en uppsättning markdown-filer i roten som komplement till denna fil:
+- **`ANALYS.md`** — djupanalys av arkitektur, säkerhet, prestanda och UX
+- **`DEPLOY_RAILWAY.md`** — detaljerad deploy-guide för Railway
+- **`PROJEKTPLAN.md`** — originalplan med achievements, färgpalett, ljudsystem och animationer
+- **`DEBUGGING_LOG.md`** — historisk debugg- och bugfix-logg
+- **`CHANGELOG_SESSION_YYYY-MM-DD.md`** / **`CHAT_SESSION_YYYY-MM-DD.md`** — loggar från tidigare utvecklingssessioner
+- **`BUGFIX_*.md`** — dokumentation av specifika buggfixar (t.ex. mobil spectator-buggen)
 
 ### Vanliga fallgropar
 - **`README.md` refererar ibland till `public/`** — projektets faktiska statiska mapp är `public_html/`.
@@ -496,6 +520,7 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 - WebRTC-video fungerar inte på Safari `localhost` — använd `127.0.0.1`.
 - Standings-arrayen i `game_over`-eventet innehåller inte `eloChange` per spelare; varje mottagare får istället ett separat `eloChange`-objekt direkt i event-payloaden.
 - `README.md` anger ibland fel statisk mapp (`public/` istället för `public_html/`).
+- `game_snapshots` skrivs till databasen men läses **inte** automatiskt tillbaka vid serveromstart (inget automatisk crash-recovery på rum-nivå).
 
 ---
 
@@ -509,14 +534,16 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 | Ändra databas/schema | `server/config/database.js`, `server/models/*.js` |
 | Ändra frontend-lobby | `public_html/js/app.js`, `public_html/index.html` |
 | Ändra spelbräde | `public_html/js/game.js`, `public_html/game.html` |
+| Ändra socket-återanslutning | `public_html/js/socket-client.js` |
 | Ändra ljud/animationer | `public_html/js/audio.js`, `public_html/js/animations.js` |
 | Ändra auth | `server/auth/auth.js`, `server/routes/auth.js` |
-| Ändra WebRTC | `server/webrtc/signaling.js`, `public_html/js/voice-chat.js` |
+| Ändra WebRTC | `server/webrtc/signaling.js`, `public_html/js/voice-chat.js`, `public_html/js/video-chat.js` |
 | Ändra CI/CD | `.github/workflows/ci.yml` |
 | Ändra linting/format/test-konfig | `eslint.config.js`, `.prettierrc`, `jest.config.js` |
 | Kör one-off migrationer | `scripts/update-user-avatars.js` |
 | Förstå avatar-generering | `generate-avatars.py` |
 | Hantera kortleksteman | `server/routes/admin.js`, `public_html/assets/cards/README.md` |
+| Felsöka serverloggar | `server/utils/logger.js` |
 
 ---
 

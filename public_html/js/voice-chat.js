@@ -1,5 +1,5 @@
 /**
- * Finns i sjön PRO – Voice Chat (WebRTC)
+ * FISK – Voice Chat (WebRTC)
  * 
  * Funktioner:
  * - P2P röstkommunikation med alla spelare i rummet

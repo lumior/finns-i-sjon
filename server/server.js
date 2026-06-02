@@ -159,7 +159,7 @@ db.restoreThemeFiles().catch(err => {
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log('🎣 ==========================================');
-    console.log('🎴  FINNS I SJÖN PRO - Top-Notch Edition');
+    console.log('🎴  FISK – finns i sjön');
     console.log('🎣 ==========================================');
     console.log(`🌐 Server körs på port ${PORT}`);
     console.log(`📊 API: http://localhost:${PORT}/api`);

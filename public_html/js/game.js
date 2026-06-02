@@ -1791,7 +1791,7 @@ class GameClient {
         
         if (iWon) {
             if (title) title.textContent = '🏆 Grattis, du vann!';
-            if (subtitle) subtitle.textContent = 'Du är mästaren av Finns i sjön!';
+            if (subtitle) subtitle.textContent = 'Du är mästaren av FISK!';
             if (window.animationManager) animationManager.animateVictory();
         } else if (iTied) {
             if (title) title.textContent = '🤝 Oavgjort!';
