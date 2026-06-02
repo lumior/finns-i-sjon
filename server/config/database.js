@@ -530,15 +530,17 @@ class Database {
             if (fs.existsSync(backPath)) {
                 const base64 = fs.readFileSync(backPath).toString('base64');
                 if (this.isPostgres) {
-                    await this.run(
-                        'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES ($1, $2, $3)',
-                        [themeName, `${themeName}/back.png`, base64]
-                    );
+                    await this.run('INSERT INTO theme_files (theme_name, file_path, file_data) VALUES ($1, $2, $3)', [
+                        themeName,
+                        `${themeName}/back.png`,
+                        base64
+                    ]);
                 } else {
-                    await this.run(
-                        'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES (?, ?, ?)',
-                        [themeName, `${themeName}/back.png`, base64]
-                    );
+                    await this.run('INSERT INTO theme_files (theme_name, file_path, file_data) VALUES (?, ?, ?)', [
+                        themeName,
+                        `${themeName}/back.png`,
+                        base64
+                    ]);
                 }
                 saved++;
             }
@@ -573,15 +575,13 @@ class Database {
                 // Hämta alla filer för detta tema
                 let files;
                 if (this.isPostgres) {
-                    files = await this.query(
-                        'SELECT file_path, file_data FROM theme_files WHERE theme_name = $1',
-                        [themeName]
-                    );
+                    files = await this.query('SELECT file_path, file_data FROM theme_files WHERE theme_name = $1', [
+                        themeName
+                    ]);
                 } else {
-                    files = await this.query(
-                        'SELECT file_path, file_data FROM theme_files WHERE theme_name = ?',
-                        [themeName]
-                    );
+                    files = await this.query('SELECT file_path, file_data FROM theme_files WHERE theme_name = ?', [
+                        themeName
+                    ]);
                 }
 
                 for (const file of files) {
