@@ -79,6 +79,7 @@ class RoomManager {
             if (userData?.id) {
                 const existingUser = game.players.find(p => p.userId === userData.id && p.connected);
                 if (existingUser) {
+                    this.playerRooms.delete(existingUser.socketId);
                     existingUser.socketId = socketId;
                     this.playerRooms.set(socketId, roomId.toUpperCase());
                     return { success: true, game, roomName: room.name };
@@ -107,6 +108,7 @@ class RoomManager {
         const existingByName = game.players.find(p => p.name === playerName);
         if (existingByName) {
             const wasHost = room.hostSocketId === existingByName.socketId;
+            this.playerRooms.delete(existingByName.socketId);
             existingByName.socketId = socketId;
             existingByName.connected = true;
             if (userData) {

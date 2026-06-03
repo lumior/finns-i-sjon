@@ -546,12 +546,14 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 }
 
                 if (player && game.state === GAME_STATES.PLAYING) {
-                    io.to(roomId).emit('player_left', {
+                    socket.to(roomId).emit('player_left', {
                         playerName: player.name,
                         playerId: player.id,
                         reason: 'disconnected'
                     });
-                    io.to(roomId).emit('game_state_update', game.getPublicState(socket.id));
+                    // Skicka individuell gameState till varje kvarvarande spelare,
+                    // INTE den disconnectade spelarens vy till alla
+                    broadcastToRoom(game, 'game_state_update', {}, true);
                 }
 
                 console.log(`⏱️ [TIMEOUT-START] ${result.player?.name || socket.id}: force-remove schemalagt om 60s`);

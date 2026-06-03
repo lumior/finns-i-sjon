@@ -297,7 +297,8 @@ class GameEngine {
 
     reconnectPlayer(oldSocketId, newSocketId, userData = null, reconnectToken = null) {
         // Först: försök matcha på oldSocketId (vanligt reconnect)
-        let player = this.players.find(p => p.socketId === oldSocketId && !p.connected);
+        // Ta bort !p.connected-kravet för att undvika race condition vid snabb reconnect
+        let player = this.players.find(p => p.socketId === oldSocketId);
 
         // Om inte: försök matcha på reconnectToken (t.ex. ny flik/browser refresh)
         if (!player && reconnectToken) {

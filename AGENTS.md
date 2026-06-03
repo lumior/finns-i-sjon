@@ -113,7 +113,8 @@ finns-i-sjon-pro/
 │       │   │   ├── radish/    → Diamonds
 │       │   │   ├── pepper/    → Clubs
 │       │   │   └── potato/    → Spades
-│       │   └── frukt/         # Frukt-tema (samma färgstruktur)
+│       │   ├── frukt/         # Frukt-tema
+│       │   └── saker/         # Sak-tema (t.ex. verktyg)
 │       └── images/            # Avatarer, AI-porträtt, bakgrund
 │
 ├── tests/                     # Jest-tester (backend-enhetstester, inga E2E-tester)
@@ -219,11 +220,13 @@ npm run format:check  # Prettier --check (används i CI)
 ### Existerande testfiler
 | Fil | Antal tester | Innehåll |
 |-----|--------------|----------|
-| `tests/game/GameEngine.test.js` | 19 | Spelregler, turhantering, utdelning, par, återanslutning, ask/fish/surrender |
+| `tests/game/GameEngine.test.js` | 16 | Spelregler, turhantering, utdelning, par, återanslutning, ask/fish/surrender |
 | `tests/game/CardDeck.test.js` | 6 | Kortleksinitiering (52 kort), blanda, dra, `isEmpty`, `remaining` |
 | `tests/game/RoomManager.test.js` | 15 | Rums-CRUD, join/leave (force/soft), kick, reconnect, lösenord, spectator, bannade spelare |
-| `tests/game/AIPlayer.test.js` | 11 | AI-initiering, minne, beslutsfattning, pruning, svårighetsgrader |
+| `tests/game/AIPlayer.test.js` | 9 | AI-initiering, minne, beslutsfattning, pruning, konsekutiva frågor, svårighetsgrader |
 | `tests/utils/elo.test.js` | 4 | ELO-beräkning: vinnare/förlorare, upset-win, 3+ spelare, konstant summa |
+
+**Totalt:** 50 tester fördelade på 5 testfiler.
 
 ---
 
@@ -390,7 +393,7 @@ ICE-servrar:
 
 ## 11. Kortleks-teman och tillgångar
 
-Kortleksbilderna ligger under `public_html/assets/cards/` och är organiserade i **tema-kategorier** (t.ex. `vegetable`, `frukt`). Varje kategori innehåller 4 undermappar som motsvarar "färger":
+Kortleksbilderna ligger under `public_html/assets/cards/` och är organiserade i **tema-kategorier** (t.ex. `vegetable`, `frukt`, `saker`). Varje kategori innehåller 4 undermappar som motsvarar "färger":
 
 | Färg (suit) | Mappnamn |
 |-------------|----------|
@@ -483,7 +486,7 @@ container.querySelectorAll('.card').forEach(el => {
 ```
 
 ### Frontend — diffing och mobil-UI
-- `game.js` använder DOM-diffing i `renderOpponents()` för att undvika att förstå och återskapa motståndar-kort vid varje state-uppdatering.
+- `game.js` använder DOM-diffing i `renderOpponents()` för att undvika att förstöra och återskapa motståndar-kort vid varje state-uppdatering.
 - Mobil-UI har en dedikerad botten-sheet (`#mobile-sheet`), flytande action-knapp (`#mobile-fab`) och separata start-/redo-containrar. Vid ändringar, testa alltid både desktop- och mobil-vy.
 - Lobby (`app.js`) pollar publik rumslista var 10:e sekund (`setInterval`, 10000 ms).
 
