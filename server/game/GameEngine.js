@@ -213,7 +213,7 @@ class GameEngine {
             // I waiting-läge: markera bara som frånkopplad (inte ta bort)
             // Detta gör att spelaren kan återansluta t.ex. vid sidomladdning
             player.connected = false;
-            this.addLog('system', `${player.name} kopplade från`);
+            // Logga inte disconnect i vänteläget — det blir bara stökigt i loggen
             return { player, disconnected: true };
         }
     }
@@ -362,6 +362,7 @@ class GameEngine {
         this.startTime = Date.now();
         this.totalTurns = 0;
         this.gameEvents = [];
+        this.gameLog = []; // Rensa loggen så att gamla händelser från vänteläget inte visas
 
         const humanCount = this.players.filter(p => !p.isAI).length;
         const cardsPerPlayer =
