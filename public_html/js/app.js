@@ -581,3 +581,277 @@ function closeError() {
 }
 
 // Event listener for error modal close button is set up in setupEventListeners
+
+// ── Vännerlista ──
+
+document.addEventListener('click', e => {
+    const tabBtn = e.target.closest('.friend-tab-btn');
+    if (!tabBtn) return;
+
+    document.querySelectorAll('.friend-tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.friend-tab-content').forEach(content => content.classList.remove('active'));
+
+    tabBtn.classList.add('active');
+    document.getElementById(tabBtn.dataset.tab).classList.add('active');
+});
+
+document.addEventListener('click', e => {
+    const closeBtn = e.target.closest('#friends-modal .modal-close, #friends-modal .modal-overlay');
+    if (closeBtn) {
+        hideModal('friends-modal');
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const friendsBtn = document.getElementById('friends-btn');
+    if (friendsBtn) {
+        friendsBtn.addEventListener('click', () => {
+            showModal('friends-modal');
+            loadFriends();
+        });
+    }
+
+    const addFriendForm = document.getElementById('add-friend-form');
+    if (addFriendForm) {
+        addFriendForm.addEventListener('submit', handleAddFriend);
+    }
+
+    // Event delegation för vänner-listan
+    const friendsContainer = document.getElementById('friends-list-container');
+    const pendingContainer = document.getElementById('pending-received-container');
+
+    if (friendsContainer) {
+        friendsContainer.addEventListener('click', e => {
+            const removeBtn = e.target.closest('.friend-remove-btn');
+            if (removeBtn) {
+                removeFriend(removeBtn.dataset.id);
+            }
+        });
+    }
+
+    if (pendingContainer) {
+        pendingContainer.addEventListener('click', e => {
+            const acceptBtn = e.target.closest('.friend-accept-btn');
+            const rejectBtn = e.target.closest('.friend-reject-btn');
+            if (acceptBtn) acceptFriendRequest(acceptBtn.dataset.id);
+            if (rejectBtn) rejectFriendRequest(rejectBtn.dataset.id);
+        });
+    }
+});
+
+async function loadFriends() {
+    if (!AppState.token) return;
+
+    try {
+        const response = await fetch('/api/friends', {
+            headers: { Authorization: `Bearer ${AppState.token}` }
+        });
+
+        if (!response.ok) {
+            throw new Error('Kunde inte hämta vänner');
+        }
+
+        const data = await response.json();
+        renderFriends(data.friends);
+        renderPending(data.pendingReceived, data.pendingSent);
+        updatePendingBadge(data.pendingReceived.length);
+    } catch (err) {
+        console.error('Fel vid laddning av vänner:', err);
+        document.getElementById('friends-list-container').innerHTML =
+            '<p class="empty-state">Kunde inte ladda vänner</p>';
+    }
+}
+
+function renderFriends(friends) {
+    const container = document.getElementById('friends-list-container');
+
+    if (!friends || friends.length === 0) {
+        container.innerHTML = '<p class="empty-state">Du har inga vänner än. Lägg till en vän i fliken "Lägg till".</p>';
+        return;
+    }
+
+    container.innerHTML = friends
+        .map(
+            friend => `
+        <div class="friend-item">
+            <div class="friend-info">
+                <img src="${friend.avatar_url || '/assets/images/default-avatar.png'}" alt="" class="friend-avatar">
+                <div class="friend-meta">
+                    <span class="friend-name">${escapeHtml(friend.display_name || friend.username)}</span>
+                    <span class="friend-status ${friend.is_online ? 'online' : ''}">
+                        ${friend.is_online ? '🟢 Online' : '⚪ Offline'}
+                    </span>
+                </div>
+            </div>
+            <div class="friend-actions">
+                <button class="btn btn-small btn-danger friend-remove-btn" data-id="${friend.id}">Ta bort</button>
+            </div>
+        </div>
+    `
+        )
+        .join('');
+}
+
+function renderPending(received, sent) {
+    const receivedContainer = document.getElementById('pending-received-container');
+    const sentContainer = document.getElementById('pending-sent-container');
+
+    if (!received || received.length === 0) {
+        receivedContainer.innerHTML = '<p class="empty-state">Inga mottagna förfrågningar</p>';
+    } else {
+        receivedContainer.innerHTML = received
+            .map(
+                req => `
+            <div class="pending-request">
+                <div class="friend-info">
+                    <img src="${req.avatar_url || '/assets/images/default-avatar.png'}" alt="" class="friend-avatar">
+                    <div class="friend-meta">
+                        <span class="friend-name">${escapeHtml(req.display_name || req.username)}</span>
+                    </div>
+                </div>
+                <div class="pending-actions">
+                    <button class="btn btn-primary friend-accept-btn" data-id="${req.id}">Acceptera</button>
+                    <button class="btn btn-outline friend-reject-btn" data-id="${req.id}">Avböj</button>
+                </div>
+            </div>
+        `
+            )
+            .join('');
+    }
+
+    if (!sent || sent.length === 0) {
+        sentContainer.innerHTML = '<p class="empty-state">Inga skickade förfrågningar</p>';
+    } else {
+        sentContainer.innerHTML = sent
+            .map(
+                req => `
+            <div class="pending-request">
+                <div class="friend-info">
+                    <img src="${req.avatar_url || '/assets/images/default-avatar.png'}" alt="" class="friend-avatar">
+                    <div class="friend-meta">
+                        <span class="friend-name">${escapeHtml(req.display_name || req.username)}</span>
+                        <span class="friend-status">Väntar på svar...</span>
+                    </div>
+                </div>
+            </div>
+        `
+            )
+            .join('');
+    }
+}
+
+function updatePendingBadge(count) {
+    const badge = document.getElementById('pending-badge');
+    if (!badge) return;
+
+    badge.textContent = count;
+    badge.classList.toggle('hidden', count === 0);
+}
+
+async function handleAddFriend(e) {
+    e.preventDefault();
+    if (!AppState.token) return;
+
+    const input = document.getElementById('friend-username');
+    const messageEl = document.getElementById('add-friend-message');
+    const username = input.value.trim();
+
+    if (!username) return;
+
+    try {
+        const response = await fetch('/api/friends/request', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${AppState.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            messageEl.textContent = 'Vänförfrågan skickad!';
+            messageEl.className = 'form-message success';
+            input.value = '';
+            loadFriends();
+        } else {
+            messageEl.textContent = data.error || 'Kunde inte skicka förfrågan';
+            messageEl.className = 'form-message error';
+        }
+    } catch (err) {
+        messageEl.textContent = 'Något gick fel. Försök igen.';
+        messageEl.className = 'form-message error';
+    }
+}
+
+async function acceptFriendRequest(requestId) {
+    if (!AppState.token || !requestId) return;
+
+    try {
+        const response = await fetch(`/api/friends/accept/${requestId}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AppState.token}` }
+        });
+
+        if (response.ok) {
+            loadFriends();
+        } else {
+            const data = await response.json();
+            showError(data.error || 'Kunde inte acceptera förfrågan');
+        }
+    } catch (err) {
+        showError('Något gick fel');
+    }
+}
+
+async function rejectFriendRequest(requestId) {
+    if (!AppState.token || !requestId) return;
+
+    try {
+        const response = await fetch(`/api/friends/reject/${requestId}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AppState.token}` }
+        });
+
+        if (response.ok) {
+            loadFriends();
+        } else {
+            const data = await response.json();
+            showError(data.error || 'Kunde inte avböja förfrågan');
+        }
+    } catch (err) {
+        showError('Något gick fel');
+    }
+}
+
+async function removeFriend(friendId) {
+    if (!AppState.token || !friendId) return;
+    if (!confirm('Är du säker på att du vill ta bort denna vän?')) return;
+
+    try {
+        const response = await fetch(`/api/friends/${friendId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${AppState.token}` }
+        });
+
+        if (response.ok) {
+            loadFriends();
+        } else {
+            const data = await response.json();
+            showError(data.error || 'Kunde inte ta bort vän');
+        }
+    } catch (err) {
+        showError('Något gick fel');
+    }
+}
+
+function escapeHtml(text) {
+    if (text == null) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}

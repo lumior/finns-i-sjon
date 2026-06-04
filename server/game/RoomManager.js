@@ -43,7 +43,8 @@ class RoomManager {
             hostSocketId,
             password: password || null,
             isPrivate: !!password,
-            bannedPlayers: new Set()
+            bannedPlayers: new Set(),
+            bannedUserIds: new Set()
         });
 
         this.playerRooms.set(hostSocketId, roomId);
@@ -59,6 +60,10 @@ class RoomManager {
         }
 
         if (room.bannedPlayers.has(socketId)) {
+            return { success: false, error: 'Du är bannad från detta rum' };
+        }
+
+        if (userData?.id && room.bannedUserIds.has(userData.id)) {
             return { success: false, error: 'Du är bannad från detta rum' };
         }
 
@@ -292,6 +297,11 @@ class RoomManager {
 
         const room = this.rooms.get(roomId.toUpperCase());
         room.bannedPlayers.add(targetSocketId);
+
+        const targetPlayer = room.game.players.find(p => p.socketId === targetSocketId);
+        if (targetPlayer?.userId) {
+            room.bannedUserIds.add(targetPlayer.userId);
+        }
 
         return { success: true, playerName: result.playerName, banned: true };
     }

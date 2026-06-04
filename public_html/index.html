@@ -33,6 +33,7 @@
                 <img id="user-avatar" src="/assets/images/default-avatar.png" alt="Avatar" class="nav-avatar">
                 <span id="user-name" class="nav-username"></span>
                 <span id="user-elo" class="nav-elo"></span>
+                <button id="friends-btn" class="btn btn-small btn-outline">👥 Vänner</button>
                 <button id="logout-btn" class="btn btn-small btn-outline">Logga ut</button>
             </div>
         </div>
@@ -307,6 +308,50 @@
             <h3 id="error-modal-title">⚠️ Oops!</h3>
             <p id="error-message"></p>
             <button id="error-close-btn" class="btn btn-primary">Stäng</button>
+        </div>
+    </div>
+
+    <div id="friends-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="friends-modal-title">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-large">
+            <button class="modal-close" aria-label="Stäng">&times;</button>
+            <h2 id="friends-modal-title">👥 Vänner</h2>
+            <div class="friends-tabs">
+                <button class="friend-tab-btn active" data-tab="friends-list">Vänner</button>
+                <button class="friend-tab-btn" data-tab="friends-pending">
+                    Förfrågningar
+                    <span id="pending-badge" class="badge hidden">0</span>
+                </button>
+                <button class="friend-tab-btn" data-tab="friends-add">Lägg till</button>
+            </div>
+
+            <div id="friends-list" class="friend-tab-content active">
+                <div id="friends-list-container" class="friends-list-container">
+                    <p class="empty-state">Laddar vänner...</p>
+                </div>
+            </div>
+
+            <div id="friends-pending" class="friend-tab-content">
+                <h3>Mottagna förfrågningar</h3>
+                <div id="pending-received-container" class="friends-list-container">
+                    <p class="empty-state">Inga mottagna förfrågningar</p>
+                </div>
+                <h3>Skickade förfrågningar</h3>
+                <div id="pending-sent-container" class="friends-list-container">
+                    <p class="empty-state">Inga skickade förfrågningar</p>
+                </div>
+            </div>
+
+            <div id="friends-add" class="friend-tab-content">
+                <form id="add-friend-form" class="add-friend-form">
+                    <div class="form-group">
+                        <label for="friend-username">Användarnamn</label>
+                        <input type="text" id="friend-username" maxlength="30" placeholder="Ange användarnamn..." autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Skicka vänförfrågan</button>
+                </form>
+                <p id="add-friend-message" class="form-message"></p>
+            </div>
         </div>
     </div>
 

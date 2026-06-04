@@ -114,6 +114,37 @@ describe('RoomManager', () => {
         expect(result.error).toBe('Du kan inte kicka dig själv');
     });
 
+    test('should ban a player by socketId', () => {
+        const created = rm.createRoom('Alice', 'socket1');
+        rm.joinRoom(created.roomId, 'Bob', 'socket2');
+        const result = rm.banPlayer(created.roomId, 'socket2', 'socket1');
+        expect(result.success).toBe(true);
+        expect(result.banned).toBe(true);
+
+        const rejoin = rm.joinRoom(created.roomId, 'Bob', 'socket2');
+        expect(rejoin.success).toBe(false);
+        expect(rejoin.error).toBe('Du är bannad från detta rum');
+    });
+
+    test('should ban a logged-in player by userId across reconnects', () => {
+        const created = rm.createRoom('Alice', 'socket1');
+        rm.joinRoom(created.roomId, 'Bob', 'socket2', null, { id: 42, elo: 1200, avatar: null });
+        const result = rm.banPlayer(created.roomId, 'socket2', 'socket1');
+        expect(result.success).toBe(true);
+
+        const rejoin = rm.joinRoom(created.roomId, 'Bob', 'socket2-new', null, { id: 42, elo: 1200, avatar: null });
+        expect(rejoin.success).toBe(false);
+        expect(rejoin.error).toBe('Du är bannad från detta rum');
+    });
+
+    test('should prevent non-host from banning', () => {
+        const created = rm.createRoom('Alice', 'socket1');
+        rm.joinRoom(created.roomId, 'Bob', 'socket2');
+        const result = rm.banPlayer(created.roomId, 'socket1', 'socket2');
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('Endast värden kan kicka spelare');
+    });
+
     test('should get room by socket', () => {
         rm.createRoom('Alice', 'socket1');
         const room = rm.getRoomBySocket('socket1');

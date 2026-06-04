@@ -22,6 +22,7 @@ const gamesRoutes = require('./routes/games');
 const createRoomRouter = require('./routes/rooms');
 const statsRoutes = require('./routes/stats');
 const adminRoutes = require('./routes/admin');
+const friendsRoutes = require('./routes/friends');
 const registerSocketHandlers = require('./sockets');
 
 const app = express();
@@ -112,6 +113,7 @@ app.use('/api/games', gamesRoutes);
 app.use('/api/rooms', createRoomRouter(roomManager));
 app.use('/api/stats', statsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/friends', friendsRoutes);
 
 // Publika teman — listar alla kortleksteman
 app.get('/api/themes', (req, res) => {

@@ -1,4 +1,5 @@
 const { GAME_STATES } = require('../utils/constants');
+const { createSocketRateLimiter } = require('../utils/socket-rate-limit');
 
 function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handleGameEnd) {
     function broadcastToRoom(game, event, basePayload, includeGameState = false) {
@@ -25,297 +26,381 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
             User.setOnlineStatus(socket.user.id, true);
         }
 
-        socket.on('reconnect_attempt', data => {
-            const { oldSocketId, reconnectToken } = data;
-            console.log(
-                `🔄 [RECONNECT_ATTEMPT] Ny socket: ${socket.id} | Gammal: ${oldSocketId} | Token: ${reconnectToken ? 'ja' : 'nej'}`
-            );
-            const result = roomManager.reconnect(oldSocketId, socket.id, socket.user, reconnectToken);
+        const rateLimit = createSocketRateLimiter(socket);
 
-            if (result) {
-                const playersInfo = result.game.players.map(p => `${p.name}(conn=${p.connected})`).join(', ');
+        socket.on(
+            'reconnect_attempt',
+            rateLimit('reconnect_attempt', 10, 60000, data => {
+                const { oldSocketId, reconnectToken } = data;
                 console.log(
-                    `✅ [RECONNECT_OK] ${result.player.name} återanslöt till ${result.roomId}. Spelare: [${playersInfo}]`
+                    `🔄 [RECONNECT_ATTEMPT] Ny socket: ${socket.id} | Gammal: ${oldSocketId} | Token: ${reconnectToken ? 'ja' : 'nej'}`
                 );
-                socket.join(result.roomId);
-                socket.emit('reconnected', {
-                    roomId: result.roomId,
-                    gameState: result.game.getPublicState(socket.id),
-                    chatHistory: result.game.getChatHistory()
+                const result = roomManager.reconnect(oldSocketId, socket.id, socket.user, reconnectToken);
+
+                if (result) {
+                    const playersInfo = result.game.players.map(p => `${p.name}(conn=${p.connected})`).join(', ');
+                    console.log(
+                        `✅ [RECONNECT_OK] ${result.player.name} återanslöt till ${result.roomId}. Spelare: [${playersInfo}]`
+                    );
+                    socket.join(result.roomId);
+                    socket.emit('reconnected', {
+                        roomId: result.roomId,
+                        gameState: result.game.getPublicState(socket.id),
+                        chatHistory: result.game.getChatHistory()
+                    });
+
+                    socket.to(result.roomId).emit('player_reconnected', {
+                        playerId: result.player.id,
+                        playerName: result.player.name
+                    });
+
+                    io.to(result.roomId).emit('game_state_update', result.game.getPublicState(socket.id));
+                } else {
+                    console.log(
+                        `❌ [RECONNECT_FAIL] ${socket.id} kunde inte återansluta (oldSocketId=${oldSocketId}). Spelare finns inte kvar i något rum.`
+                    );
+                    socket.emit('reconnect_failed');
+                }
+            })
+        );
+
+        socket.on(
+            'create_room',
+            rateLimit('create_room', 5, 60000, async data => {
+                console.log('🔍 SERVER create_room:', data?.playerName, 'socket:', socket.id);
+                const { playerName, roomName, password, gameType, settings } = data;
+
+                if (!playerName || playerName.trim().length < 2) {
+                    socket.emit('error', { message: 'Ange ett giltigt namn (minst 2 tecken)' });
+                    return;
+                }
+
+                const result = roomManager.createRoom(playerName.trim(), socket.id, {
+                    roomName: roomName?.trim(),
+                    password: password?.trim(),
+                    gameType: gameType || 'standard',
+                    ...settings
                 });
 
-                socket.to(result.roomId).emit('player_reconnected', {
-                    playerId: result.player.id,
-                    playerName: result.player.name
-                });
-
-                io.to(result.roomId).emit('game_state_update', result.game.getPublicState(socket.id));
-            } else {
-                console.log(
-                    `❌ [RECONNECT_FAIL] ${socket.id} kunde inte återansluta (oldSocketId=${oldSocketId}). Spelare finns inte kvar i något rum.`
-                );
-                socket.emit('reconnect_failed');
-            }
-        });
-
-        socket.on('create_room', async data => {
-            console.log('🔍 SERVER create_room:', data?.playerName, 'socket:', socket.id);
-            const { playerName, roomName, password, gameType, settings } = data;
-
-            if (!playerName || playerName.trim().length < 2) {
-                socket.emit('error', { message: 'Ange ett giltigt namn (minst 2 tecken)' });
-                return;
-            }
-
-            const result = roomManager.createRoom(playerName.trim(), socket.id, {
-                roomName: roomName?.trim(),
-                password: password?.trim(),
-                gameType: gameType || 'standard',
-                ...settings
-            });
-
-            if (!result.success) {
-                socket.emit('error', { message: result.error });
-                return;
-            }
-
-            socket.join(result.roomId);
-
-            result.game.onStateChange = snapshot => {
-                db.saveGameSnapshot(result.roomId, snapshot).catch(() => {});
-            };
-
-            const me = result.game.players.find(p => p.socketId === socket.id);
-            socket.emit('room_created', {
-                roomId: result.roomId,
-                gameState: result.game.getPublicState(socket.id),
-                isHost: true,
-                settings: result.game.settings,
-                reconnectToken: me?.reconnectToken
-            });
-
-            io.emit('lobby_update', roomManager.getPublicRoomList());
-        });
-
-        socket.on('join_room', async data => {
-            console.log('🔍 SERVER join_room:', data?.roomId, data?.playerName, 'socket:', socket.id);
-            const { roomId, playerName, password } = data;
-
-            if (!playerName || playerName.trim().length < 2) {
-                socket.emit('error', { message: 'Ange ett giltigt namn' });
-                return;
-            }
-
-            const userData = socket.user
-                ? {
-                      id: socket.user.id,
-                      elo: socket.user.elo,
-                      avatar: socket.user.avatarUrl
-                  }
-                : null;
-
-            const result = roomManager.joinRoom(roomId, playerName.trim(), socket.id, password?.trim(), userData);
-
-            if (!result.success) {
-                socket.emit('error', { message: result.error });
-                return;
-            }
-
-            socket.join(roomId);
-
-            if (result.isSpectator) {
-                socket.emit('spectator_joined', {
-                    roomId,
-                    gameState: result.game.getSpectatorState(),
-                    roomName: result.roomName
-                });
-                return;
-            }
-
-            const room = roomManager.getRoomBySocket(socket.id);
-            const me = result.game.players.find(p => p.socketId === socket.id);
-            socket.emit('room_joined', {
-                roomId,
-                gameState: result.game.getPublicState(socket.id),
-                chatHistory: result.game.getChatHistory(),
-                isHost: room ? room.hostSocketId === socket.id : false,
-                settings: result.game.settings,
-                reconnectToken: me?.reconnectToken
-            });
-
-            socket.to(roomId).emit('player_joined', {
-                playerName: playerName.trim(),
-                playerCount: result.game.players.filter(p => !p.isAI).length,
-                aiCount: result.game.aiPlayers.length
-            });
-
-            io.to(roomId).emit('game_state_update', result.game.getPublicState(socket.id));
-            io.emit('lobby_update', roomManager.getPublicRoomList());
-        });
-
-        socket.on('add_ai', data => {
-            console.log('🔍 SERVER add_ai:', data?.difficulty, 'socket:', socket.id);
-            const { difficulty } = data;
-            const room = roomManager.getRoomBySocket(socket.id);
-
-            if (!room) {
-                socket.emit('error', { message: 'Du är inte i ett rum' });
-                return;
-            }
-
-            if (room.hostSocketId !== socket.id) {
-                socket.emit('error', { message: 'Endast värden kan lägga till AI' });
-                return;
-            }
-
-            const result = roomManager.addAIToRoom(room.game.roomId, difficulty);
-            if (!result.success) {
-                socket.emit('error', { message: result.error });
-                return;
-            }
-
-            io.to(room.game.roomId).emit('ai_added', {
-                player: result.player,
-                gameState: room.game.getPublicState(socket.id)
-            });
-
-            io.emit('lobby_update', roomManager.getPublicRoomList());
-        });
-
-        socket.on('dev_ai_vs_ai', () => {
-            const room = roomManager.getRoomBySocket(socket.id);
-            if (!room) {
-                socket.emit('error', { message: 'Du är inte i ett rum' });
-                return;
-            }
-
-            if (room.hostSocketId !== socket.id) {
-                socket.emit('error', { message: 'Endast värden kan starta AI vs AI' });
-                return;
-            }
-
-            const game = room.game;
-
-            if (game.aiPlayers.length < 2) {
-                const result = roomManager.addAIToRoom(game.roomId, 'smart');
                 if (!result.success) {
                     socket.emit('error', { message: result.error });
                     return;
                 }
-            }
 
-            const humanPlayer = game.players.find(p => !p.isAI);
-            if (humanPlayer) {
-                game.forceRemovePlayer(humanPlayer.socketId);
-                roomManager.playerRooms.delete(humanPlayer.socketId);
-                game.addSpectator(socket.id);
-            }
+                socket.join(result.roomId);
 
-            const firstAI = game.players.find(p => p.isAI);
-            if (firstAI) {
-                room.hostSocketId = firstAI.socketId;
-            }
+                result.game.onStateChange = snapshot => {
+                    db.saveGameSnapshot(result.roomId, snapshot).catch(() => {});
+                };
 
-            game.setIo(io);
-            game.startGame();
-
-            io.to(game.roomId).emit('game_started', {
-                gameState: game.getPublicState(socket.id),
-                firstPlayer: game.getCurrentPlayer()?.name
-            });
-
-            io.to(game.roomId).emit('game_state_update', game.getPublicState(socket.id));
-
-            const currentPlayer = game.getCurrentPlayer();
-            if (currentPlayer?.isAI) {
-                setTimeout(() => game.makeAIMove(io), 1500);
-            }
-        });
-
-        socket.on('remove_ai', data => {
-            const { aiId } = data;
-            const room = roomManager.getRoomBySocket(socket.id);
-
-            if (!room || room.hostSocketId !== socket.id) {
-                socket.emit('error', { message: 'Endast värden kan ta bort AI' });
-                return;
-            }
-
-            const result = roomManager.removeAIFromRoom(room.game.roomId, aiId);
-            if (result.success) {
-                io.to(room.game.roomId).emit('ai_removed', { aiId });
-                io.to(room.game.roomId).emit('game_state_update', room.game.getPublicState(socket.id));
-            }
-        });
-
-        socket.on('start_game', () => {
-            const room = roomManager.getRoomBySocket(socket.id);
-            if (!room) {
-                return;
-            }
-
-            if (room.hostSocketId !== socket.id) {
-                socket.emit('error', { message: 'Endast värden kan starta spelet' });
-                return;
-            }
-
-            const game = room.game;
-
-            // Om spelet är slut, återställ det först så att det kan startas om
-            if (game.state === GAME_STATES.FINISHED) {
-                game.resetGame();
-            }
-
-            if (!game.canStart()) {
-                socket.emit('error', { message: 'Minst 2 spelare krävs för att starta' });
-                return;
-            }
-
-            game.setIo(io);
-            game.players.forEach(p => {
-                p.ready = false;
-            });
-            game.startGame();
-            game.onGameEnd = () => handleGameEnd(game, room);
-
-            broadcastToRoom(game, 'game_started', {}, true);
-
-            const currentPlayer = game.getCurrentPlayer();
-            if (currentPlayer && currentPlayer.isAI) {
-                setTimeout(() => game.makeAIMove(io), 2000);
-            }
-        });
-
-        socket.on('toggle_ready', () => {
-            const room = roomManager.getRoomBySocket(socket.id);
-            if (!room) {
-                return;
-            }
-
-            const game = room.game;
-            if (game.state !== GAME_STATES.WAITING) {
-                return;
-            }
-
-            const result = game.toggleReady(socket.id);
-            if (result) {
-                io.to(room.game.roomId).emit('ready_status_update', {
-                    readyStatus: game.getReadyStatus()
+                const me = result.game.players.find(p => p.socketId === socket.id);
+                socket.emit('room_created', {
+                    roomId: result.roomId,
+                    gameState: result.game.getPublicState(socket.id),
+                    isHost: true,
+                    settings: result.game.settings,
+                    reconnectToken: me?.reconnectToken
                 });
-            }
-        });
 
-        socket.on('ask_cards', data => {
-            const { targetId, rank } = data;
-            const room = roomManager.getRoomBySocket(socket.id);
-            if (!room) {
-                return;
-            }
+                io.emit('lobby_update', roomManager.getPublicRoomList());
+            })
+        );
 
-            const game = room.game;
-            const target = game.players.find(p => p.id === targetId || p.socketId === targetId);
-            if (target?.isAI) {
-                const result = game.askForCards(socket.id, targetId, rank);
+        socket.on(
+            'join_room',
+            rateLimit('join_room', 10, 60000, async data => {
+                console.log('🔍 SERVER join_room:', data?.roomId, data?.playerName, 'socket:', socket.id);
+                const { roomId, playerName, password } = data;
+
+                if (!playerName || playerName.trim().length < 2) {
+                    socket.emit('error', { message: 'Ange ett giltigt namn' });
+                    return;
+                }
+
+                const userData = socket.user
+                    ? {
+                          id: socket.user.id,
+                          elo: socket.user.elo,
+                          avatar: socket.user.avatarUrl
+                      }
+                    : null;
+
+                const result = roomManager.joinRoom(roomId, playerName.trim(), socket.id, password?.trim(), userData);
+
+                if (!result.success) {
+                    socket.emit('error', { message: result.error });
+                    return;
+                }
+
+                socket.join(roomId);
+
+                if (result.isSpectator) {
+                    socket.emit('spectator_joined', {
+                        roomId,
+                        gameState: result.game.getSpectatorState(),
+                        roomName: result.roomName
+                    });
+                    return;
+                }
+
+                const room = roomManager.getRoomBySocket(socket.id);
+                const me = result.game.players.find(p => p.socketId === socket.id);
+                socket.emit('room_joined', {
+                    roomId,
+                    gameState: result.game.getPublicState(socket.id),
+                    chatHistory: result.game.getChatHistory(),
+                    isHost: room ? room.hostSocketId === socket.id : false,
+                    settings: result.game.settings,
+                    reconnectToken: me?.reconnectToken
+                });
+
+                socket.to(roomId).emit('player_joined', {
+                    playerName: playerName.trim(),
+                    playerCount: result.game.players.filter(p => !p.isAI).length,
+                    aiCount: result.game.aiPlayers.length
+                });
+
+                io.to(roomId).emit('game_state_update', result.game.getPublicState(socket.id));
+                io.emit('lobby_update', roomManager.getPublicRoomList());
+            })
+        );
+
+        socket.on(
+            'add_ai',
+            rateLimit('add_ai', 10, 60000, data => {
+                console.log('🔍 SERVER add_ai:', data?.difficulty, 'socket:', socket.id);
+                const { difficulty } = data;
+                const room = roomManager.getRoomBySocket(socket.id);
+
+                if (!room) {
+                    socket.emit('error', { message: 'Du är inte i ett rum' });
+                    return;
+                }
+
+                if (room.hostSocketId !== socket.id) {
+                    socket.emit('error', { message: 'Endast värden kan lägga till AI' });
+                    return;
+                }
+
+                const result = roomManager.addAIToRoom(room.game.roomId, difficulty);
+                if (!result.success) {
+                    socket.emit('error', { message: result.error });
+                    return;
+                }
+
+                io.to(room.game.roomId).emit('ai_added', {
+                    player: result.player,
+                    gameState: room.game.getPublicState(socket.id)
+                });
+
+                io.emit('lobby_update', roomManager.getPublicRoomList());
+            })
+        );
+
+        socket.on(
+            'dev_ai_vs_ai',
+            rateLimit('dev_ai_vs_ai', 5, 60000, () => {
+                const room = roomManager.getRoomBySocket(socket.id);
+                if (!room) {
+                    socket.emit('error', { message: 'Du är inte i ett rum' });
+                    return;
+                }
+
+                if (room.hostSocketId !== socket.id) {
+                    socket.emit('error', { message: 'Endast värden kan starta AI vs AI' });
+                    return;
+                }
+
+                const game = room.game;
+
+                if (game.aiPlayers.length < 2) {
+                    const result = roomManager.addAIToRoom(game.roomId, 'smart');
+                    if (!result.success) {
+                        socket.emit('error', { message: result.error });
+                        return;
+                    }
+                }
+
+                const humanPlayer = game.players.find(p => !p.isAI);
+                if (humanPlayer) {
+                    game.forceRemovePlayer(humanPlayer.socketId);
+                    roomManager.playerRooms.delete(humanPlayer.socketId);
+                    game.addSpectator(socket.id);
+                }
+
+                const firstAI = game.players.find(p => p.isAI);
+                if (firstAI) {
+                    room.hostSocketId = firstAI.socketId;
+                }
+
+                game.setIo(io);
+                game.startGame();
+
+                io.to(game.roomId).emit('game_started', {
+                    gameState: game.getPublicState(socket.id),
+                    firstPlayer: game.getCurrentPlayer()?.name
+                });
+
+                io.to(game.roomId).emit('game_state_update', game.getPublicState(socket.id));
+
+                const currentPlayer = game.getCurrentPlayer();
+                if (currentPlayer?.isAI) {
+                    setTimeout(() => game.makeAIMove(io), 1500);
+                }
+            })
+        );
+
+        socket.on(
+            'remove_ai',
+            rateLimit('remove_ai', 10, 60000, data => {
+                const { aiId } = data;
+                const room = roomManager.getRoomBySocket(socket.id);
+
+                if (!room || room.hostSocketId !== socket.id) {
+                    socket.emit('error', { message: 'Endast värden kan ta bort AI' });
+                    return;
+                }
+
+                const result = roomManager.removeAIFromRoom(room.game.roomId, aiId);
+                if (result.success) {
+                    io.to(room.game.roomId).emit('ai_removed', { aiId });
+                    io.to(room.game.roomId).emit('game_state_update', room.game.getPublicState(socket.id));
+                }
+            })
+        );
+
+        socket.on(
+            'start_game',
+            rateLimit('start_game', 5, 60000, () => {
+                const room = roomManager.getRoomBySocket(socket.id);
+                if (!room) {
+                    return;
+                }
+
+                if (room.hostSocketId !== socket.id) {
+                    socket.emit('error', { message: 'Endast värden kan starta spelet' });
+                    return;
+                }
+
+                const game = room.game;
+
+                // Om spelet är slut, återställ det först så att det kan startas om
+                if (game.state === GAME_STATES.FINISHED) {
+                    game.resetGame();
+                }
+
+                if (!game.canStart()) {
+                    socket.emit('error', { message: 'Minst 2 spelare krävs för att starta' });
+                    return;
+                }
+
+                game.setIo(io);
+                game.players.forEach(p => {
+                    p.ready = false;
+                });
+                game.startGame();
+                game.onGameEnd = () => handleGameEnd(game, room);
+
+                broadcastToRoom(game, 'game_started', {}, true);
+
+                const currentPlayer = game.getCurrentPlayer();
+                if (currentPlayer && currentPlayer.isAI) {
+                    setTimeout(() => game.makeAIMove(io), 2000);
+                }
+            })
+        );
+
+        socket.on(
+            'toggle_ready',
+            rateLimit('toggle_ready', 30, 60000, () => {
+                const room = roomManager.getRoomBySocket(socket.id);
+                if (!room) {
+                    return;
+                }
+
+                const game = room.game;
+                if (game.state !== GAME_STATES.WAITING) {
+                    return;
+                }
+
+                const result = game.toggleReady(socket.id);
+                if (result) {
+                    io.to(room.game.roomId).emit('ready_status_update', {
+                        readyStatus: game.getReadyStatus()
+                    });
+                }
+            })
+        );
+
+        socket.on(
+            'ask_cards',
+            rateLimit('ask_cards', 60, 60000, data => {
+                const { targetId, rank } = data;
+                const room = roomManager.getRoomBySocket(socket.id);
+                if (!room) {
+                    return;
+                }
+
+                const game = room.game;
+                const target = game.players.find(p => p.id === targetId || p.socketId === targetId);
+                if (target?.isAI) {
+                    const result = game.askForCards(socket.id, targetId, rank);
+
+                    if (!result.success) {
+                        socket.emit('turn_result', {
+                            ...result,
+                            gameState: game.getPublicState(socket.id)
+                        });
+                        return;
+                    }
+
+                    if (result.gameOver) {
+                        handleGameEnd(game, room);
+                        return;
+                    }
+
+                    broadcastToRoom(game, 'turn_result', result, true);
+
+                    const nextPlayer = game.getCurrentPlayer();
+                    if (nextPlayer && nextPlayer.isAI) {
+                        setTimeout(() => game.makeAIMove(io), 1500);
+                    }
+                    return;
+                }
+
+                const result = game.requestAsk(socket.id, targetId, rank);
+
+                if (!result.success) {
+                    socket.emit('turn_result', {
+                        ...result,
+                        gameState: game.getPublicState(socket.id)
+                    });
+                    return;
+                }
+
+                socket.emit('ask_pending', {
+                    targetName: result.targetName,
+                    rank: result.rank
+                });
+
+                io.to(target.socketId).emit('card_request', {
+                    askerName: result.askerName,
+                    rank: result.rank
+                });
+            })
+        );
+
+        socket.on(
+            'respond_to_ask',
+            rateLimit('respond_to_ask', 60, 60000, data => {
+                const { hasCard, rank } = data;
+                const room = roomManager.getRoomBySocket(socket.id);
+                if (!room) {
+                    return;
+                }
+
+                const game = room.game;
+                const result = game.respondToAsk(socket.id, hasCard, rank);
 
                 if (!result.success) {
                     socket.emit('turn_result', {
@@ -336,169 +421,155 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 if (nextPlayer && nextPlayer.isAI) {
                     setTimeout(() => game.makeAIMove(io), 1500);
                 }
-                return;
-            }
+            })
+        );
 
-            const result = game.requestAsk(socket.id, targetId, rank);
+        socket.on(
+            'chat_message',
+            rateLimit('chat_message', 30, 60000, async data => {
+                let { message } = data;
+                const room = roomManager.getRoomBySocket(socket.id);
+                if (!room) {
+                    return;
+                }
 
-            if (!result.success) {
-                socket.emit('turn_result', {
-                    ...result,
-                    gameState: game.getPublicState(socket.id)
-                });
-                return;
-            }
+                message = escapeHtml(message);
 
-            socket.emit('ask_pending', {
-                targetName: result.targetName,
-                rank: result.rank
-            });
+                const game = room.game;
+                const chatMsg = game.addChatMessage(socket.id, message);
 
-            io.to(target.socketId).emit('card_request', {
-                askerName: result.askerName,
-                rank: result.rank
-            });
-        });
+                if (chatMsg) {
+                    io.to(room.game.roomId).emit('chat_message', chatMsg);
 
-        socket.on('respond_to_ask', data => {
-            const { hasCard, rank } = data;
-            const room = roomManager.getRoomBySocket(socket.id);
-            if (!room) {
-                return;
-            }
+                    try {
+                        const player = game.players.find(p => p.socketId === socket.id);
+                        if (player && player.userId) {
+                            const chatAchievements = game.checkAchievements(player, 'chat');
+                            for (const achievement of chatAchievements) {
+                                await User.addAchievement(player.userId, achievement);
+                                io.to(socket.id).emit('achievement_unlocked', { achievement });
+                            }
+                        }
+                    } catch (achievementError) {
+                        console.error('Fel vid chat-achievement:', achievementError);
+                    }
+                }
+            })
+        );
 
-            const game = room.game;
-            const result = game.respondToAsk(socket.id, hasCard, rank);
+        socket.on(
+            'kick_player',
+            rateLimit('kick_player', 10, 60000, data => {
+                const { targetSocketId } = data;
+                const room = roomManager.getRoomBySocket(socket.id);
 
-            if (!result.success) {
-                socket.emit('turn_result', {
-                    ...result,
-                    gameState: game.getPublicState(socket.id)
-                });
-                return;
-            }
+                if (!room) {
+                    return;
+                }
 
-            if (result.gameOver) {
-                handleGameEnd(game, room);
-                return;
-            }
+                const result = roomManager.kickPlayer(room.game.roomId, targetSocketId, socket.id);
+                if (result.success) {
+                    io.to(room.game.roomId).emit('player_kicked', {
+                        playerName: result.playerName,
+                        byHost: true
+                    });
 
-            broadcastToRoom(game, 'turn_result', result, true);
+                    io.to(targetSocketId).emit('kicked', {
+                        reason: 'Du blev kickad av värden'
+                    });
+                } else {
+                    socket.emit('error', { message: result.error });
+                }
+            })
+        );
 
-            const nextPlayer = game.getCurrentPlayer();
-            if (nextPlayer && nextPlayer.isAI) {
-                setTimeout(() => game.makeAIMove(io), 1500);
-            }
-        });
+        socket.on(
+            'ban_player',
+            rateLimit('ban_player', 10, 60000, data => {
+                const { targetSocketId } = data;
+                const room = roomManager.getRoomBySocket(socket.id);
 
-        socket.on('chat_message', async data => {
-            let { message } = data;
-            const room = roomManager.getRoomBySocket(socket.id);
-            if (!room) {
-                return;
-            }
+                if (!room) {
+                    return;
+                }
 
-            message = escapeHtml(message);
+                const result = roomManager.banPlayer(room.game.roomId, targetSocketId, socket.id);
+                if (result.success) {
+                    io.to(room.game.roomId).emit('player_banned', {
+                        playerName: result.playerName,
+                        byHost: true
+                    });
 
-            const game = room.game;
-            const chatMsg = game.addChatMessage(socket.id, message);
+                    io.to(targetSocketId).emit('banned', {
+                        reason: 'Du blev bannad av värden'
+                    });
+                } else {
+                    socket.emit('error', { message: result.error });
+                }
+            })
+        );
 
-            if (chatMsg) {
-                io.to(room.game.roomId).emit('chat_message', chatMsg);
+        socket.on(
+            'surrender',
+            rateLimit('surrender', 5, 60000, () => {
+                const room = roomManager.getRoomBySocket(socket.id);
+                if (!room) {
+                    return;
+                }
 
-                try {
-                    const player = game.players.find(p => p.socketId === socket.id);
-                    if (player && player.userId) {
-                        const chatAchievements = game.checkAchievements(player, 'chat');
-                        for (const achievement of chatAchievements) {
-                            await User.addAchievement(player.userId, achievement);
-                            io.to(socket.id).emit('achievement_unlocked', { achievement });
+                const result = room.game.surrender(socket.id);
+                if (result.success) {
+                    io.to(room.game.roomId).emit('player_surrendered', {
+                        playerId: result.player.id,
+                        playerName: result.player.name,
+                        gameState: room.game.getPublicState(socket.id)
+                    });
+
+                    if (result.gameOver) {
+                        handleGameEnd(room.game, room);
+                    } else {
+                        broadcastToRoom(room.game, 'game_state_update', {}, true);
+
+                        const nextPlayer = room.game.getCurrentPlayer();
+                        if (nextPlayer?.isAI) {
+                            setTimeout(() => room.game.makeAIMove(io), 1500);
                         }
                     }
-                } catch (achievementError) {
-                    console.error('Fel vid chat-achievement:', achievementError);
-                }
-            }
-        });
-
-        socket.on('kick_player', data => {
-            const { targetSocketId } = data;
-            const room = roomManager.getRoomBySocket(socket.id);
-
-            if (!room) {
-                return;
-            }
-
-            const result = roomManager.kickPlayer(room.game.roomId, targetSocketId, socket.id);
-            if (result.success) {
-                io.to(room.game.roomId).emit('player_kicked', {
-                    playerName: result.playerName,
-                    byHost: true
-                });
-
-                io.to(targetSocketId).emit('kicked', {
-                    reason: 'Du blev kickad av värden'
-                });
-            } else {
-                socket.emit('error', { message: result.error });
-            }
-        });
-
-        socket.on('surrender', () => {
-            const room = roomManager.getRoomBySocket(socket.id);
-            if (!room) {
-                return;
-            }
-
-            const result = room.game.surrender(socket.id);
-            if (result.success) {
-                io.to(room.game.roomId).emit('player_surrendered', {
-                    playerId: result.player.id,
-                    playerName: result.player.name,
-                    gameState: room.game.getPublicState(socket.id)
-                });
-
-                if (result.gameOver) {
-                    handleGameEnd(room.game, room);
                 } else {
-                    broadcastToRoom(room.game, 'game_state_update', {}, true);
-
-                    const nextPlayer = room.game.getCurrentPlayer();
-                    if (nextPlayer?.isAI) {
-                        setTimeout(() => room.game.makeAIMove(io), 1500);
-                    }
+                    socket.emit('error', { message: result.error });
                 }
-            } else {
-                socket.emit('error', { message: result.error });
-            }
-        });
+            })
+        );
 
-        socket.on('update_settings', data => {
-            const room = roomManager.getRoomBySocket(socket.id);
-            if (!room || room.hostSocketId !== socket.id) {
-                socket.emit('error', { message: 'Endast värden kan ändra inställningar' });
-                return;
-            }
+        socket.on(
+            'update_settings',
+            rateLimit('update_settings', 10, 60000, data => {
+                const room = roomManager.getRoomBySocket(socket.id);
+                if (!room || room.hostSocketId !== socket.id) {
+                    socket.emit('error', { message: 'Endast värden kan ändra inställningar' });
+                    return;
+                }
 
-            const game = room.game;
-            if (data.allowAI !== undefined) {
-                game.settings.allowAI = data.allowAI;
-            }
-            if (data.turnTimer !== undefined) {
-                game.settings.turnTimer = data.turnTimer;
-            }
-            if (data.spectatorMode !== undefined) {
-                game.settings.spectatorMode = data.spectatorMode;
-            }
-            if (data.maxPlayers !== undefined) {
-                game.settings.maxPlayers = Math.min(6, Math.max(2, data.maxPlayers));
-            }
-            if (data.deckTheme !== undefined) {
-                game.settings.deckTheme = data.deckTheme;
-            }
+                const game = room.game;
+                if (data.allowAI !== undefined) {
+                    game.settings.allowAI = data.allowAI;
+                }
+                if (data.turnTimer !== undefined) {
+                    game.settings.turnTimer = data.turnTimer;
+                }
+                if (data.spectatorMode !== undefined) {
+                    game.settings.spectatorMode = data.spectatorMode;
+                }
+                if (data.maxPlayers !== undefined) {
+                    game.settings.maxPlayers = Math.min(6, Math.max(2, data.maxPlayers));
+                }
+                if (data.deckTheme !== undefined) {
+                    game.settings.deckTheme = data.deckTheme;
+                }
 
-            io.to(room.game.roomId).emit('settings_updated', game.settings);
-        });
+                io.to(room.game.roomId).emit('settings_updated', game.settings);
+            })
+        );
 
         socket.on('disconnect', async reason => {
             console.log(`🔌 Frånkoppling: ${socket.id}, orsak: ${reason}`);
@@ -588,23 +659,26 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
             }
         });
 
-        socket.on('leave_room', () => {
-            const result = roomManager.leaveRoom(socket.id, true);
-            if (result) {
-                socket.leave(result.roomId);
-                socket.emit('left_room');
+        socket.on(
+            'leave_room',
+            rateLimit('leave_room', 10, 60000, () => {
+                const result = roomManager.leaveRoom(socket.id, true);
+                if (result) {
+                    socket.leave(result.roomId);
+                    socket.emit('left_room');
 
-                if (result.player) {
-                    io.to(result.roomId).emit('player_left', {
-                        playerName: result.player.name,
-                        playerId: result.player.id,
-                        reason: 'left'
-                    });
+                    if (result.player) {
+                        io.to(result.roomId).emit('player_left', {
+                            playerName: result.player.name,
+                            playerId: result.player.id,
+                            reason: 'left'
+                        });
+                    }
+
+                    io.emit('lobby_update', roomManager.getPublicRoomList());
                 }
-
-                io.emit('lobby_update', roomManager.getPublicRoomList());
-            }
-        });
+            })
+        );
     };
 }
 

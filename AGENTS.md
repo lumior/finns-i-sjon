@@ -123,8 +123,11 @@ finns-i-sjon-pro/
 │   │   ├── CardDeck.test.js
 │   │   ├── AIPlayer.test.js
 │   │   └── RoomManager.test.js
+│   ├── models/
+│   │   └── Friendship.test.js
 │   └── utils/
-│       └── elo.test.js
+│       ├── elo.test.js
+│       └── socket-rate-limit.test.js
 │
 ├── scripts/
 │   └── update-user-avatars.js # One-off migration: uppdaterar default-avatarer
@@ -222,11 +225,13 @@ npm run format:check  # Prettier --check (används i CI)
 |-----|--------------|----------|
 | `tests/game/GameEngine.test.js` | 16 | Spelregler, turhantering, utdelning, par, återanslutning, ask/fish/surrender |
 | `tests/game/CardDeck.test.js` | 6 | Kortleksinitiering (52 kort), blanda, dra, `isEmpty`, `remaining` |
-| `tests/game/RoomManager.test.js` | 15 | Rums-CRUD, join/leave (force/soft), kick, reconnect, lösenord, spectator, bannade spelare |
+| `tests/game/RoomManager.test.js` | 18 | Rums-CRUD, join/leave (force/soft), kick, **ban**, reconnect, lösenord, spectator, bannade spelare |
 | `tests/game/AIPlayer.test.js` | 9 | AI-initiering, minne, beslutsfattning, pruning, konsekutiva frågor, svårighetsgrader |
+| `tests/models/Friendship.test.js` | 13 | Vänförfrågningar: skicka, acceptera, avböja, ta bort, lista, kontrollera om vänner |
 | `tests/utils/elo.test.js` | 4 | ELO-beräkning: vinnare/förlorare, upset-win, 3+ spelare, konstant summa |
+| `tests/utils/socket-rate-limit.test.js` | 9 | Rate limiting: gränser, återställning, separata buckets, shorthand-anrop |
 
-**Totalt:** 50 tester fördelade på 5 testfiler.
+**Totalt:** 75 tester fördelade på 7 testfiler.
 
 ---
 
@@ -237,7 +242,7 @@ npm run format:check  # Prettier --check (används i CI)
 - `JWT_SECRET` **måste** vara satt i produktion (`NODE_ENV=production`). Servern kastar ett fel och avbryter uppstarten om den saknas. Fallback i kod (`'default-secret-change-me'`) gäller endast för utveckling.
 - Token skickas i `Authorization: Bearer <token>`-header för REST, och i `socket.handshake.auth.token` för Socket.IO.
 - Auth-middleware sätter `req.user` / `socket.user` till `null` vid saknad/ogiltig token (aldrig hårda fel).
-- Middleware läser även token från `req.cookies.token` och `req.query.token` som fallback.
+- Middleware läser även token från `req.query.token` som fallback. Observera att `req.cookies?.token` finns i koden men är ej funktionellt eftersom `cookie-parser` inte är installerat.
 - Token-payload: `{ userId, username, displayName }`.
 
 ### Databas
@@ -253,11 +258,21 @@ npm run format:check  # Prettier --check (används i CI)
 - `/api/auth/*`: 10 förfrågningar / 15 minuter
 - Läs-endpoints (`/api/rooms`, `/api/users/online`, `/api/stats/total-games`, `/api/users/leaderboard`): 120 / minut
 - Övriga API: 600 / 15 minuter
-- **Obs:** Socket.IO-events har **inte** rate limiting för närvarande.
+- Socket.IO-events: per-event-begränsningar via `server/utils/socket-rate-limit.js`:
+  - `create_room`, `start_game`, `surrender`, `dev_ai_vs_ai`: 5 / minut
+  - `join_room`, `add_ai`, `remove_ai`, `kick_player`, `update_settings`, `reconnect_attempt`, `leave_room`: 10 / minut
+  - `chat_message`, `toggle_ready`: 30 / minut
+  - `ask_cards`, `respond_to_ask`: 60 / minut
+  - WebRTC (`voice_join`, `voice_leave`, `webrtc_offer`, `webrtc_answer`): 10–60 / minut
+  - `webrtc_ice_candidate`: 120 / minut (ICE-kandidater kan komma i snabb följd)
+  - Vid överskridande skickas `error`-event med meddelandet `"För många förfrågningar. Vänta en stund."`
+
+### Body size limits
+- `express.json({ limit: '50mb' })` är satt i `server/server.js` för att hantera stora base64-uppladdningar av kortleksbilder via admin-API:t.
 
 ### Övrigt
-- `friendships`-tabellen finns men används varken i frontend eller backend.
-- `banPlayer` finns i `RoomManager` men saknar en Socket.IO-handler (endast `kick_player` är exponerad).
+- `friendships`-tabellen används nu av vännerlistan (modell: `server/models/Friendship.js`, routes: `server/routes/friends.js`).
+- `banPlayer` finns i `RoomManager` och exponeras via Socket.IO-eventet `ban_player` (wrappad med rate limit). Bannade inloggade spelare spåras även via `userId` så att de inte kan återansluta med ny socket.
 
 ---
 
@@ -282,7 +297,7 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `games` — spelmetadata (vinnare, duration, antal turer)
 - `game_participants` — deltagare per spel med slutlig rank och ELO-förändring
 - `game_events` — händelselogg (frågor, fiskningar, par)
-- `friendships` — vänförfrågningar (status: pending/accepted)
+- `friendships` — vänförfrågningar (status: `pending`/`accepted`); används av vännerlista-API:t
 - `achievements` — upplåsta achievements per användare
 - `game_snapshots` — JSON-snapshots av spelstatus för crash-recovery
 - `theme_files` — base64-kodade kortleksbilder för persistens på ephemeral filesystem
@@ -330,6 +345,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 | `add_ai` | Lägg till AI-spelare |
 | `remove_ai` | Ta bort AI-spelare |
 | `kick_player` | Kicka spelare (värden) |
+| `ban_player` | Banna spelare (värden) — kickar och förbjuder återinträde |
 | `surrender` | Ge upp — avslutar spelarens deltagande |
 | `update_settings` | Uppdatera rum (allowAI, turnTimer, spectatorMode, maxPlayers, deckTheme) |
 | `leave_room` | Lämna rum |
@@ -348,7 +364,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 | `card_request` | Någon frågar dig om kort |
 | `game_over` | Spelet slut (innehåller `winner`, `standings`, `eloChange`) |
 | `chat_message` | Nytt chattmeddelande |
-| `player_joined` / `player_left` / `player_reconnected` / `player_kicked` / `player_surrendered` | Spelarhändelser |
+| `player_joined` / `player_left` / `player_reconnected` / `player_kicked` / `player_banned` / `player_surrendered` | Spelarhändelser |
 | `ai_added` / `ai_removed` | AI-händelser |
 | `settings_updated` / `ready_status_update` | Rumstillstånd |
 | `achievement_unlocked` | Achievement upplåst |
@@ -369,7 +385,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 - **Tom hand-hantering:** `ensureCurrentPlayerHasCards()` drar automatiskt 1 kort om den aktiva spelaren har 0 kort och leken inte är tom. `nextPlayer()` hoppar över spelare med tom hand om leken är slut.
 
 ### Broadcast-helper
-Använd den interna helper-funktionen `broadcastToRoom(io, game, event, basePayload, includeGameState = false)` inuti `createSocketHandlers`. Den skickar individuell `gameState` per spelare via `game.getPublicState()` och spectator-state via `game.getSpectatorState()`. Undvik att manuellt loopa över `game.players` och `game.spectators` — detta mönster upprepades på 5+ ställen och är nu centraliserat.
+Inuti `createSocketHandlers` finns en closure `broadcastToRoom(game, event, basePayload, includeGameState = false)` som fångar `io` från det yttre scopet. Den skickar individuell `gameState` per spelare via `game.getPublicState()` och spectator-state via `game.getSpectatorState()`. Undvik att manuellt loopa över `game.players` och `game.spectators` — detta mönster upprepades på 5+ ställen och är nu centraliserat.
 
 ---
 
@@ -454,11 +470,20 @@ npm run dev
 
 ### Att lägga till ett Socket.IO-event
 1. Lägg till handler i `server/sockets/handlers.js`
-2. Vid speländringar: använd `roomManager.getRoomBySocket(socket.id)` för att hämta aktuellt rum
-3. Använd `io.to(roomId).emit(...)` för broadcast och `socket.emit(...)` för direktsvar
+2. Wrappa handler med `rateLimit(eventName, max, windowMs, handler)` för att aktivera rate limiting. Exempel:
+   ```js
+   socket.on(
+       'my_event',
+       rateLimit('my_event', 10, 60000, data => {
+           // ...handler-logik
+       })
+   );
+   ```
+3. Vid speländringar: använd `roomManager.getRoomBySocket(socket.id)` för att hämta aktuellt rum
+4. Använd `io.to(roomId).emit(...)` för broadcast och `socket.emit(...)` för direktsvar
 
 ### Att broadcasta till rum med individuell gameState
-Använd den interna helper-funktionen `broadcastToRoom(io, game, event, basePayload, includeGameState = false)` inuti `createSocketHandlers`. Den skickar individuell `gameState` per spelare via `game.getPublicState()` och spectator-state via `game.getSpectatorState()`. Undvik att manuellt loopa över `game.players` och `game.spectators` — detta mönster upprepades på 5+ ställen och är nu centraliserat.
+Använd den interna helper-funktionen `broadcastToRoom(game, event, basePayload, includeGameState = false)` inuti `createSocketHandlers`. Den fångar `io` från det yttre scopet och skickar individuell `gameState` per spelare via `game.getPublicState()` och spectator-state via `game.getSpectatorState()`. Undvik att manuellt loopa över `game.players` och `game.spectators` — detta mönster upprepades på 5+ ställen och är nu centraliserat.
 
 ### Att ändra spelregler (ask/fisk)
 Spelmotorn använder två privata metoder för gemensam logik:
@@ -518,12 +543,13 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 
 ## 14. Kända begränsningar
 
-- `friendships`-tabellen finns men används inte i frontend eller backend.
-- `banPlayer` finns i `RoomManager` men saknar en Socket.IO-handler (endast `kick_player` är exponerad).
+- ~~`friendships`-tabellen finns men används inte i frontend eller backend.~~ ✅ Åtgärdat — vännerlista finns nu i lobby.
+- ~~`banPlayer` finns i `RoomManager` men saknar en Socket.IO-handler.~~ ✅ Åtgärdat — `ban_player` är exponerad.
 - WebRTC-video fungerar inte på Safari `localhost` — använd `127.0.0.1`.
 - Standings-arrayen i `game_over`-eventet innehåller inte `eloChange` per spelare; varje mottagare får istället ett separat `eloChange`-objekt direkt i event-payloaden.
 - `README.md` anger ibland fel statisk mapp (`public/` istället för `public_html/`).
-- `game_snapshots` skrivs till databasen men läses **inte** automatiskt tillbaka vid serveromstart (inget automatisk crash-recovery på rum-nivå).
+- `game_snapshots` skrivs till databasen men läses **inte** automatiskt tillbaka vid serveromstart (inget automatiskt crash-recovery på rum-nivå).
+- Cookie-parser är inte installerat, så `req.cookies?.token`-fallbacken i auth-middleware är ej funktionell.
 
 ---
 
@@ -540,6 +566,7 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 | Ändra socket-återanslutning | `public_html/js/socket-client.js` |
 | Ändra ljud/animationer | `public_html/js/audio.js`, `public_html/js/animations.js` |
 | Ändra auth | `server/auth/auth.js`, `server/routes/auth.js` |
+| Ändra vännerlista | `server/models/Friendship.js`, `server/routes/friends.js`, `public_html/js/app.js` |
 | Ändra WebRTC | `server/webrtc/signaling.js`, `public_html/js/voice-chat.js`, `public_html/js/video-chat.js` |
 | Ändra CI/CD | `.github/workflows/ci.yml` |
 | Ändra linting/format/test-konfig | `eslint.config.js`, `.prettierrc`, `jest.config.js` |
