@@ -5,7 +5,9 @@ const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10) || 587;
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || 'noreply@finnsisjon.se';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+// Railway sätter RAILWAY_PUBLIC_DOMAIN automatiskt
+const RAILWAY_DOMAIN = process.env.RAILWAY_PUBLIC_DOMAIN;
+const FRONTEND_URL = process.env.FRONTEND_URL || process.env.BASE_URL || (RAILWAY_DOMAIN ? `https://${RAILWAY_DOMAIN}` : 'http://localhost:3000');
 
 let transporter = null;
 

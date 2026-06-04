@@ -154,10 +154,12 @@ registerSocketHandlers(io, roomManager, {
     escapeHtml
 });
 
-// Återställ temafiler från databasen vid start (Railway ephemeral filesystem)
-db.restoreThemeFiles().catch(err => {
-    console.error('Fel vid återställning av temafiler:', err.message);
-});
+// Vänta på databasanslutning och återställ temafiler vid start (Railway ephemeral filesystem)
+db.waitForConnection()
+    .then(() => db.restoreThemeFiles())
+    .catch(err => {
+        console.error('Fel vid återställning av temafiler:', err.message);
+    });
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log('🎣 ==========================================');

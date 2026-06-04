@@ -20,7 +20,11 @@ class Database {
         this.db = null;
         this.isSQLite = false;
         this.isPostgres = false;
-        this.connect();
+        this.connectPromise = this.connect();
+    }
+
+    async waitForConnection() {
+        return this.connectPromise;
     }
 
     async connect() {
