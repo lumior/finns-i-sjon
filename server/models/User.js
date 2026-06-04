@@ -7,8 +7,8 @@ class User {
         const hashedPassword = await bcrypt.hash(password, 10);
         const avatarUrl = getPlayerAvatar(username);
         const result = await db.run(
-            'INSERT INTO users (username, email, password_hash, display_name, avatar_url) VALUES (?, ?, ?, ?, ?)',
-            [username, email, hashedPassword, displayName || username, avatarUrl]
+            'INSERT INTO users (username, email, password_hash, display_name, avatar_url, email_verified) VALUES (?, ?, ?, ?, ?, ?)',
+            [username, email, hashedPassword, displayName || username, avatarUrl, 0]
         );
         return result.id;
     }
@@ -56,13 +56,22 @@ class User {
 
     static async getPublicProfile(userId) {
         const user = await db.get(
-            'SELECT id, username, display_name, avatar_url, elo_rating, games_played, games_won, games_lost, total_pairs, created_at FROM users WHERE id = ?',
+            'SELECT id, username, display_name, avatar_url, elo_rating, games_played, games_won, games_lost, total_pairs, created_at, email_verified FROM users WHERE id = ?',
             [userId]
         );
         if (user) {
             user.winRate = user.games_played > 0 ? ((user.games_won / user.games_played) * 100).toFixed(1) : 0;
         }
         return user;
+    }
+
+    static async setEmailVerified(userId, verified = true) {
+        await db.run('UPDATE users SET email_verified = ? WHERE id = ?', [verified ? 1 : 0, userId]);
+    }
+
+    static async updatePassword(userId, newPassword) {
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, userId]);
     }
 
     static async getLeaderboard(limit = 50) {
@@ -106,6 +115,33 @@ class User {
              LIMIT ?`,
             [`%${query}%`, `%${query}%`, limit]
         );
+    }
+
+    // ── Token-hantering för e-postverifiering och lösenordsåterställning ──
+
+    static async createToken(userId, token, type, expiresHours = 24) {
+        const expiresAt = new Date(Date.now() + expiresHours * 60 * 60 * 1000).toISOString();
+        await db.run('INSERT INTO user_tokens (user_id, token, type, expires_at) VALUES (?, ?, ?, ?)', [
+            userId,
+            token,
+            type,
+            expiresAt
+        ]);
+    }
+
+    static async findToken(token, type) {
+        return db.get(
+            'SELECT * FROM user_tokens WHERE token = ? AND type = ? AND used = 0 AND expires_at > CURRENT_TIMESTAMP',
+            [token, type]
+        );
+    }
+
+    static async markTokenUsed(token) {
+        await db.run('UPDATE user_tokens SET used = 1 WHERE token = ?', [token]);
+    }
+
+    static async deleteUserTokens(userId, type) {
+        await db.run('DELETE FROM user_tokens WHERE user_id = ? AND type = ?', [userId, type]);
     }
 }
 

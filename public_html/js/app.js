@@ -113,6 +113,25 @@ function setupEventListeners() {
     
     document.getElementById('login-form').addEventListener('submit', handleLogin);
     document.getElementById('register-form').addEventListener('submit', handleRegister);
+    document.getElementById('forgot-form').addEventListener('submit', handleForgotPassword);
+
+    document.getElementById('switch-to-forgot').addEventListener('click', e => {
+        e.preventDefault();
+        hideModal('login-modal');
+        showModal('forgot-modal');
+    });
+
+    document.getElementById('switch-from-forgot-to-login').addEventListener('click', e => {
+        e.preventDefault();
+        hideModal('forgot-modal');
+        showModal('login-modal');
+    });
+
+    document.getElementById('verify-close-btn').addEventListener('click', () => {
+        hideModal('verify-modal');
+    });
+
+    document.getElementById('resend-verify-btn').addEventListener('click', handleResendVerification);
     
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
@@ -182,6 +201,10 @@ async function handleLogin(e) {
             AppState.user = data.user;
             showUserSection(data.user);
             hideModal('login-modal');
+
+            if (data.user.emailVerified === false) {
+                showModal('verify-modal');
+            }
         } else {
             showError(data.error || 'Inloggning misslyckades');
         }
@@ -212,6 +235,7 @@ async function handleRegister(e) {
             AppState.user = data.user;
             showUserSection(data.user);
             hideModal('register-modal');
+            showModal('verify-modal');
         } else {
             showError(data.error || 'Registrering misslyckades');
         }
@@ -220,11 +244,57 @@ async function handleRegister(e) {
     }
 }
 
+async function handleForgotPassword(e) {
+    e.preventDefault();
+    const email = document.getElementById('forgot-email').value;
+    const messageEl = document.getElementById('forgot-message');
+
+    try {
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+        messageEl.textContent = data.message || 'Länk skickad om e-postadressen finns.';
+        messageEl.className = 'form-message success';
+        document.getElementById('forgot-email').value = '';
+    } catch (err) {
+        messageEl.textContent = 'Något gick fel. Försök igen.';
+        messageEl.className = 'form-message error';
+    }
+}
+
+async function handleResendVerification() {
+    const messageEl = document.getElementById('resend-message');
+    if (!AppState.token) return;
+
+    try {
+        const response = await fetch('/api/auth/resend-verification', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${AppState.token}` }
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            messageEl.textContent = 'Ny verifieringslänk skickad!';
+            messageEl.className = 'form-message success';
+        } else {
+            messageEl.textContent = data.error || 'Kunde inte skicka länk.';
+            messageEl.className = 'form-message error';
+        }
+    } catch (err) {
+        messageEl.textContent = 'Något gick fel. Försök igen.';
+        messageEl.className = 'form-message error';
+    }
+}
+
 async function logout() {
     await fetch('/api/auth/logout', {
         headers: { 'Authorization': `Bearer ${AppState.token}` }
     });
-    
+
     localStorage.removeItem('token');
     AppState.token = null;
     AppState.user = null;

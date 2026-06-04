@@ -270,6 +270,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-large">Logga in</button>
             </form>
+            <p class="form-switch"><a href="#" id="switch-to-forgot">Glömt lösenordet?</a></p>
             <p class="form-switch">Har du inget konto? <a href="#" id="switch-to-register">Registrera dig</a></p>
         </div>
     </div>
@@ -299,6 +300,35 @@
                 <button type="submit" class="btn btn-primary btn-large">Registrera</button>
             </form>
             <p class="form-switch">Har du redan ett konto? <a href="#" id="switch-to-login">Logga in</a></p>
+        </div>
+    </div>
+
+    <div id="forgot-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="forgot-modal-title">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close" aria-label="Stäng">&times;</button>
+            <h2 id="forgot-modal-title">🔒 Återställ lösenord</h2>
+            <p style="color: var(--text-secondary); margin-bottom: var(--space-md);">Ange din e-postadress så skickar vi en återställningslänk.</p>
+            <form id="forgot-form">
+                <div class="form-group">
+                    <label for="forgot-email">E-post</label>
+                    <input type="email" id="forgot-email" required autocomplete="email">
+                </div>
+                <button type="submit" class="btn btn-primary btn-large">Skicka länk</button>
+            </form>
+            <p id="forgot-message" class="form-message"></p>
+            <p class="form-switch"><a href="#" id="switch-from-forgot-to-login">Tillbaka till inloggning</a></p>
+        </div>
+    </div>
+
+    <div id="verify-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="verify-modal-title">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-small">
+            <h3 id="verify-modal-title">📧 Verifiera din e-post</h3>
+            <p id="verify-message">En verifieringslänk har skickats till din e-postadress. Klicka på länken för att aktivera ditt konto.</p>
+            <button id="verify-close-btn" class="btn btn-primary">Stäng</button>
+            <button id="resend-verify-btn" class="btn btn-outline" style="margin-top: var(--space-sm);">Skicka igen</button>
+            <p id="resend-message" class="form-message"></p>
         </div>
     </div>
 

@@ -83,7 +83,20 @@ class Database {
                     longest_streak INT DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_login TIMESTAMP,
-                    is_online SMALLINT DEFAULT 0
+                    is_online SMALLINT DEFAULT 0,
+                    email_verified SMALLINT DEFAULT 0
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS user_tokens (
+                    id SERIAL PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    token VARCHAR(255) UNIQUE NOT NULL,
+                    type VARCHAR(30) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    used SMALLINT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             `);
 
@@ -174,6 +187,14 @@ class Database {
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_participants_user ON game_participants(user_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
 
+            // Migration: lägg till email_verified för befintliga databaser
+            await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified SMALLINT DEFAULT 0`).catch(
+                () => {}
+            );
+            await this.run(
+                `CREATE TABLE IF NOT EXISTS user_tokens (id SERIAL PRIMARY KEY, user_id INT NOT NULL, token VARCHAR(255) UNIQUE NOT NULL, type VARCHAR(30) NOT NULL, expires_at TIMESTAMP NOT NULL, used SMALLINT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
+            );
+
             console.log('✅ PostgreSQL tables initialized');
         } catch (err) {
             console.error('Failed to initialize PostgreSQL tables:', err.message);
@@ -201,7 +222,20 @@ class Database {
                     longest_streak INT DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     last_login DATETIME,
-                    is_online TINYINT DEFAULT 0
+                    is_online TINYINT DEFAULT 0,
+                    email_verified TINYINT DEFAULT 0
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS user_tokens (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    user_id INT NOT NULL,
+                    token VARCHAR(255) UNIQUE NOT NULL,
+                    type VARCHAR(30) NOT NULL,
+                    expires_at DATETIME NOT NULL,
+                    used TINYINT DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
@@ -286,6 +320,14 @@ class Database {
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_participants_user ON game_participants(user_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
 
+            // Migration: lägg till email_verified för befintliga databaser
+            await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified TINYINT DEFAULT 0`).catch(
+                () => {}
+            );
+            await this.run(
+                `CREATE TABLE IF NOT EXISTS user_tokens (id INT PRIMARY KEY AUTO_INCREMENT, user_id INT NOT NULL, token VARCHAR(255) UNIQUE NOT NULL, type VARCHAR(30) NOT NULL, expires_at DATETIME NOT NULL, used TINYINT DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
+            );
+
             console.log('✅ MariaDB tables initialized');
         } catch (err) {
             console.error('Failed to initialize MariaDB tables:', err.message);
@@ -345,7 +387,10 @@ class Database {
 
         this.db.serialize(() => {
             this.db.run(
-                `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, display_name TEXT, avatar_url TEXT DEFAULT '/assets/images/default-avatar.png', elo_rating INTEGER DEFAULT 1200, games_played INTEGER DEFAULT 0, games_won INTEGER DEFAULT 0, games_lost INTEGER DEFAULT 0, total_pairs INTEGER DEFAULT 0, total_fishings INTEGER DEFAULT 0, total_asks INTEGER DEFAULT 0, successful_asks INTEGER DEFAULT 0, longest_streak INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_login DATETIME, is_online INTEGER DEFAULT 0)`
+                `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, display_name TEXT, avatar_url TEXT DEFAULT '/assets/images/default-avatar.png', elo_rating INTEGER DEFAULT 1200, games_played INTEGER DEFAULT 0, games_won INTEGER DEFAULT 0, games_lost INTEGER DEFAULT 0, total_pairs INTEGER DEFAULT 0, total_fishings INTEGER DEFAULT 0, total_asks INTEGER DEFAULT 0, successful_asks INTEGER DEFAULT 0, longest_streak INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_login DATETIME, is_online INTEGER DEFAULT 0, email_verified INTEGER DEFAULT 0)`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS user_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, token TEXT UNIQUE NOT NULL, type TEXT NOT NULL, expires_at DATETIME NOT NULL, used INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
             );
             this.db.run(
                 `CREATE TABLE IF NOT EXISTS games (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, game_type TEXT DEFAULT 'standard', player_count INTEGER, winner_id INTEGER, winner_name TEXT, duration_seconds INTEGER, total_turns INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
@@ -366,7 +411,12 @@ class Database {
                 `CREATE TABLE IF NOT EXISTS game_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, snapshot TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
             );
             this.db.run(
-                `CREATE TABLE IF NOT EXISTS theme_files (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_name TEXT NOT NULL, file_path TEXT NOT NULL, file_data TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_name, file_path))`,
+                `CREATE TABLE IF NOT EXISTS theme_files (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_name TEXT NOT NULL, file_path TEXT NOT NULL, file_data TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_name, file_path))`
+            );
+            // Migration: lägg till email_verified och user_tokens för befintliga SQLite-databaser
+            this.db.run(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`, () => {});
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS user_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, token TEXT UNIQUE NOT NULL, type TEXT NOT NULL, expires_at DATETIME NOT NULL, used INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
                 () => {
                     console.log('✅ SQLite fallback tables initialized');
                 }

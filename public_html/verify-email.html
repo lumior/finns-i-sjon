@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bekräfta e-post — FISK</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-primary);
+        }
+        .verify-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: var(--space-xl);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        .verify-icon {
+            font-size: 3rem;
+            margin-bottom: var(--space-md);
+        }
+        .verify-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: var(--space-sm);
+        }
+        .verify-message {
+            color: var(--text-secondary);
+            margin-bottom: var(--space-lg);
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto var(--space-lg);
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="verify-card">
+        <div id="verify-loading">
+            <div class="spinner"></div>
+            <p class="verify-message">Verifierar din e-postadress...</p>
+        </div>
+        <div id="verify-success" class="hidden">
+            <div class="verify-icon">✅</div>
+            <h1 class="verify-title">E-post verifierad!</h1>
+            <p class="verify-message">Din e-postadress är nu bekräftad. Du kan nu logga in och spela.</p>
+            <a href="/" class="btn btn-primary btn-large">Till startsidan</a>
+        </div>
+        <div id="verify-error" class="hidden">
+            <div class="verify-icon">❌</div>
+            <h1 class="verify-title">Verifiering misslyckades</h1>
+            <p class="verify-message" id="error-text">Länken är ogiltig eller har gått ut.</p>
+            <a href="/" class="btn btn-outline">Till startsidan</a>
+        </div>
+    </div>
+
+    <script>
+        async function verifyEmail() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+
+            if (!token) {
+                showError('Ingen verifieringskod hittades i URL:en.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/auth/verify-email/${token}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('verify-loading').classList.add('hidden');
+                    document.getElementById('verify-success').classList.remove('hidden');
+                } else {
+                    showError(data.error || 'Verifiering misslyckades.');
+                }
+            } catch (err) {
+                showError('Något gick fel. Försök igen senare.');
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('verify-loading').classList.add('hidden');
+            document.getElementById('error-text').textContent = message;
+            document.getElementById('verify-error').classList.remove('hidden');
+        }
+
+        verifyEmail();
+    </script>
+</body>
+</html>
