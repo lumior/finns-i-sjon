@@ -11,7 +11,7 @@
 
 - Rumsbaserade spelbord med privata/publika rum
 - AI-motståndare på 4 svårighetsgrader
-- Användarkonton med JWT-autentisering och ELO-rankning
+- Användarkonton med JWT-autentisering, ELO-rankning, e-postverifiering och lösenordsåterställning
 - Spectator-läge (åskådare)
 - WebRTC-baserad röst- och videochatt (P2P)
 - Achievements, spelhistorik och topplista
@@ -31,6 +31,7 @@
 | Backend | Express 4, Socket.IO 4 |
 | Databas | SQLite3 (dev), MariaDB/MySQL eller PostgreSQL (prod) |
 | Auth | JWT (`jsonwebtoken`), bcryptjs |
+| E-post | Nodemailer (SMTP) |
 | Security | Helmet, express-rate-limit, CORS |
 | Testing | Jest 30 |
 | Linting | ESLint 10 (flat config), Prettier 3 |
@@ -53,7 +54,7 @@ finns-i-sjon-pro/
 │   │   ├── User.js            # CRUD för användare, statistik, achievements
 │   │   └── Game.js            # Spelhistorik, event-loggning
 │   ├── routes/
-│   │   ├── auth.js            # POST /register, /login, GET /me, POST /logout
+│   │   ├── auth.js            # POST /register, /login, /forgot-password, /reset-password, /resend-verification; GET /me, /verify-email/:token; POST /logout
 │   │   ├── users.js           # GET /leaderboard, /online, /search, /:id/profile
 │   │   ├── games.js           # GET /history, /:id
 │   │   ├── rooms.js           # Factory: createRoomRouter(roomManager)
@@ -73,7 +74,8 @@ finns-i-sjon-pro/
 │   │   ├── constants.js       # Spelkonstanter, achievements, tillstånd
 │   │   ├── elo.js             # ELO-beräkningsalgoritm
 │   │   ├── sanitize.js        # XSS-sanering (escapeHtml)
-│   │   └── logger.js          # Loggningshjälpare (färgad dev / JSON prod)
+│   │   ├── logger.js          # Loggningshjälpare (färgad dev / JSON prod)
+│   │   └── email.js           # SMTP-e-post: verifiering & lösenordsåterställning
 │   └── webrtc/
 │       └── signaling.js       # WebRTC-signaling (offer/answer/ICE) via Socket.IO
 │
@@ -81,6 +83,8 @@ finns-i-sjon-pro/
 │   ├── index.html             # Lobby / landing page
 │   ├── game.html              # Spelbräde
 │   ├── leaderboard.html       # Topplista (standalone)
+│   ├── verify-email.html      # Landningssida för e-postverifiering
+│   ├── reset-password.html    # Formulär för lösenordsåterställning
 │   ├── admin/                 # Admin-panel för temahantering
 │   │   ├── index.html
 │   │   ├── admin.js
@@ -230,8 +234,10 @@ npm run format:check  # Prettier --check (används i CI)
 | `tests/models/Friendship.test.js` | 13 | Vänförfrågningar: skicka, acceptera, avböja, ta bort, lista, kontrollera om vänner |
 | `tests/utils/elo.test.js` | 4 | ELO-beräkning: vinnare/förlorare, upset-win, 3+ spelare, konstant summa |
 | `tests/utils/socket-rate-limit.test.js` | 9 | Rate limiting: gränser, återställning, separata buckets, shorthand-anrop |
+| `tests/models/User.test.js` | 11 | User-modell: skapa, hitta, validera, tokens, verifiering, lösenordsåterställning |
+| `tests/utils/email.test.js` | 9 | E-post: verifieringsmail, reset-mail, SMTP-mock, felhantering |
 
-**Totalt:** 75 tester fördelade på 7 testfiler.
+**Totalt:** 86 tester fördelade på 9 testfiler.
 
 ---
 
@@ -293,7 +299,7 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` — valfria anpassade TURN-servrar
 
 ### Tabeller
-- `users` — användarkonton, ELO, statistik
+- `users` — användarkonton, ELO, statistik, `email_verified`
 - `games` — spelmetadata (vinnare, duration, antal turer)
 - `game_participants` — deltagare per spel med slutlig rank och ELO-förändring
 - `game_events` — händelselogg (frågor, fiskningar, par)
@@ -301,6 +307,7 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `achievements` — upplåsta achievements per användare
 - `game_snapshots` — JSON-snapshots av spelstatus för crash-recovery
 - `theme_files` — base64-kodade kortleksbilder för persistens på ephemeral filesystem
+- `user_tokens` — engångstokens för e-postverifiering (`email_verify`) och lösenordsåterställning (`password_reset`)
 
 ### Index
 Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
@@ -549,6 +556,7 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 - Standings-arrayen i `game_over`-eventet innehåller inte `eloChange` per spelare; varje mottagare får istället ett separat `eloChange`-objekt direkt i event-payloaden.
 - `README.md` anger ibland fel statisk mapp (`public/` istället för `public_html/`).
 - `game_snapshots` skrivs till databasen men läses **inte** automatiskt tillbaka vid serveromstart (inget automatiskt crash-recovery på rum-nivå).
+- E-postutskick kräver miljövariabler (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`). I dev-läge loggas mail till konsolen istället.
 - Cookie-parser är inte installerat, så `req.cookies?.token`-fallbacken i auth-middleware är ej funktionell.
 
 ---
@@ -565,7 +573,7 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 | Ändra spelbräde | `public_html/js/game.js`, `public_html/game.html` |
 | Ändra socket-återanslutning | `public_html/js/socket-client.js` |
 | Ändra ljud/animationer | `public_html/js/audio.js`, `public_html/js/animations.js` |
-| Ändra auth | `server/auth/auth.js`, `server/routes/auth.js` |
+| Ändra auth | `server/auth/auth.js`, `server/routes/auth.js`, `server/utils/email.js` |
 | Ändra vännerlista | `server/models/Friendship.js`, `server/routes/friends.js`, `public_html/js/app.js` |
 | Ändra WebRTC | `server/webrtc/signaling.js`, `public_html/js/voice-chat.js`, `public_html/js/video-chat.js` |
 | Ändra CI/CD | `.github/workflows/ci.yml` |
