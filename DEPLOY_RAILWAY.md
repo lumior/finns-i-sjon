@@ -114,6 +114,52 @@ Om du vill använda `finnsisjon.online` istället för Railway-URL:
 
 ---
 
+## Steg 4.5: Lägg till e-post (SMTP) för verifiering och lösenordsåterställning
+
+För att verifieringsmejl och lösenordsåterställning ska fungera behöver du en SMTP-leverantör.
+
+### Alternativ A: Brevo (rekommenderas, 300 mejl/dag gratis)
+
+1. Gå till [brevo.com](https://www.brevo.com) och skapa gratis konto
+2. Logga in → klicka ditt namn uppe till höger → **SMTP & API**
+3. Klicka **Generate a new SMTP key** och kopiera nyckeln
+4. I Railway → din app → **Variables**, lägg till:
+
+| Variabel | Värde |
+|----------|-------|
+| `SMTP_HOST` | `smtp-relay.brevo.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | Din Brevo SMTP-nyckel |
+| `SMTP_PASS` | Din Brevo SMTP-nyckel |
+| `SMTP_FROM` | `FISK <noreply@din-domän.se>` |
+| `FRONTEND_URL` | `https://din-domän.railway.app` |
+
+### Alternativ B: SendGrid (100 mejl/dag gratis)
+
+1. Gå till [sendgrid.com](https://sendgrid.com) och skapa konto
+2. **Settings** → **API Keys** → **Create API Key** → kopiera nyckeln
+3. **Settings** → **Sender Authentication** → verifiera din e-postadress
+4. I Railway → **Variables**:
+
+| Variabel | Värde |
+|----------|-------|
+| `SMTP_HOST` | `smtp.sendgrid.net` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | `apikey` |
+| `SMTP_PASS` | Din SendGrid API-nyckel |
+| `SMTP_FROM` | `FISK <din@email.com>` |
+| `FRONTEND_URL` | `https://din-domän.railway.app` |
+
+### Viktigt: `FRONTEND_URL`
+
+Utan denna pekar verifieringslänkar på `localhost:3000` och fungerar inte.
+- Med Railway-domän: `https://din-domän.up.railway.app`
+- Med egen domän: `https://finnsisjon.online`
+
+Appen kollar automatiskt `RAILWAY_PUBLIC_DOMAIN` om `FRONTEND_URL` saknas.
+
+---
+
 ## Viktigt om databasen på Railway
 
 På Railway's **gratisplan** är filsystemet "ephemeral" — det betyder att SQLite-databasen **nollställs vid varje deploy/omstart**.
@@ -122,7 +168,7 @@ På Railway's **gratisplan** är filsystemet "ephemeral" — det betyder att SQL
 1. **OK för provkörning** — konton och spelhistorik försvinner vid omstart
 2. **Lägg till Railway PostgreSQL** (gratis, upp till 500 MB):
    - I Railway → "New" → "Database" → "Add PostgreSQL"
-   - Ändra `DATABASE_URL` till PostgreSQL-anslutningssträngen (kräver kodändring)
+   - Railway sätter `DATABASE_URL` automatiskt — inga kodändringar behövs
 
 För en permanent lösning med sparad data rekommenderas att migrera från SQLite till PostgreSQL.
 
