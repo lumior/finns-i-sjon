@@ -4,6 +4,7 @@
  */
 (function () {
     if (!('ontouchstart' in window)) return;
+    if (document.body.classList.contains('game-body')) return;
 
     const PULL_THRESHOLD = 120;
     let startY = 0;

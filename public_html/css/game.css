@@ -3145,3 +3145,79 @@ input:checked + .toggle::after {
         animation: none !important;
     }
 }
+
+/* ── Kick-spelare-modal ── */
+.kick-player-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.kick-player-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-md);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+}
+
+.kick-player-item .player-name {
+    font-weight: 500;
+}
+
+.kick-player-item .btn-kick {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.8rem;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.kick-player-item .btn-kick:hover {
+    background: #b91c1c;
+}
+
+.kick-player-item .btn-kick:disabled {
+    background: #6b7280;
+    cursor: not-allowed;
+}
+
+/* ── Offline-banner ── */
+.offline-banner {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: #dc2626;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease;
+}
+
+.offline-banner.hidden {
+    display: none;
+}
+
+.offline-banner.offline-reconnecting {
+    background: #f59e0b;
+}
+
+.offline-banner.offline-connected {
+    background: #16a34a;
+}

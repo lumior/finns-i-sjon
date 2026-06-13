@@ -226,6 +226,7 @@ class GameClient {
             if (window.audioManager) {
                 audioManager.resume();
             }
+            this.setOfflineBanner('connected');
             this.handleReconnection(data);
         });
         
@@ -251,6 +252,7 @@ class GameClient {
         
         gameSocket.on('disconnected', () => {
             this.addLogEntry('⚠️ Anslutning förlorad - försker återansluta...', 'system');
+            this.setOfflineBanner('reconnecting');
         });
     }
 
@@ -396,6 +398,19 @@ class GameClient {
         
         document.getElementById('host-menu-btn').addEventListener('click', () => {
             document.getElementById('host-menu').classList.toggle('hidden');
+        });
+
+        document.getElementById('kick-player-btn').addEventListener('click', () => {
+            document.getElementById('host-menu').classList.add('hidden');
+            this.showKickModal();
+        });
+
+        const kickModal = document.getElementById('kick-modal');
+        document.querySelector('#kick-modal .modal-close')?.addEventListener('click', () => {
+            this.closeModal(kickModal);
+        });
+        document.querySelector('#kick-modal .modal-overlay')?.addEventListener('click', () => {
+            this.closeModal(kickModal);
         });
         
         // Event delegation för kort-klick vid pending card request
@@ -787,23 +802,8 @@ class GameClient {
             });
         }
         
-        // Initiera röstchatt endast om det finns mänskliga motståndare
-        const hasHumanOpponent = this.gameState?.players?.some(p => !p.isYou && !p.isAI);
-        if (hasHumanOpponent) {
-            if (this.voiceChat) {
-                this.voiceChat.disconnect();
-                this.voiceChat = null;
-            }
-            this.voiceChat = new VideoChatManager(gameSocket);
-            this.voiceChat.initialize().then(success => {
-                if (success) {
-                    this.voiceUI = new VideoChatUI(this.voiceChat);
-                    this.voiceUI.createUI();
-                    this.voiceUI.show();
-                    this.voiceUI.setStatus('Ansluten');
-                }
-            });
-        }
+        // Röst/videochatt aktiveras manuellt via voice-chat-toggle-knappen,
+        // inte automatiskt vid spelets start.
     }
 
     handleTurnResult(data) {
@@ -1933,6 +1933,127 @@ class GameClient {
         return div.innerHTML;
     }
 
+    setOfflineBanner(state) {
+        const banner = document.getElementById('offline-banner');
+        if (!banner) return;
+
+        banner.classList.remove('offline-reconnecting', 'offline-connected');
+
+        if (state === 'connected') {
+            banner.classList.add('offline-connected');
+            banner.querySelector('.offline-text').textContent = 'Anslutning återupprättad';
+            banner.classList.remove('hidden');
+            setTimeout(() => banner.classList.add('hidden'), 2000);
+        } else if (state === 'reconnecting') {
+            banner.classList.add('offline-reconnecting');
+            banner.querySelector('.offline-text').textContent = 'Anslutning förlorad – återansluter…';
+            banner.classList.remove('hidden');
+        } else {
+            banner.classList.add('hidden');
+        }
+    }
+
+    showKickModal() {
+        const modal = document.getElementById('kick-modal');
+        const list = document.getElementById('kick-player-list');
+        list.innerHTML = '';
+
+        const humanOpponents = this.gameState?.players?.filter(p => !p.isYou && !p.isAI) || [];
+        if (humanOpponents.length === 0) {
+            list.innerHTML = '<p class="text-muted">Inga mänskliga spelare att kicka.</p>';
+        } else {
+            humanOpponents.forEach(player => {
+                const item = document.createElement('div');
+                item.className = 'kick-player-item';
+                item.innerHTML = `<span class="player-name">${this.escapeHtml(player.name)}</span>`;
+
+                const kickBtn = document.createElement('button');
+                kickBtn.className = 'btn-kick';
+                kickBtn.textContent = 'Kicka';
+                kickBtn.addEventListener('click', () => {
+                    gameSocket.emit('kick_player', { targetSocketId: player.socketId || player.id });
+                    this.closeModal(modal);
+                });
+
+                item.appendChild(kickBtn);
+                list.appendChild(item);
+            });
+        }
+
+        this.openModal(modal);
+    }
+
+    getFocusableElements(modal) {
+        return Array.from(
+            modal.querySelectorAll(
+                'a[href], button:not([disabled]), input, textarea, select, [tabindex]:not([tabindex="-1"])'
+            )
+        ).filter(el => el.offsetParent !== null);
+    }
+
+    trapFocus(modal) {
+        return e => {
+            if (e.key !== 'Tab') return;
+            const focusable = this.getFocusableElements(modal);
+            if (focusable.length === 0) {
+                e.preventDefault();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        };
+    }
+
+    openModal(modal) {
+        if (!modal) return;
+        this.lastFocusedElement = document.activeElement;
+        modal.classList.remove('hidden');
+
+        const focusable = this.getFocusableElements(modal);
+        const title = modal.querySelector('[id$="-modal-title"]');
+        if (focusable.length > 0) {
+            focusable[0].focus();
+        } else if (title) {
+            title.setAttribute('tabindex', '-1');
+            title.focus();
+        }
+
+        modal.focusHandler = this.trapFocus(modal);
+        modal.keyHandler = e => {
+            if (e.key === 'Escape') {
+                modal.classList.add('hidden');
+                this.closeModal(modal);
+            }
+        };
+
+        modal.addEventListener('keydown', modal.focusHandler);
+        document.addEventListener('keydown', modal.keyHandler);
+    }
+
+    closeModal(modal) {
+        if (!modal) return;
+        modal.classList.add('hidden');
+        if (modal.focusHandler) {
+            modal.removeEventListener('keydown', modal.focusHandler);
+            modal.focusHandler = null;
+        }
+        if (modal.keyHandler) {
+            document.removeEventListener('keydown', modal.keyHandler);
+            modal.keyHandler = null;
+        }
+        if (this.lastFocusedElement) {
+            this.lastFocusedElement.focus();
+            this.lastFocusedElement = null;
+        }
+    }
+
     showModal(title, message, buttonText = 'OK', onClose = null) {
         const modal = document.getElementById('alert-modal');
         document.getElementById('alert-modal-title').textContent = title;
@@ -1941,15 +2062,13 @@ class GameClient {
         btn.textContent = buttonText;
 
         const closeHandler = () => {
-            modal.classList.add('hidden');
-            btn.removeEventListener('click', closeHandler);
+            this.closeModal(modal);
             if (onClose) onClose();
         };
-        btn.addEventListener('click', closeHandler);
-        // Also close on overlay click
+        btn.addEventListener('click', closeHandler, { once: true });
         modal.querySelector('.modal-overlay').addEventListener('click', closeHandler, { once: true });
 
-        modal.classList.remove('hidden');
+        this.openModal(modal);
     }
 
     showError(message) {

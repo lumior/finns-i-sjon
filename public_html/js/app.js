@@ -34,15 +34,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadLeaderboard();
     updateOnlineStats();
     loadDeckThemes();
-    startRoomsPolling();
-    
+    connectLobbySocket();
+
     if (window.socket) {
         localStorage.setItem('socketId', window.socket.id);
     }
 });
 
 window.addEventListener('beforeunload', () => {
-    stopRoomsPolling();
+    disconnectLobbySocket();
 });
 
 async function checkAuth() {
@@ -181,11 +181,29 @@ function setupEventListeners() {
     document.getElementById('room-filter').addEventListener('change', filterRooms);
 }
 
+function setButtonLoading(containerId, loading) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const submitBtn = container.tagName === 'FORM'
+        ? container.querySelector('button[type="submit"]')
+        : container.querySelector('button');
+    if (!submitBtn) return;
+    if (loading) {
+        submitBtn.dataset.originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Skickar…';
+        submitBtn.disabled = true;
+    } else {
+        submitBtn.textContent = submitBtn.dataset.originalText || submitBtn.textContent;
+        submitBtn.disabled = false;
+    }
+}
+
 async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
-    
+
+    setButtonLoading('login-form', true);
     try {
         const response = await fetch('/api/auth/login', {
             method: 'POST',
@@ -210,6 +228,8 @@ async function handleLogin(e) {
         }
     } catch (error) {
         showError('Nätverksfel - försök igen');
+    } finally {
+        setButtonLoading('login-form', false);
     }
 }
 
@@ -219,7 +239,8 @@ async function handleRegister(e) {
     const email = document.getElementById('reg-email').value;
     const displayName = document.getElementById('reg-display').value;
     const password = document.getElementById('reg-password').value;
-    
+
+    setButtonLoading('register-form', true);
     try {
         const response = await fetch('/api/auth/register', {
             method: 'POST',
@@ -241,6 +262,8 @@ async function handleRegister(e) {
         }
     } catch (error) {
         showError('Nätverksfel - försök igen');
+    } finally {
+        setButtonLoading('register-form', false);
     }
 }
 
@@ -249,6 +272,7 @@ async function handleForgotPassword(e) {
     const email = document.getElementById('forgot-email').value;
     const messageEl = document.getElementById('forgot-message');
 
+    setButtonLoading('forgot-form', true);
     try {
         const response = await fetch('/api/auth/forgot-password', {
             method: 'POST',
@@ -263,6 +287,8 @@ async function handleForgotPassword(e) {
     } catch (err) {
         messageEl.textContent = 'Något gick fel. Försök igen.';
         messageEl.className = 'form-message error';
+    } finally {
+        setButtonLoading('forgot-form', false);
     }
 }
 
@@ -301,7 +327,7 @@ async function logout() {
     showAuthButtons();
 }
 
-let roomsRefreshInterval = null;
+let lobbySocket = null;
 
 async function loadRooms() {
     try {
@@ -315,21 +341,30 @@ async function loadRooms() {
     }
 }
 
-function startRoomsPolling() {
-    if (roomsRefreshInterval) return;
-    console.log('🔄 Startar bords-polling');
-    // Polling var 10:e sekund för realtidsuppdatering av bordslistan
-    roomsRefreshInterval = setInterval(() => {
-        console.log('🔄 Polling: hämtar bordslista...');
-        loadRooms();
+function connectLobbySocket() {
+    if (lobbySocket) return;
+
+    lobbySocket = io({ auth: { token: AppState.token } });
+
+    lobbySocket.on('connect', () => {
+        console.log('🟢 Lobby Socket.IO ansluten');
+    });
+
+    lobbySocket.on('lobby_update', rooms => {
+        console.log('🔄 Lobby-uppdatering: fick', rooms.length, 'bord');
+        renderRooms(rooms);
         updateOnlineStats();
-    }, 10000);
+    });
+
+    lobbySocket.on('disconnect', reason => {
+        console.log('🔴 Lobby Socket.IO frånkopplad:', reason);
+    });
 }
 
-function stopRoomsPolling() {
-    if (roomsRefreshInterval) {
-        clearInterval(roomsRefreshInterval);
-        roomsRefreshInterval = null;
+function disconnectLobbySocket() {
+    if (lobbySocket) {
+        lobbySocket.disconnect();
+        lobbySocket = null;
     }
 }
 
@@ -491,6 +526,7 @@ async function confirmJoinRoom() {
 }
 
 async function createRoom() {
+    setButtonLoading('create-room-form', true);
     const playerName = document.getElementById('create-name').value.trim();
     const roomName = document.getElementById('create-room-name').value.trim();
     const password = document.getElementById('create-password').value;
@@ -530,19 +566,23 @@ async function createRoom() {
     });
     
     socket.on('error', (data) => {
+        setButtonLoading('create-room-form', false);
         showError(data.message);
     });
 }
 
 async function startAIGame() {
+    setButtonLoading('ai-options', true);
     const playerName = document.getElementById('ai-player-name').value.trim();
     const difficulty = AppState.selectedDifficulty;
     
     if (!playerName) {
+        setButtonLoading('ai-options', false);
         showError('Ange ditt namn');
         return;
     }
     if (!difficulty) {
+        setButtonLoading('ai-options', false);
         showError('Välj en svårighetsgrad');
         return;
     }
@@ -569,6 +609,11 @@ async function startAIGame() {
             socket.disconnect();
             window.location.href = `/game.html?room=${data.roomId}&host=true&ai=${difficulty}`;
         }, 500);
+    });
+
+    socket.on('error', (data) => {
+        setButtonLoading('ai-options', false);
+        showError(data.message);
     });
 }
 
@@ -623,12 +668,88 @@ async function updateOnlineStats() {
     }
 }
 
+let activeModal = null;
+let activeModalFocusHandler = null;
+let activeModalKeyHandler = null;
+let lastFocusedElement = null;
+
+function getFocusableElements(modal) {
+    return Array.from(
+        modal.querySelectorAll(
+            'a[href], button:not([disabled]), input, textarea, select, [tabindex]:not([tabindex="-1"])'
+        )
+    ).filter(el => el.offsetParent !== null);
+}
+
+function trapFocus(modal) {
+    return e => {
+        if (e.key !== 'Tab') return;
+        const focusable = getFocusableElements(modal);
+        if (focusable.length === 0) {
+            e.preventDefault();
+            return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    };
+}
+
 function showModal(id) {
-    document.getElementById(id).classList.remove('hidden');
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    lastFocusedElement = document.activeElement;
+    modal.classList.remove('hidden');
+    activeModal = modal;
+
+    const focusable = getFocusableElements(modal);
+    const title = modal.querySelector('[id$="-modal-title"]');
+    if (focusable.length > 0) {
+        focusable[0].focus();
+    } else if (title) {
+        title.setAttribute('tabindex', '-1');
+        title.focus();
+    }
+
+    activeModalFocusHandler = trapFocus(modal);
+    activeModalKeyHandler = e => {
+        if (e.key === 'Escape') {
+            hideModal(id);
+        }
+    };
+
+    modal.addEventListener('keydown', activeModalFocusHandler);
+    document.addEventListener('keydown', activeModalKeyHandler);
 }
 
 function hideModal(id) {
-    document.getElementById(id).classList.add('hidden');
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+
+    if (activeModal === modal) {
+        if (activeModalFocusHandler) {
+            modal.removeEventListener('keydown', activeModalFocusHandler);
+            activeModalFocusHandler = null;
+        }
+        if (activeModalKeyHandler) {
+            document.removeEventListener('keydown', activeModalKeyHandler);
+            activeModalKeyHandler = null;
+        }
+        activeModal = null;
+        if (lastFocusedElement) {
+            lastFocusedElement.focus();
+            lastFocusedElement = null;
+        }
+    }
 }
 
 function showError(message) {
