@@ -84,7 +84,7 @@ class GameEngine {
             'max:',
             this.settings.maxPlayers
         );
-        if (this.players.length + this.aiPlayers.length >= this.settings.maxPlayers) {
+        if (this.players.length >= this.settings.maxPlayers) {
             return { success: false, error: 'Bordet är fullt' };
         }
         if (this.state !== GAME_STATES.WAITING) {
@@ -136,10 +136,9 @@ class GameEngine {
         if (!this.settings.allowAI) {
             return { success: false, error: 'AI-spelare är inte tillåtna' };
         }
-        // Tillåt alltid fler AI-spelare upp till totalt 6 (för debugging med multi-AI)
-        const totalPlayers = this.players.length + this.aiPlayers.length;
-        if (totalPlayers >= 6) {
-            return { success: false, error: 'Max 6 spelare totalt' };
+        const totalPlayers = this.players.length;
+        if (totalPlayers >= this.settings.maxPlayers) {
+            return { success: false, error: `Max ${this.settings.maxPlayers} spelare totalt` };
         }
         if (this.state !== GAME_STATES.WAITING) {
             return { success: false, error: 'Spelet har redan börjat' };

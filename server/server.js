@@ -25,11 +25,31 @@ const adminRoutes = require('./routes/admin');
 const friendsRoutes = require('./routes/friends');
 const registerSocketHandlers = require('./sockets');
 
+// Bestäm tillåtna CORS-origins. I produktion används FRONTEND_URL/RAILWAY_PUBLIC_DOMAIN/BASE_URL.
+function getAllowedOrigins() {
+    const origins = [];
+    if (process.env.FRONTEND_URL) {
+        origins.push(process.env.FRONTEND_URL);
+    }
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+        origins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+    }
+    if (process.env.BASE_URL) {
+        origins.push(process.env.BASE_URL);
+    }
+    if (process.env.NODE_ENV !== 'production') {
+        origins.push('http://localhost:3000', 'http://127.0.0.1:3000');
+    }
+    return origins.length > 0 ? origins : true;
+}
+
+const corsOrigin = getAllowedOrigins();
+
 const app = express();
 app.set('trust proxy', 1); // Krävs för korrekt rate limiting bakom Railway's proxy
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: true, methods: ['GET', 'POST'], credentials: true },
+    cors: { origin: corsOrigin, methods: ['GET', 'POST'], credentials: true },
     pingTimeout: 60000,
     pingInterval: 10000 // Kortare ping för att hålla Android-anslutningar vid liv
 });
@@ -43,9 +63,7 @@ console.log('🔧 Miljövariabler:', {
     NODE_ENV: process.env.NODE_ENV,
     PORT: process.env.PORT,
     DATABASE_URL: process.env.DATABASE_URL ? 'satt' : 'saknas',
-    JWT_SECRET: process.env.JWT_SECRET
-        ? `satt (längd: ${process.env.JWT_SECRET.length}, startar med: ${process.env.JWT_SECRET.substring(0, 4)}...)`
-        : 'SAKNAS',
+    JWT_SECRET: process.env.JWT_SECRET ? 'satt' : 'SAKNAS',
     DB_PATH: process.env.DB_PATH
 });
 
@@ -71,7 +89,7 @@ app.use(
         }
     })
 );
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '../public_html')));
 

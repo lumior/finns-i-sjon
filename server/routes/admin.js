@@ -4,6 +4,17 @@ const path = require('path');
 const router = express.Router();
 const db = require('../config/database');
 
+/**
+ * Middleware: kräv inloggning och admin-roll.
+ * Admin-routen registreras efter global auth-middleware, så req.user finns satt.
+ */
+function requireAdmin(req, res, next) {
+    if (!req.user || !req.user.isAdmin) {
+        return res.status(403).json({ success: false, error: 'Åtkomst nekad. Endast administratörer.' });
+    }
+    next();
+}
+
 const CARDS_DIR = path.join(__dirname, '../../public_html/assets/cards');
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const SUIT_FOLDERS = ['aubergine', 'radish', 'pepper', 'potato'];
@@ -174,7 +185,7 @@ router.get('/themes/:theme/config', (req, res) => {
  * POST /api/admin/themes
  * Skapa nytt tema med bilder + config.json
  */
-router.post('/themes', (req, res) => {
+router.post('/themes', requireAdmin, (req, res) => {
     try {
         const { themeName, cards, back, config } = req.body;
 
@@ -229,7 +240,7 @@ router.post('/themes', (req, res) => {
  * PUT /api/admin/themes/:theme
  * Uppdatera befintligt tema (bilder + config)
  */
-router.put('/themes/:theme', (req, res) => {
+router.put('/themes/:theme', requireAdmin, (req, res) => {
     try {
         const themeFolder = req.params.theme;
         const { cards, back, config } = req.body;
@@ -289,7 +300,7 @@ router.put('/themes/:theme', (req, res) => {
  * POST /api/admin/themes/:theme/upload
  * Spara kortleksbilder direkt till servern (dataURL-format, bakåtkompatibel)
  */
-router.post('/themes/:theme/upload', (req, res) => {
+router.post('/themes/:theme/upload', requireAdmin, (req, res) => {
     try {
         const themeFolder = req.params.theme;
         const { cards, back } = req.body;

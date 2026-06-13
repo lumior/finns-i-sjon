@@ -54,7 +54,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                         playerName: result.player.name
                     });
 
-                    io.to(result.roomId).emit('game_state_update', result.game.getPublicState(socket.id));
+                    broadcastToRoom(result.game, 'game_state_update', {}, true);
                 } else {
                     console.log(
                         `❌ [RECONNECT_FAIL] ${socket.id} kunde inte återansluta (oldSocketId=${oldSocketId}). Spelare finns inte kvar i något rum.`
@@ -160,7 +160,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                     aiCount: result.game.aiPlayers.length
                 });
 
-                io.to(roomId).emit('game_state_update', result.game.getPublicState(socket.id));
+                broadcastToRoom(result.game, 'game_state_update', {}, true);
                 io.emit('lobby_update', roomManager.getPublicRoomList());
             })
         );
@@ -188,10 +188,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                     return;
                 }
 
-                io.to(room.game.roomId).emit('ai_added', {
-                    player: result.player,
-                    gameState: room.game.getPublicState(socket.id)
-                });
+                broadcastToRoom(room.game, 'ai_added', { player: result.player }, true);
 
                 io.emit('lobby_update', roomManager.getPublicRoomList());
             })
@@ -236,12 +233,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 game.setIo(io);
                 game.startGame();
 
-                io.to(game.roomId).emit('game_started', {
-                    gameState: game.getPublicState(socket.id),
-                    firstPlayer: game.getCurrentPlayer()?.name
-                });
-
-                io.to(game.roomId).emit('game_state_update', game.getPublicState(socket.id));
+                broadcastToRoom(game, 'game_started', { firstPlayer: game.getCurrentPlayer()?.name }, true);
 
                 const currentPlayer = game.getCurrentPlayer();
                 if (currentPlayer?.isAI) {
@@ -264,7 +256,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 const result = roomManager.removeAIFromRoom(room.game.roomId, aiId);
                 if (result.success) {
                     io.to(room.game.roomId).emit('ai_removed', { aiId });
-                    io.to(room.game.roomId).emit('game_state_update', room.game.getPublicState(socket.id));
+                    broadcastToRoom(room.game, 'game_state_update', {}, true);
                 }
             })
         );
@@ -519,11 +511,15 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
                 const result = room.game.surrender(socket.id);
                 if (result.success) {
-                    io.to(room.game.roomId).emit('player_surrendered', {
-                        playerId: result.player.id,
-                        playerName: result.player.name,
-                        gameState: room.game.getPublicState(socket.id)
-                    });
+                    broadcastToRoom(
+                        room.game,
+                        'player_surrendered',
+                        {
+                            playerId: result.player.id,
+                            playerName: result.player.name
+                        },
+                        true
+                    );
 
                     if (result.gameOver) {
                         handleGameEnd(room.game, room);

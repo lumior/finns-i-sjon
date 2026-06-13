@@ -13,7 +13,8 @@ class Auth {
             {
                 userId: user.id,
                 username: user.username,
-                displayName: user.display_name
+                displayName: user.display_name,
+                isAdmin: user.is_admin === 1 || user.is_admin === true
             },
             JWT_SECRET,
             { expiresIn: '7d' }
@@ -54,7 +55,8 @@ class Auth {
                 username: user.username,
                 displayName: user.display_name,
                 avatarUrl: user.avatar_url,
-                elo: user.elo_rating
+                elo: user.elo_rating,
+                isAdmin: user.is_admin === 1 || user.is_admin === true
             };
             next();
         };
@@ -82,7 +84,8 @@ class Auth {
                         username: user.username,
                         displayName: user.display_name,
                         avatarUrl: user.avatar_url,
-                        elo: user.elo_rating
+                        elo: user.elo_rating,
+                        isAdmin: user.is_admin === 1 || user.is_admin === true
                     };
                 }
                 next();

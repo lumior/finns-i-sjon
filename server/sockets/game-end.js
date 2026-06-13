@@ -1,5 +1,10 @@
 function createHandleGameEnd(io, roomManager, Game, User, ELO) {
     return async function handleGameEnd(game, _room) {
+        if (game._ending) {
+            return;
+        }
+        game._ending = true;
+
         const standings = game.calculateWinner();
 
         try {
@@ -61,14 +66,14 @@ function createHandleGameEnd(io, roomManager, Game, User, ELO) {
                 .filter(p => p.userId)
                 .map(async player => {
                     const isWinner = !isTie && player.rank === 1;
+                    const userBeforeUpdate = await User.findById(player.userId);
+
                     await User.updateStats(player.userId, {
                         games_played: 1,
                         games_won: isWinner ? 1 : 0,
                         games_lost: isWinner ? 0 : isTie ? 0 : 1,
                         total_pairs: player.pairs
                     });
-
-                    const userBeforeUpdate = await User.findById(player.userId);
                     const gamePlayer = game.players.find(p => p.id === player.id);
                     const achievements = game.checkAchievements(gamePlayer, 'game_end', {
                         isWinner,

@@ -88,7 +88,8 @@ class Database {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_login TIMESTAMP,
                     is_online SMALLINT DEFAULT 0,
-                    email_verified SMALLINT DEFAULT 0
+                    email_verified SMALLINT DEFAULT 0,
+                    is_admin SMALLINT DEFAULT 0
                 )
             `);
 
@@ -195,6 +196,7 @@ class Database {
             await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified SMALLINT DEFAULT 0`).catch(
                 () => {}
             );
+            await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin SMALLINT DEFAULT 0`).catch(() => {});
             await this.run(
                 `CREATE TABLE IF NOT EXISTS user_tokens (id SERIAL PRIMARY KEY, user_id INT NOT NULL, token VARCHAR(255) UNIQUE NOT NULL, type VARCHAR(30) NOT NULL, expires_at TIMESTAMP NOT NULL, used SMALLINT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
             );
@@ -227,7 +229,8 @@ class Database {
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     last_login DATETIME,
                     is_online TINYINT DEFAULT 0,
-                    email_verified TINYINT DEFAULT 0
+                    email_verified TINYINT DEFAULT 0,
+                    is_admin TINYINT DEFAULT 0
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
@@ -328,6 +331,7 @@ class Database {
             await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified TINYINT DEFAULT 0`).catch(
                 () => {}
             );
+            await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin TINYINT DEFAULT 0`).catch(() => {});
             await this.run(
                 `CREATE TABLE IF NOT EXISTS user_tokens (id INT PRIMARY KEY AUTO_INCREMENT, user_id INT NOT NULL, token VARCHAR(255) UNIQUE NOT NULL, type VARCHAR(30) NOT NULL, expires_at DATETIME NOT NULL, used TINYINT DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
             );
@@ -391,7 +395,7 @@ class Database {
 
         this.db.serialize(() => {
             this.db.run(
-                `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, display_name TEXT, avatar_url TEXT DEFAULT '/assets/images/default-avatar.png', elo_rating INTEGER DEFAULT 1200, games_played INTEGER DEFAULT 0, games_won INTEGER DEFAULT 0, games_lost INTEGER DEFAULT 0, total_pairs INTEGER DEFAULT 0, total_fishings INTEGER DEFAULT 0, total_asks INTEGER DEFAULT 0, successful_asks INTEGER DEFAULT 0, longest_streak INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_login DATETIME, is_online INTEGER DEFAULT 0, email_verified INTEGER DEFAULT 0)`
+                `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, display_name TEXT, avatar_url TEXT DEFAULT '/assets/images/default-avatar.png', elo_rating INTEGER DEFAULT 1200, games_played INTEGER DEFAULT 0, games_won INTEGER DEFAULT 0, games_lost INTEGER DEFAULT 0, total_pairs INTEGER DEFAULT 0, total_fishings INTEGER DEFAULT 0, total_asks INTEGER DEFAULT 0, successful_asks INTEGER DEFAULT 0, longest_streak INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_login DATETIME, is_online INTEGER DEFAULT 0, email_verified INTEGER DEFAULT 0, is_admin INTEGER DEFAULT 0)`
             );
             this.db.run(
                 `CREATE TABLE IF NOT EXISTS user_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, token TEXT UNIQUE NOT NULL, type TEXT NOT NULL, expires_at DATETIME NOT NULL, used INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
@@ -417,8 +421,9 @@ class Database {
             this.db.run(
                 `CREATE TABLE IF NOT EXISTS theme_files (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_name TEXT NOT NULL, file_path TEXT NOT NULL, file_data TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_name, file_path))`
             );
-            // Migration: lägg till email_verified och user_tokens för befintliga SQLite-databaser
+            // Migration: lägg till email_verified, is_admin och user_tokens för befintliga SQLite-databaser
             this.db.run(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`, () => {});
+            this.db.run(`ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`, () => {});
             this.db.run(
                 `CREATE TABLE IF NOT EXISTS user_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, token TEXT UNIQUE NOT NULL, type TEXT NOT NULL, expires_at DATETIME NOT NULL, used INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
                 () => {
