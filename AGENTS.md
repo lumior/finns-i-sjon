@@ -52,14 +52,16 @@ finns-i-sjon-pro/
 │   │   └── auth.js            # JWT-generering, verifiering, middleware, socketAuth
 │   ├── models/
 │   │   ├── User.js            # CRUD för användare, statistik, achievements
-│   │   └── Game.js            # Spelhistorik, event-loggning
+│   │   ├── Game.js            # Spelhistorik, event-loggning (inaktiv persistens)
+│   │   └── Friendship.js      # Vänförfrågningar och vännerlista
 │   ├── routes/
-│   │   ├── auth.js            # POST /register, /login, /forgot-password, /reset-password, /resend-verification; GET /me, /verify-email/:token; POST /logout
-│   │   ├── users.js           # GET /leaderboard, /online, /search, /:id/profile
-│   │   ├── games.js           # GET /history, /:id
+│   │   ├── auth.js            # Auth-endpoints
+│   │   ├── users.js           # Leaderboard, online, sök, profiler
+│   │   ├── games.js           # Spelhistorik
 │   │   ├── rooms.js           # Factory: createRoomRouter(roomManager)
-│   │   ├── stats.js           # GET /total-games
-│   │   └── admin.js           # GET /themes, /themes/:theme (kortlekshantering)
+│   │   ├── stats.js           # Totala spel
+│   │   ├── admin.js           # Admin-API för kortleksteman
+│   │   └── friends.js         # Vännerlista-API
 │   ├── game/
 │   │   ├── GameEngine.js      # Spelregler, turhantering, par, AI-anslutning
 │   │   ├── RoomManager.js     # Rums-CRUD, join/leave/kick, reconnection, ban
@@ -75,7 +77,8 @@ finns-i-sjon-pro/
 │   │   ├── elo.js             # ELO-beräkningsalgoritm
 │   │   ├── sanitize.js        # XSS-sanering (escapeHtml)
 │   │   ├── logger.js          # Loggningshjälpare (färgad dev / JSON prod)
-│   │   └── email.js           # SMTP-e-post: verifiering & lösenordsåterställning
+│   │   ├── email.js           # SMTP-e-post: verifiering & lösenordsåterställning
+│   │   └── socket-rate-limit.js # In-memory rate limiter för Socket.IO-events
 │   └── webrtc/
 │       └── signaling.js       # WebRTC-signaling (offer/answer/ICE) via Socket.IO
 │
@@ -128,7 +131,8 @@ finns-i-sjon-pro/
 │   │   ├── AIPlayer.test.js
 │   │   └── RoomManager.test.js
 │   ├── models/
-│   │   └── Friendship.test.js
+│   │   ├── Friendship.test.js
+│   │   └── User.test.js
 │   └── utils/
 │       ├── elo.test.js
 │       └── socket-rate-limit.test.js
@@ -231,13 +235,12 @@ npm run format:check  # Prettier --check (används i CI)
 | `tests/game/CardDeck.test.js` | 6 | Kortleksinitiering (52 kort), blanda, dra, `isEmpty`, `remaining` |
 | `tests/game/RoomManager.test.js` | 18 | Rums-CRUD, join/leave (force/soft), kick, **ban**, reconnect, lösenord, spectator, bannade spelare |
 | `tests/game/AIPlayer.test.js` | 9 | AI-initiering, minne, beslutsfattning, pruning, konsekutiva frågor, svårighetsgrader |
-| `tests/models/Friendship.test.js` | 13 | Vänförfrågningar: skicka, acceptera, avböja, ta bort, lista, kontrollera om vänner |
+| `tests/models/Friendship.test.js` | 15 | Vänförfrågningar: skicka, acceptera, avböja, ta bort, lista, kontrollera om vänner |
+| `tests/models/User.test.js` | 9 | User-modell: skapa, hitta, validera, tokens, verifiering, lösenordsåterställning |
 | `tests/utils/elo.test.js` | 4 | ELO-beräkning: vinnare/förlorare, upset-win, 3+ spelare, konstant summa |
 | `tests/utils/socket-rate-limit.test.js` | 9 | Rate limiting: gränser, återställning, separata buckets, shorthand-anrop |
-| `tests/models/User.test.js` | 11 | User-modell: skapa, hitta, validera, tokens, verifiering, lösenordsåterställning |
-| `tests/utils/email.test.js` | 9 | E-post: verifieringsmail, reset-mail, SMTP-mock, felhantering |
 
-**Totalt:** 86 tester fördelade på 9 testfiler.
+**Totalt:** 86 tester fördelade på 8 testfiler.
 
 ---
 
@@ -245,7 +248,7 @@ npm run format:check  # Prettier --check (används i CI)
 
 ### Autentisering
 - JWT med 7 dagars giltighet (`expiresIn: '7d'`).
-- `JWT_SECRET` **måste** vara satt i produktion (`NODE_ENV=production`). Servern kastar ett fel och avbryter uppstarten om den saknas. Fallback i kod (`'default-secret-change-me'`) gäller endast för utveckling.
+- `JWT_SECRET` **måste** vara satt i produktion (`NODE_ENV=production`). Modulen `server/auth/auth.js` kastar ett fel vid import om kravet inte är uppfyllt, vilket stoppar serveruppstarten. Fallback i kod (`'default-secret-change-me'`) gäller endast för utveckling.
 - Token skickas i `Authorization: Bearer <token>`-header för REST, och i `socket.handshake.auth.token` för Socket.IO.
 - Auth-middleware sätter `req.user` / `socket.user` till `null` vid saknad/ogiltig token (aldrig hårda fel).
 - Middleware läser även token från `req.query.token` som fallback. Observera att `req.cookies?.token` finns i koden men är ej funktionellt eftersom `cookie-parser` inte är installerat.
@@ -266,7 +269,7 @@ npm run format:check  # Prettier --check (används i CI)
 - Övriga API: 600 / 15 minuter
 - Socket.IO-events: per-event-begränsningar via `server/utils/socket-rate-limit.js`:
   - `create_room`, `start_game`, `surrender`, `dev_ai_vs_ai`: 5 / minut
-  - `join_room`, `add_ai`, `remove_ai`, `kick_player`, `update_settings`, `reconnect_attempt`, `leave_room`: 10 / minut
+  - `join_room`, `add_ai`, `remove_ai`, `kick_player`, `ban_player`, `update_settings`, `reconnect_attempt`, `leave_room`: 10 / minut
   - `chat_message`, `toggle_ready`: 30 / minut
   - `ask_cards`, `respond_to_ask`: 60 / minut
   - WebRTC (`voice_join`, `voice_leave`, `webrtc_offer`, `webrtc_answer`): 10–60 / minut
@@ -277,7 +280,7 @@ npm run format:check  # Prettier --check (används i CI)
 - `express.json({ limit: '50mb' })` är satt i `server/server.js` för att hantera stora base64-uppladdningar av kortleksbilder via admin-API:t.
 
 ### Övrigt
-- `friendships`-tabellen används nu av vännerlistan (modell: `server/models/Friendship.js`, routes: `server/routes/friends.js`).
+- `friendships`-tabellen används av vännerlistan (modell: `server/models/Friendship.js`, routes: `server/routes/friends.js`).
 - `banPlayer` finns i `RoomManager` och exponeras via Socket.IO-eventet `ban_player` (wrappad med rate limit). Bannade inloggade spelare spåras även via `userId` så att de inte kan återansluta med ny socket.
 
 ---
@@ -300,14 +303,14 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 
 ### Tabeller
 - `users` — användarkonton, ELO, statistik, `email_verified`
+- `user_tokens` — engångstokens för e-postverifiering (`email_verify`) och lösenordsåterställning (`password_reset`)
 - `games` — spelmetadata (vinnare, duration, antal turer)
 - `game_participants` — deltagare per spel med slutlig rank och ELO-förändring
-- `game_events` — händelselogg (frågor, fiskningar, par)
+- `game_events` — händelselogg (frågor, fiskningar, par). **Observera:** tabellen finns och `Game.logEvent()` är definierat, men det anropas för närvarande inte från spelmotorn. Händelser lagras endast i minnet (`this.gameEvents`) och i JSON-snapshots.
 - `friendships` — vänförfrågningar (status: `pending`/`accepted`); används av vännerlista-API:t
 - `achievements` — upplåsta achievements per användare
 - `game_snapshots` — JSON-snapshots av spelstatus för crash-recovery
 - `theme_files` — base64-kodade kortleksbilder för persistens på ephemeral filesystem
-- `user_tokens` — engångstokens för e-postverifiering (`email_verify`) och lösenordsåterställning (`password_reset`)
 
 ### Index
 Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
@@ -326,12 +329,78 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 
 ### Tema-filsynk (DB ↔ Filsystem)
 - `database.js` innehåller `saveThemeFiles(themeName)` och `restoreThemeFiles()` för att hantera kortleksbilder på Railways ephemeral filesystem.
-- Vid serverstart återställs temafiler från databasen om de saknas på disk (`server.js` anropar `db.restoreThemeFiles()`).
+- Vid serverstart återställs temafiler från databasen om de saknas på disk (`server.js` anropar `db.waitForConnection().then(db.restoreThemeFiles)`).
 - Nya teman sparas till både filsystem och databas via admin-API:t.
 
 ---
 
-## 9. Socket.IO-arkitektur
+## 9. REST API
+
+### Auth (`/api/auth`)
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| POST | `/register` | Registrera ny användare, skicka verifieringsmail |
+| POST | `/login` | Logga in, returnera JWT |
+| GET | `/me` | Aktuell användares profil + achievements |
+| POST | `/logout` | Sätt offline-status |
+| GET | `/verify-email/:token` | Verifiera e-postadress |
+| POST | `/resend-verification` | Skicka ny verifieringslänk |
+| POST | `/forgot-password` | Skicka lösenordsåterställningsmail |
+| POST | `/reset-password` | Uppdatera lösenord med token |
+
+### Users (`/api/users`)
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| GET | `/leaderboard` | Topplista (max `?limit=`) |
+| GET | `/online` | Online-användare |
+| GET | `/search?q=` | Sök användare (minst 2 tecken) |
+| GET | `/:id/profile` | Publik profil + achievements + senaste spel |
+
+### Games (`/api/games`)
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| GET | `/history` | Aktuell användares spelhistorik |
+| GET | `/:id` | Detaljer för ett spel |
+
+### Rooms (`/api/rooms`)
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| GET | `/` | Lista publika rum |
+| GET | `/:id` | Detaljer för ett rum |
+
+### Stats (`/api/stats`)
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| GET | `/total-games` | Totalt antal spelade spel |
+
+### Friends (`/api/friends`) — kräver inloggning
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| GET | `/` | Vänner, mottagna/skickade förfrågningar |
+| POST | `/request` | Skicka vänförfrågan (`username` eller `userId`) |
+| POST | `/accept/:requestId` | Acceptera förfrågan |
+| POST | `/reject/:requestId` | Avböj förfrågan |
+| DELETE | `/:friendId` | Ta bort vän |
+
+### Admin (`/api/admin`) — ingen extra auth-roll, endpointarna är öppna för alla som når dem
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| GET | `/themes` | Lista alla kortleksteman på disk |
+| GET | `/themes/:theme` | Detaljer för ett tema (suit-status, bildsökvägar) |
+| GET | `/themes/:theme/config` | Hämta `config.json` för redigering |
+| POST | `/themes` | Skapa nytt tema (base64-bilder + config) |
+| PUT | `/themes/:theme` | Uppdatera befintligt tema |
+| POST | `/themes/:theme/upload` | Ladda upp tema i dataURL-format (bakåtkompatibel) |
+
+### Övriga publika endpoints
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| GET | `/api/themes` | Lista tillgängliga kortleksteman (inkl. "standard") |
+| GET | `/health` | Hälsokontroll (`{ status: 'ok', timestamp }`) |
+
+---
+
+## 10. Socket.IO-arkitektur
 
 - **Namespace:** Default `/`
 - **Auth-middleware:** `Auth.socketAuth` körs före `connection`-event
@@ -396,7 +465,7 @@ Inuti `createSocketHandlers` finns en closure `broadcastToRoom(game, event, base
 
 ---
 
-## 10. WebRTC-signaleringsarkitektur
+## 11. WebRTC-signaleringsarkitektur
 
 Fil: `server/webrtc/signaling.js`
 
@@ -414,7 +483,7 @@ ICE-servrar:
 
 ---
 
-## 11. Kortleks-teman och tillgångar
+## 12. Kortleks-teman och tillgångar
 
 Kortleksbilderna ligger under `public_html/assets/cards/` och är organiserade i **tema-kategorier** (t.ex. `vegetable`, `frukt`, `saker`). Varje kategori innehåller 4 undermappar som motsvarar "färger":
 
@@ -429,11 +498,13 @@ Varje färg-mapp innehåller 13 bildfiler: `A.png`, `2.png` … `10.png`, `J.png
 
 **Fallback:** Om en bild saknas renderas kortet med standard Unicode (rank + färgsymbol).
 
-**Admin-API:** `server/routes/admin.js` exponerar `/api/admin/themes` och `/api/admin/themes/:theme` för att lista och inspektera teman. Admin-panelen finns under `public_html/admin/`.
+**Admin-API:** `server/routes/admin.js` exponerar `/api/admin/themes`, `/api/admin/themes/:theme`, `/api/admin/themes/:theme/config`, `POST /api/admin/themes`, `PUT /api/admin/themes/:theme` och `POST /api/admin/themes/:theme/upload` för att lista, skapa och uppdatera teman. Admin-panelen finns under `public_html/admin/`.
+
+**Detaljerad dokumentation:** Omfattande admin-funktioner (pip-mönster, face cards, mallar, import/export, undo/redo, drag & drop) beskrivs i `CHANGELOG.md` och `ANALYS.md`.
 
 ---
 
-## 12. Driftsättning
+## 13. Driftsättning
 
 ### Railway (primär metod)
 1. Repo på GitHub, kopplat till Railway
@@ -446,10 +517,12 @@ Varje färg-mapp innehåller 13 bildfiler: `A.png`, `2.png` … `10.png`, `J.png
    - `RATE_LIMIT_WINDOW` / `RATE_LIMIT_MAX` — valfria rate-limit-överskridningar
    - `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` — valfria anpassade TURN-servrar
    - `DB_FALLBACK=false` — rekommenderas i prod för att undvika SQLite
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` — för e-postutskick
+   - `FRONTEND_URL` eller `BASE_URL` — för länkar i e-post. Railway sätter även `RAILWAY_PUBLIC_DOMAIN` automatiskt.
 
 **Viktigt:** På Railways gratisplan är filsystemet "ephemeral". Använd PostgreSQL (`DATABASE_URL`) för att inte förlora användardata vid omstart. Servern kör `app.set('trust proxy', 1)` för korrekt rate-limiting bakom Railways proxy. Temafiler sparas även till databasen (`theme_files`-tabellen) och återställs vid uppstart.
 
-**Se även:** `DEPLOY_RAILWAY.md` för en mer detaljerad steg-för-steg-guide.
+**Se även:** `DEPLOY_RAILWAY.md` för en mer detaljerad steg-för-steg-guide inklusive SMTP-konfiguration.
 
 ### Lokalt
 ```bash
@@ -462,7 +535,7 @@ npm run dev
 
 ---
 
-## 13. Utvecklingskonventioner
+## 14. Utvecklingskonventioner
 
 ### Innan du commitar
 1. Kör `npm run lint` — fixa fel
@@ -537,6 +610,7 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 - **`DEPLOY_RAILWAY.md`** — detaljerad deploy-guide för Railway
 - **`PROJEKTPLAN.md`** — originalplan med achievements, färgpalett, ljudsystem och animationer
 - **`DEBUGGING_LOG.md`** — historisk debugg- och bugfix-logg
+- **`CHANGELOG.md`** — sammanfattning av sprint-ändringar
 - **`CHANGELOG_SESSION_YYYY-MM-DD.md`** / **`CHAT_SESSION_YYYY-MM-DD.md`** — loggar från tidigare utvecklingssessioner
 - **`BUGFIX_*.md`** — dokumentation av specifika buggfixar (t.ex. mobil spectator-buggen)
 
@@ -548,7 +622,7 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 
 ---
 
-## 14. Kända begränsningar
+## 15. Kända begränsningar
 
 - ~~`friendships`-tabellen finns men används inte i frontend eller backend.~~ ✅ Åtgärdat — vännerlista finns nu i lobby.
 - ~~`banPlayer` finns i `RoomManager` men saknar en Socket.IO-handler.~~ ✅ Åtgärdat — `ban_player` är exponerad.
@@ -556,12 +630,13 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 - Standings-arrayen i `game_over`-eventet innehåller inte `eloChange` per spelare; varje mottagare får istället ett separat `eloChange`-objekt direkt i event-payloaden.
 - `README.md` anger ibland fel statisk mapp (`public/` istället för `public_html/`).
 - `game_snapshots` skrivs till databasen men läses **inte** automatiskt tillbaka vid serveromstart (inget automatiskt crash-recovery på rum-nivå).
+- `game_events`-tabellen fylls **inte** med persistensdata. `Game.logEvent()` finns men anropas inte från spelmotorn; händelser lagras endast i minnet och i snapshots.
 - E-postutskick kräver miljövariabler (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`). I dev-läge loggas mail till konsolen istället.
 - Cookie-parser är inte installerat, så `req.cookies?.token`-fallbacken i auth-middleware är ej funktionell.
 
 ---
 
-## 15. Snabbreferens: Viktiga filer att läsa
+## 16. Snabbreferens: Viktiga filer att läsa
 
 | Om du ska… | Läs dessa filer |
 |------------|-----------------|
