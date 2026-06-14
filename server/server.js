@@ -179,7 +179,7 @@ db.waitForConnection()
         console.error('Fel vid återställning av temafiler:', err.message);
     });
 
-server.listen(PORT, '0.0.0.0', () => {
+const httpServer = server.listen(PORT, '0.0.0.0', () => {
     console.log('🎣 ==========================================');
     console.log('🎴  FISK - Finns i sjön');
     console.log('🎣 ==========================================');
@@ -201,5 +201,31 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('  ✅ Topplista & sökning');
     console.log('');
 });
+
+function gracefulShutdown(signal) {
+    console.log(`\n${signal} mottaget. Stänger ner servern…`);
+    httpServer.close(async () => {
+        console.log('HTTP-server stängd.');
+        io.close(() => {
+            console.log('Socket.IO stängt.');
+        });
+        try {
+            await db.close();
+            console.log('Databasanslutning stängd.');
+        } catch (err) {
+            console.error('Fel vid stängning av databas:', err.message);
+        }
+        process.exit(0);
+    });
+
+    // Tvingad avstängning om graceful shutdown tar för lång tid
+    setTimeout(() => {
+        console.error('Tvingad avstängning efter timeout.');
+        process.exit(1);
+    }, 10000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 module.exports = { app, server, io };

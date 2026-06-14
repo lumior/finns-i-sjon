@@ -75,7 +75,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                     return;
                 }
 
-                const result = roomManager.createRoom(playerName.trim(), socket.id, {
+                const result = await roomManager.createRoom(playerName.trim(), socket.id, {
                     roomName: roomName?.trim(),
                     password: password?.trim(),
                     gameType: gameType || 'standard',
@@ -125,7 +125,13 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                       }
                     : null;
 
-                const result = roomManager.joinRoom(roomId, playerName.trim(), socket.id, password?.trim(), userData);
+                const result = await roomManager.joinRoom(
+                    roomId,
+                    playerName.trim(),
+                    socket.id,
+                    password?.trim(),
+                    userData
+                );
 
                 if (!result.success) {
                     socket.emit('error', { message: result.error });

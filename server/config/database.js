@@ -60,6 +60,14 @@ class Database {
         }
 
         // 3. Fallback till SQLite
+        if (process.env.NODE_ENV === 'production' && process.env.DB_FALLBACK !== 'true') {
+            throw new Error(
+                'Ingen PostgreSQL- eller MariaDB-anslutning kunde etableras i produktion. ' +
+                    'Sätt DATABASE_URL (rekommenderat) eller DB_HOST/DB_USER/DB_PASSWORD/DB_NAME, ' +
+                    'eller sätt DB_FALLBACK=true om du medvetet vill använda SQLite.'
+            );
+        }
+
         if (process.env.DB_FALLBACK !== 'false') {
             console.log('⚠️  Falling back to SQLite...');
             this.initSQLiteFallback();
@@ -666,6 +674,22 @@ class Database {
             }
         } catch (err) {
             console.error('Fel vid återställning av temafiler:', err.message);
+        }
+    }
+
+    async close() {
+        if (this.isSQLite && this.db) {
+            await new Promise((resolve, reject) => {
+                this.db.close(err => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+        } else if (this.pool) {
+            await this.pool.end();
         }
     }
 }

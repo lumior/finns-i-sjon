@@ -1275,109 +1275,141 @@ class GameClient {
         console.log('🃏 renderHand called:', { handLength: hand.length, deckTheme: this.settings.deckTheme, useImageDeck: this.settings.deckTheme !== 'standard', pairsLength: pairs.length });
         const container = document.getElementById('my-hand');
         const suits = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
-        
+
         let sortedHand = [...hand];
-        
+
         if (this.settings.autoSort) {
-            const rankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+            const rankOrder = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
             sortedHand.sort((a, b) => {
                 const av = rankOrder.indexOf(a.rank);
                 const bv = rankOrder.indexOf(b.rank);
                 return av - bv;
             });
         }
-        
+
         const cardStyleClass = `card-style-${this.settings.cardStyle}`;
         const deckTheme = this.settings.deckTheme;
         const useImageDeck = deckTheme !== 'standard';
-        
+
         const suitToVeggie = {
             hearts: 'aubergine',
             diamonds: 'radish',
             clubs: 'pepper',
             spades: 'potato'
         };
-        
-        container.innerHTML = sortedHand.map((card, index) => {
+
+        // Anpassa handens kompakthet efter antal kort på små skärmar
+        container.classList.toggle('hand-compact', sortedHand.length >= 8);
+        container.classList.toggle('hand-tight', sortedHand.length >= 12);
+
+        // Diffa mot befintliga kort för att slippa förstöra och återskapa DOM:en
+        const existingCards = new Map();
+        container.querySelectorAll('.card[data-card-id]').forEach(el => {
+            existingCards.set(el.dataset.cardId, el);
+        });
+
+        const newCardIds = new Set(sortedHand.map(c => c.id));
+        const fragment = document.createDocumentFragment();
+
+        sortedHand.forEach((card, index) => {
             const rotation = (index - sortedHand.length / 2) * 3;
             const translateY = Math.abs(index - sortedHand.length / 2) * -2;
-            const transformStyle = `transform: rotate(${rotation}deg) translateY(${translateY}px)`;
-            
-            if (useImageDeck) {
-                const veggie = suitToVeggie[card.suit];
-                const isRedCard = card.suit === 'hearts' || card.suit === 'diamonds';
-                return `
-                    <div class="card card-deck-image ${cardStyleClass}"
-                         data-card-id="${card.id}"
-                         style="${transformStyle}">
-                        <img src="/assets/cards/${deckTheme}/${veggie}/${card.rank}.png"
-                             alt="${card.rank}"
-                             data-fb-rank="${card.rank}"
-                             data-fb-suit="${suits[card.suit]}"
-                             data-fb-red="${isRedCard}">
-                    </div>
-                `;
+            const transformStyle = `rotate(${rotation}deg) translateY(${translateY}px)`;
+
+            let cardEl = existingCards.get(card.id);
+            const isNew = !cardEl;
+
+            if (isNew) {
+                cardEl = document.createElement('div');
+                cardEl.className = `card ${cardStyleClass}`;
+                cardEl.dataset.cardId = card.id;
+
+                if (useImageDeck) {
+                    cardEl.classList.add('card-deck-image');
+                    const veggie = suitToVeggie[card.suit];
+                    const isRedCard = card.suit === 'hearts' || card.suit === 'diamonds';
+                    const img = document.createElement('img');
+                    img.src = `/assets/cards/${deckTheme}/${veggie}/${card.rank}.png`;
+                    img.alt = card.rank;
+                    img.dataset.fbRank = card.rank;
+                    img.dataset.fbSuit = suits[card.suit];
+                    img.dataset.fbRed = isRedCard;
+                    img.addEventListener(
+                        'error',
+                        function onCardImgError() {
+                            this.style.display = 'none';
+                            const parent = this.parentElement;
+                            parent.classList.remove('card-deck-image');
+                            const isRed = this.dataset.fbRed === 'true';
+                            parent.classList.add(isRed ? 'red' : 'black');
+                            parent.innerHTML = `<span class='rank-top'>${this.dataset.fbRank}</span><span class='suit'>${this.dataset.fbSuit}</span><span class='rank-bottom'>${this.dataset.fbRank}</span>`;
+                        },
+                        { once: true }
+                    );
+                    cardEl.appendChild(img);
+                } else {
+                    const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
+                    cardEl.classList.add(isRed ? 'red' : 'black');
+                    cardEl.innerHTML = `<span class="rank-top">${card.rank}</span><span class="suit">${suits[card.suit]}</span><span class="rank-bottom">${card.rank}</span>`;
+                }
             }
-            
-            const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
-            return `
-                <div class="card ${isRed ? 'red' : 'black'} ${cardStyleClass}"
-                     data-card-id="${card.id}"
-                     style="${transformStyle}">
-                    <span class="rank-top">${card.rank}</span>
-                    <span class="suit">${suits[card.suit]}</span>
-                    <span class="rank-bottom">${card.rank}</span>
-                </div>
-            `;
-        }).join('');
-        
-        // Sätt upp fallback-lyssnare för kortbilder (utan inline onerror)
-        container.querySelectorAll('.card-deck-image img').forEach(img => {
-            img.addEventListener('error', function onCardImgError() {
-                this.style.display = 'none';
-                const parent = this.parentElement;
-                parent.classList.remove('card-deck-image');
-                const isRed = this.dataset.fbRed === 'true';
-                parent.classList.add(isRed ? 'red' : 'black');
-                parent.innerHTML = `<span class='rank-top'>${this.dataset.fbRank}</span><span class='suit'>${this.dataset.fbSuit}</span><span class='rank-bottom'>${this.dataset.fbRank}</span>`;
-                this.removeEventListener('error', onCardImgError);
-            }, { once: true });
+
+            // Uppdatera alltid transform och stil så ordningen blir rätt
+            cardEl.style.transform = transformStyle;
+            cardEl.className = `card ${cardStyleClass}${useImageDeck ? ' card-deck-image' : ''}${!useImageDeck && (card.suit === 'hearts' || card.suit === 'diamonds') ? ' red' : !useImageDeck ? ' black' : ''}`;
+
+            fragment.appendChild(cardEl);
         });
-        
+
+        // Ta bort kort som inte längre finns i handen
+        existingCards.forEach((el, cardId) => {
+            if (!newCardIds.has(cardId)) {
+                el.remove();
+            }
+        });
+
+        container.appendChild(fragment);
+
+        requestAnimationFrame(() => {
+            container.classList.toggle('scrollable', container.scrollWidth > container.clientWidth);
+        });
+
         document.getElementById('my-pairs').textContent = pairs.length;
         const mobilePairsCount = document.getElementById('mobile-pairs-count');
         if (mobilePairsCount) mobilePairsCount.textContent = pairs.length;
-        
+
         const me = this.gameState?.players.find(p => p.isYou);
         if (me) {
             const totalAsks = me.successfulAsks + me.failedAsks;
             const rate = totalAsks > 0 ? Math.round((me.successfulAsks / totalAsks) * 100) : 0;
             document.getElementById('my-success-rate').textContent = `${rate}%`;
         }
-        
+
         if (window.animationManager) {
             const newCards = container.querySelectorAll('.card:not([data-animated])');
-            newCards.forEach((card, i) => {
+            newCards.forEach(card => {
                 card.setAttribute('data-animated', 'true');
                 animationManager.animateCardReceive(card);
             });
         }
-        
+
         // Om det finns en aktiv card request, highlighta matchande kort
         if (this.pendingCardRequest) {
             const requestedRank = this.pendingCardRequest.rank;
             const cards = container.querySelectorAll('.card');
             const matchingCards = [];
-            
+
             cards.forEach(cardEl => {
                 const cardId = cardEl.dataset.cardId;
                 const cardData = hand.find(c => c.id === cardId);
                 if (cardData && cardData.rank === requestedRank) {
                     cardEl.classList.add('card-request-highlight');
                     matchingCards.push(cardEl);
+                } else {
+                    cardEl.classList.remove('card-request-highlight');
                 }
             });
-            
+
             // Uppdatera Fisk!-knappens synlighet baserat på om man har kortet
             const fiskBtn = document.getElementById('card-request-fisk');
             if (fiskBtn) {

@@ -1,5 +1,6 @@
 const GameEngine = require('./GameEngine');
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcryptjs');
 
 class RoomManager {
     constructor() {
@@ -8,7 +9,7 @@ class RoomManager {
         this.userRooms = new Map();
     }
 
-    createRoom(hostName, hostSocketId, options = {}) {
+    async createRoom(hostName, hostSocketId, options = {}) {
         const {
             roomName = null,
             password = null,
@@ -36,12 +37,14 @@ class RoomManager {
             return { success: false, error: result.error };
         }
 
+        const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+
         this.rooms.set(roomId, {
             game,
             name: roomName || `Bord ${roomId}`,
             createdAt: new Date(),
             hostSocketId,
-            password: password || null,
+            passwordHash,
             isPrivate: !!password,
             bannedPlayers: new Set(),
             bannedUserIds: new Set()
@@ -52,7 +55,7 @@ class RoomManager {
         return { success: true, roomId, game };
     }
 
-    joinRoom(roomId, playerName, socketId, password = null, userData = null) {
+    async joinRoom(roomId, playerName, socketId, password = null, userData = null) {
         console.log(`🔍 [JOIN] ${playerName} → ${roomId}, socket=${socketId}, rooms=${this.rooms.size}`);
         const room = this.rooms.get(roomId.toUpperCase());
         if (!room) {
@@ -67,8 +70,11 @@ class RoomManager {
             return { success: false, error: 'Du är bannad från detta rum' };
         }
 
-        if (room.password && room.password !== password) {
-            return { success: false, error: 'Fel lösenord' };
+        if (room.passwordHash) {
+            const valid = await bcrypt.compare(password || '', room.passwordHash);
+            if (!valid) {
+                return { success: false, error: 'Fel lösenord' };
+            }
         }
 
         const game = room.game;
