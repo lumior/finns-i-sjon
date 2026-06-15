@@ -347,7 +347,9 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
         socket.on(
             'ask_cards',
             rateLimit('ask_cards', 60, 60000, data => {
-                const { targetId, rank } = data;
+                // Klienten skickar pairId; rank finns kvar för bakåtkompatibilitet
+                const pairId = data.pairId !== undefined ? data.pairId : data.rank;
+                const { targetId } = data;
                 const room = roomManager.getRoomBySocket(socket.id);
                 if (!room) {
                     return;
@@ -356,7 +358,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 const game = room.game;
                 const target = game.players.find(p => p.id === targetId || p.socketId === targetId);
                 if (target?.isAI) {
-                    const result = game.askForCards(socket.id, targetId, rank);
+                    const result = game.askForCards(socket.id, targetId, pairId);
 
                     if (!result.success) {
                         socket.emit('turn_result', {
@@ -380,7 +382,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                     return;
                 }
 
-                const result = game.requestAsk(socket.id, targetId, rank);
+                const result = game.requestAsk(socket.id, targetId, pairId);
 
                 if (!result.success) {
                     socket.emit('turn_result', {
