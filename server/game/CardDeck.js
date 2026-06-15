@@ -1,4 +1,8 @@
 const Theme = require('../models/Theme');
+const fs = require('fs');
+const path = require('path');
+
+const CARDS_DIR = path.join(__dirname, '../../public_html/assets/cards');
 
 class CardDeck {
     constructor() {
@@ -24,21 +28,41 @@ class CardDeck {
         }
 
         for (const pair of pairs) {
-            const pairId = pair.pairId;
+            const pairId = pair.pair_id;
             const name = pair.name;
-            const imagePath = pair.imagePath || `${folderName}/${pairId}.png`;
+            let imagePath = pair.image_path;
+
+            if (!imagePath) {
+                // Fallback: försök hitta bilden i filsystemet
+                const newPath = path.join(CARDS_DIR, folderName, `${pairId}.png`);
+                if (fs.existsSync(newPath)) {
+                    imagePath = `${folderName}/${pairId}.png`;
+                } else {
+                    const rank = String(pairId).replace(/^pair-/, '');
+                    const legacyFolders = ['aubergine', 'radish', 'pepper', 'potato'];
+                    for (const sub of legacyFolders) {
+                        const legacyPath = path.join(CARDS_DIR, folderName, sub, `${rank}.png`);
+                        if (fs.existsSync(legacyPath)) {
+                            imagePath = `${folderName}/${sub}/${rank}.png`;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const finalImagePath = imagePath || `${folderName}/${pairId}.png`;
 
             this.cards.push({
                 id: `${pairId}-a`,
                 pairId,
                 name,
-                image: `/assets/cards/${imagePath}`
+                image: `/assets/cards/${finalImagePath}`
             });
             this.cards.push({
                 id: `${pairId}-b`,
                 pairId,
                 name,
-                image: `/assets/cards/${imagePath}`
+                image: `/assets/cards/${finalImagePath}`
             });
         }
 

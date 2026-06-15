@@ -649,10 +649,10 @@ class Database {
 
             // Spara par-bilder (nya strukturen)
             for (const pair of pairs) {
-                const filePath = path.join(themePath, `${pair.pairId}.png`);
+                const filePath = path.join(themePath, `${pair.pair_id}.png`);
                 if (fs.existsSync(filePath)) {
                     const base64 = fs.readFileSync(filePath).toString('base64');
-                    const dbPath = `${themeName}/${pair.pairId}.png`;
+                    const dbPath = `${themeName}/${pair.pair_id}.png`;
                     if (this.isPostgres) {
                         await this.run(
                             'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES ($1, $2, $3)',

@@ -55,8 +55,10 @@ class Theme {
     }
 
     static async getPairs(themeId) {
+        // Använd snake_case-kolumnnamn direkt; PostgreSQL viker annars
+        // icke-citerade camelCase-alias till gemener (pairId -> pairid).
         return db.query(
-            'SELECT pair_id AS pairId, name, sort_order AS sortOrder, image_path AS imagePath FROM theme_pairs WHERE theme_id = ? ORDER BY sort_order, pair_id',
+            'SELECT pair_id, name, sort_order, image_path FROM theme_pairs WHERE theme_id = ? ORDER BY sort_order, pair_id',
             [themeId]
         );
     }
@@ -67,6 +69,44 @@ class Theme {
             return [];
         }
         return Theme.getPairs(theme.id);
+    }
+
+    /**
+     * Fyll i image_path för par som saknar det, baserat på filsystemet.
+     * Används för att reparera äldre databasposter där kolumnalias
+     * tidigare lästes felaktigt (PostgreSQL viker camelCase till gemener).
+     */
+    static async repairMissingImagePaths(themeId, folderName, pairs) {
+        const legacyFolders = ['aubergine', 'radish', 'pepper', 'potato'];
+        const hasLegacy = legacyFolders.some(f => fs.existsSync(path.join(CARDS_DIR, folderName, f)));
+
+        for (const pair of pairs) {
+            if (pair.image_path) {
+                continue;
+            }
+
+            let imagePath = null;
+            const pairId = pair.pair_id;
+
+            // Ny struktur: pair-*.png direkt i temamappen
+            const newPath = path.join(CARDS_DIR, folderName, `${pairId}.png`);
+            if (fs.existsSync(newPath)) {
+                imagePath = `${folderName}/${pairId}.png`;
+            }
+
+            // Legacy-struktur: aubergine/{rank}.png
+            if (!imagePath && hasLegacy) {
+                const rank = pairId.replace(/^pair-/, '');
+                const legacyPath = path.join(CARDS_DIR, folderName, 'aubergine', `${rank}.png`);
+                if (fs.existsSync(legacyPath)) {
+                    imagePath = `${folderName}/aubergine/${rank}.png`;
+                }
+            }
+
+            if (imagePath) {
+                await Theme.updatePair(themeId, pairId, { imagePath });
+            }
+        }
     }
 
     static async addPair(themeId, { pairId, name, sortOrder = 0, imagePath = null }) {
@@ -134,6 +174,8 @@ class Theme {
 
             const existingPairs = await Theme.getPairs(theme.id);
             if (existingPairs.length > 0) {
+                // Reparera eventuella par som saknar image_path (t.ex. gamla PostgreSQL-rader)
+                await Theme.repairMissingImagePaths(theme.id, folderName, existingPairs);
                 continue;
             }
 

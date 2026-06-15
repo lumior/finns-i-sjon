@@ -35,7 +35,7 @@ async function scanThemes() {
             folder: theme.folder_name,
             pairCount: pairs.length,
             complete: pairs.length >= 25,
-            preview: pairs.length > 0 ? pairs[pairs.length - 1].imagePath : null,
+            preview: pairs.length > 0 ? pairs[pairs.length - 1].image_path : null,
             editable: true
         });
     }
@@ -78,10 +78,10 @@ router.get('/themes/:theme', async (req, res) => {
                 name: theme.display_name,
                 folder: theme.folder_name,
                 pairs: pairs.map(p => ({
-                    pairId: p.pairId,
+                    pairId: p.pair_id,
                     name: p.name,
-                    sortOrder: p.sortOrder,
-                    imagePath: p.imagePath
+                    sortOrder: p.sort_order,
+                    imagePath: p.image_path
                 })),
                 editable: true
             }
@@ -105,7 +105,17 @@ router.get('/themes/:theme/config', async (req, res) => {
         }
 
         const pairs = await Theme.getPairs(theme.id);
-        res.json({ success: true, config: { pairs } });
+        res.json({
+            success: true,
+            config: {
+                pairs: pairs.map(p => ({
+                    pairId: p.pair_id,
+                    name: p.name,
+                    sortOrder: p.sort_order,
+                    imagePath: p.image_path
+                }))
+            }
+        });
     } catch (err) {
         console.error('Admin config error:', err);
         res.status(500).json({ success: false, error: 'Kunde inte läsa konfiguration' });

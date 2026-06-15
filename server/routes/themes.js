@@ -23,10 +23,10 @@ router.get('/', async (req, res) => {
                 pairCount: pairs.length,
                 complete: pairs.length >= 25,
                 pairs: pairs.map(p => ({
-                    pairId: p.pairId,
+                    pairId: p.pair_id,
                     name: p.name,
-                    sortOrder: p.sortOrder,
-                    imagePath: p.imagePath
+                    sortOrder: p.sort_order,
+                    imagePath: p.image_path
                 }))
             });
         }
@@ -58,10 +58,10 @@ router.get('/:folder', async (req, res) => {
                 description: theme.description,
                 pairCount: pairs.length,
                 pairs: pairs.map(p => ({
-                    pairId: p.pairId,
+                    pairId: p.pair_id,
                     name: p.name,
-                    sortOrder: p.sortOrder,
-                    imagePath: p.imagePath
+                    sortOrder: p.sort_order,
+                    imagePath: p.image_path
                 }))
             }
         });
