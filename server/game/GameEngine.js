@@ -6,7 +6,8 @@ const {
 
     CARDS_PER_PLAYER_2P,
     CARDS_PER_PLAYER_MULTI,
-    GAME_STATES
+    GAME_STATES,
+    TURN_TIMEOUT
 } = require('../utils/constants');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -25,8 +26,8 @@ class GameEngine {
         this.chatHistory = [];
         this.gameLog = [];
         this.turnTimer = null;
-        this.turnTimeout = 45000;
-        this.maxTurnTime = 60000;
+        this.turnTimeout = TURN_TIMEOUT;
+        this.maxTurnTime = TURN_TIMEOUT;
 
         this.startTime = null;
         this.endTime = null;

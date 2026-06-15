@@ -453,7 +453,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 - **`requestAsk()` + `respond_to_ask()`** för mänskliga spelare (asynkront pending-ask-mönster)
 
 ### Timeout och återanslutning
-- **Tur-timer:** 45 sekunder (`TURN_TIMEOUT`). Om en spelare inte svarar på en `card_request` i tid auto-löser servern förfrågan som "Fisk!" via `autoResolvePendingAsk()`.
+- **Tur-timer:** 3 minuter (`TURN_TIMEOUT`). Om en spelare inte svarar på en `card_request` i tid auto-löser servern förfrågan som "Fisk!" via `autoResolvePendingAsk()`.
 - **AI-drag-fördröjning:** 1500 ms för normala AI-drag; 2000 ms för spelets första AI-drag. `AIPlayer.js` internt använder 1000–3000 ms för sitt beslutsfattande.
 - **Disconnect-grace:** Vid `disconnect` väntar servern **60 sekunder** innan `forceRemove` körs, vilket ger utrymme för återanslutning.
 - **Rumsrensning:** Om inga mänskliga spelare återstår eller spelet är avslutat schemaläggs rummet för borttagning efter **5 minuter**.

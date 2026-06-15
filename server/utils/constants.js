@@ -48,7 +48,7 @@ const GAME_CONSTANTS = {
         CHAT_MASTER: 'chat_master'
     },
     ELO_K_FACTOR: 32,
-    TURN_TIMEOUT: 45000,
+    TURN_TIMEOUT: 180000,
     MAX_TURN_TIME: 60000,
     CHAT_MAX_LENGTH: 200,
     GAME_LOG_MAX: 50,
