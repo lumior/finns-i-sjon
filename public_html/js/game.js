@@ -1213,9 +1213,11 @@ class GameClient {
                 }
             }
             
-            // Kort-baksidor (endast om antalet ändrats)
+            // Kort-baksidor (om antalet ändrats eller temat ändrats)
             const cardsEl = el.querySelector('.opponent-cards');
-            if (cardsEl && cardsEl.children.length !== p.cardCount) {
+            const currentBackTheme = cardsEl?.dataset.deckTheme || '';
+            if (cardsEl && (cardsEl.children.length !== p.cardCount || currentBackTheme !== deckBackClass)) {
+                cardsEl.dataset.deckTheme = deckBackClass;
                 cardsEl.innerHTML = Array(p.cardCount).fill(0).map((_, i) =>
                     `<div class="card-back ${deckBackClass}" style="left: ${i * -8}px; z-index: ${i}; transform: rotate(${i * 3 - 6}deg)"></div>`
                 ).join('');
@@ -1317,12 +1319,19 @@ class GameClient {
             const transformStyle = `rotate(${rotation}deg) translateY(${translateY}px)`;
 
             let cardEl = existingCards.get(card.id);
-            const isNew = !cardEl;
+            const themeChanged = cardEl && cardEl.dataset.deckTheme !== deckTheme;
+            const isNew = !cardEl || themeChanged;
+
+            if (themeChanged) {
+                cardEl.remove();
+                cardEl = null;
+            }
 
             if (isNew) {
                 cardEl = document.createElement('div');
                 cardEl.className = `card ${cardStyleClass}`;
                 cardEl.dataset.cardId = card.id;
+                cardEl.dataset.deckTheme = deckTheme;
 
                 if (useImageDeck) {
                     cardEl.classList.add('card-deck-image');
@@ -1357,6 +1366,7 @@ class GameClient {
             // Uppdatera alltid transform och stil så ordningen blir rätt
             cardEl.style.transform = transformStyle;
             cardEl.className = `card ${cardStyleClass}${useImageDeck ? ' card-deck-image' : ''}${!useImageDeck && (card.suit === 'hearts' || card.suit === 'diamonds') ? ' red' : !useImageDeck ? ' black' : ''}`;
+            cardEl.dataset.deckTheme = deckTheme;
 
             fragment.appendChild(cardEl);
         });
