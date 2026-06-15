@@ -296,7 +296,15 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 game.players.forEach(p => {
                     p.ready = false;
                 });
-                await game.startGame();
+
+                try {
+                    await game.startGame();
+                } catch (startErr) {
+                    console.error('❌ Fel vid startGame:', startErr);
+                    socket.emit('error', { message: 'Kunde inte starta spelet. Kontrollera kortlekstemat.' });
+                    return;
+                }
+
                 game.onGameEnd = () => handleGameEnd(game, room);
 
                 broadcastToRoom(game, 'game_started', {}, true);
