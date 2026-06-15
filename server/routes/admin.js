@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const router = express.Router();
 const db = require('../config/database');
+const Theme = require('../models/Theme');
 
 /**
  * Middleware: kräv inloggning och admin-roll.
@@ -16,86 +17,39 @@ function requireAdmin(req, res, next) {
 }
 
 const CARDS_DIR = path.join(__dirname, '../../public_html/assets/cards');
-const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-const SUIT_FOLDERS = ['aubergine', 'radish', 'pepper', 'potato'];
 
 /**
- * Hjälpfunktion: skanna teman från filsystemet
- * Varje tema är en mapp under assets/cards/ som innehåller 4 undermappar
+ * Hjälpfunktion: skanna teman från databasen
+ * Varje tema är en rad i themes-tabellen med tillhörande par i theme_pairs.
  */
-function scanThemes() {
-    if (!fs.existsSync(CARDS_DIR)) {
-        return [];
-    }
+async function scanThemes() {
+    const themes = await Theme.list();
+    const result = [];
 
-    const entries = fs.readdirSync(CARDS_DIR, { withFileTypes: true });
-    const themes = [];
+    for (const theme of themes) {
+        const pairs = await Theme.getPairs(theme.id);
 
-    for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name === 'README.md') {
-            continue;
-        }
-
-        const themePath = path.join(CARDS_DIR, entry.name);
-        let totalCards = 0;
-        let completeSuits = 0;
-        const suitStatus = {};
-
-        for (const suitFolder of SUIT_FOLDERS) {
-            const suitPath = path.join(themePath, suitFolder);
-            if (!fs.existsSync(suitPath)) {
-                suitStatus[suitFolder] = 0;
-                continue;
-            }
-
-            const files = fs.readdirSync(suitPath);
-            const found = RANKS.filter(
-                rank => files.includes(`${rank}.png`) || files.includes(`${rank}.jpg`) || files.includes(`${rank}.webp`)
-            ).length;
-
-            suitStatus[suitFolder] = found;
-            totalCards += found;
-            if (found === 13) {
-                completeSuits++;
-            }
-        }
-
-        const previewRank =
-            RANKS.find(r => {
-                const spadesPath = path.join(themePath, 'potato');
-                if (!fs.existsSync(spadesPath)) {
-                    return false;
-                }
-                const files = fs.readdirSync(spadesPath);
-                return files.includes(`${r}.png`) || files.includes(`${r}.jpg`);
-            }) || 'A';
-
-        // Kolla om temat har en config.json (redigerbart)
-        const hasConfig = fs.existsSync(path.join(themePath, 'config.json'));
-
-        themes.push({
-            id: entry.name,
-            name: entry.name.charAt(0).toUpperCase() + entry.name.slice(1),
-            folder: entry.name,
-            cardCount: totalCards,
-            complete: completeSuits === 4,
-            completeSuits,
-            suitStatus,
-            preview: `/assets/cards/${entry.name}/potato/${previewRank}.png`,
-            editable: hasConfig
+        result.push({
+            id: theme.folder_name,
+            name: theme.display_name,
+            folder: theme.folder_name,
+            pairCount: pairs.length,
+            complete: pairs.length >= 25,
+            preview: pairs.length > 0 ? pairs[pairs.length - 1].imagePath : null,
+            editable: true
         });
     }
 
-    return themes;
+    return result;
 }
 
 /**
  * GET /api/admin/themes
  * Lista alla kortleksteman
  */
-router.get('/themes', (req, res) => {
+router.get('/themes', async (req, res) => {
     try {
-        const themes = scanThemes();
+        const themes = await scanThemes();
         res.json({ success: true, themes });
     } catch (err) {
         console.error('Admin themes error:', err);
@@ -107,46 +61,29 @@ router.get('/themes', (req, res) => {
  * GET /api/admin/themes/:theme
  * Detaljer för ett specifikt tema
  */
-router.get('/themes/:theme', (req, res) => {
+router.get('/themes/:theme', async (req, res) => {
     try {
-        const themeFolder = req.params.theme;
-        const themePath = path.join(CARDS_DIR, themeFolder);
+        const theme = await Theme.findByFolder(req.params.theme);
 
-        if (!fs.existsSync(themePath)) {
+        if (!theme) {
             return res.status(404).json({ success: false, error: 'Tema hittades inte' });
         }
 
-        const suits = {};
-        for (const suitFolder of SUIT_FOLDERS) {
-            const suitPath = path.join(themePath, suitFolder);
-            if (!fs.existsSync(suitPath)) {
-                suits[suitFolder] = { cards: [], exists: false };
-                continue;
-            }
-
-            const files = fs.readdirSync(suitPath);
-            const cards = RANKS.map(rank => {
-                const ext = ['.png', '.jpg', '.webp'].find(e => files.includes(`${rank}${e}`));
-                return {
-                    rank,
-                    exists: !!ext,
-                    path: ext ? `/assets/cards/${themeFolder}/${suitFolder}/${rank}${ext}` : null
-                };
-            });
-
-            suits[suitFolder] = { cards, exists: true };
-        }
-
-        const hasConfig = fs.existsSync(path.join(themePath, 'config.json'));
+        const pairs = await Theme.getPairs(theme.id);
 
         res.json({
             success: true,
             theme: {
-                id: themeFolder,
-                name: themeFolder.charAt(0).toUpperCase() + themeFolder.slice(1),
-                folder: themeFolder,
-                suits,
-                editable: hasConfig
+                id: theme.folder_name,
+                name: theme.display_name,
+                folder: theme.folder_name,
+                pairs: pairs.map(p => ({
+                    pairId: p.pairId,
+                    name: p.name,
+                    sortOrder: p.sortOrder,
+                    imagePath: p.imagePath
+                })),
+                editable: true
             }
         });
     } catch (err) {
@@ -157,24 +94,18 @@ router.get('/themes/:theme', (req, res) => {
 
 /**
  * GET /api/admin/themes/:theme/config
- * Hämta config.json för ett tema (för redigering)
+ * Hämta temats par som en konfiguration (för redigering)
  */
-router.get('/themes/:theme/config', (req, res) => {
+router.get('/themes/:theme/config', async (req, res) => {
     try {
-        const themeFolder = req.params.theme;
-        const themePath = path.join(CARDS_DIR, themeFolder);
-        const configPath = path.join(themePath, 'config.json');
+        const theme = await Theme.findByFolder(req.params.theme);
 
-        if (!fs.existsSync(themePath)) {
+        if (!theme) {
             return res.status(404).json({ success: false, error: 'Tema hittades inte' });
         }
 
-        if (!fs.existsSync(configPath)) {
-            return res.status(404).json({ success: false, error: 'Tema har ingen sparad konfiguration' });
-        }
-
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        res.json({ success: true, config });
+        const pairs = await Theme.getPairs(theme.id);
+        res.json({ success: true, config: { pairs } });
     } catch (err) {
         console.error('Admin config error:', err);
         res.status(500).json({ success: false, error: 'Kunde inte läsa konfiguration' });
@@ -183,11 +114,11 @@ router.get('/themes/:theme/config', (req, res) => {
 
 /**
  * POST /api/admin/themes
- * Skapa nytt tema med bilder + config.json
+ * Skapa nytt tema med par-bilder + baksida
  */
-router.post('/themes', requireAdmin, (req, res) => {
+router.post('/themes', requireAdmin, async (req, res) => {
     try {
-        const { themeName, cards, back, config } = req.body;
+        const { themeName, displayName, pairs, back } = req.body;
 
         if (!themeName || !/^[a-z0-9-]+$/.test(themeName)) {
             return res.status(400).json({ success: false, error: 'Ogiltigt namn' });
@@ -198,20 +129,26 @@ router.post('/themes', requireAdmin, (req, res) => {
             fs.mkdirSync(themePath, { recursive: true });
         }
 
-        const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
         let saved = 0;
+        const pairRecords = [];
 
-        for (const suit of suits) {
-            const folder = path.join(themePath, SUIT_FOLDERS[suits.indexOf(suit)]);
-            if (!fs.existsSync(folder)) {
-                fs.mkdirSync(folder);
-            }
-            for (const rank of RANKS) {
-                const base64 = cards[suit]?.[rank];
-                if (base64) {
-                    fs.writeFileSync(path.join(folder, `${rank}.png`), Buffer.from(base64, 'base64'));
-                    saved++;
+        if (Array.isArray(pairs)) {
+            for (const pair of pairs) {
+                const { pairId, name, sortOrder, imageBase64 } = pair;
+                if (!pairId || !imageBase64) {
+                    continue;
                 }
+
+                const imagePath = `${themeName}/${pairId}.png`;
+                fs.writeFileSync(path.join(themePath, `${pairId}.png`), Buffer.from(imageBase64, 'base64'));
+                saved++;
+
+                pairRecords.push({
+                    pairId,
+                    name: name || pairId,
+                    sortOrder: sortOrder ?? 0,
+                    imagePath
+                });
             }
         }
 
@@ -219,9 +156,14 @@ router.post('/themes', requireAdmin, (req, res) => {
             fs.writeFileSync(path.join(themePath, 'back.png'), Buffer.from(back, 'base64'));
         }
 
-        // Spara config.json om den finns
-        if (config && typeof config === 'object') {
-            fs.writeFileSync(path.join(themePath, 'config.json'), JSON.stringify(config, null, 2));
+        const theme = await Theme.create({
+            folderName: themeName,
+            displayName: displayName || themeName,
+            description: ''
+        });
+
+        if (pairRecords.length > 0) {
+            await Theme.setPairs(theme.id, pairRecords);
         }
 
         // Synka till databasen för persistens (Railway ephemeral filesystem)
@@ -238,39 +180,52 @@ router.post('/themes', requireAdmin, (req, res) => {
 
 /**
  * PUT /api/admin/themes/:theme
- * Uppdatera befintligt tema (bilder + config)
+ * Uppdatera befintligt tema (par-bilder + baksida + metadata)
  */
-router.put('/themes/:theme', requireAdmin, (req, res) => {
+router.put('/themes/:theme', requireAdmin, async (req, res) => {
     try {
         const themeFolder = req.params.theme;
-        const { cards, back, config } = req.body;
+        const { displayName, pairs, back } = req.body;
 
         if (!themeFolder || !/^[a-z0-9-]+$/.test(themeFolder)) {
             return res.status(400).json({ success: false, error: 'Ogiltigt temanamn' });
         }
 
-        const themePath = path.join(CARDS_DIR, themeFolder);
-        if (!fs.existsSync(themePath)) {
+        const theme = await Theme.findByFolder(themeFolder);
+        if (!theme) {
             return res.status(404).json({ success: false, error: 'Tema hittades inte' });
         }
 
-        const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
-        let saved = 0;
+        const themePath = path.join(CARDS_DIR, themeFolder);
+        if (!fs.existsSync(themePath)) {
+            fs.mkdirSync(themePath, { recursive: true });
+        }
 
-        // Spara kort
-        if (cards && typeof cards === 'object') {
-            for (const suit of suits) {
-                const folder = path.join(themePath, SUIT_FOLDERS[suits.indexOf(suit)]);
-                if (!fs.existsSync(folder)) {
-                    fs.mkdirSync(folder);
+        let saved = 0;
+        const pairRecords = [];
+
+        // Spara par-bilder
+        if (Array.isArray(pairs)) {
+            for (const pair of pairs) {
+                const { pairId, name, sortOrder, imageBase64 } = pair;
+                if (!pairId) {
+                    continue;
                 }
-                for (const rank of RANKS) {
-                    const base64 = cards[suit]?.[rank];
-                    if (base64) {
-                        fs.writeFileSync(path.join(folder, `${rank}.png`), Buffer.from(base64, 'base64'));
-                        saved++;
-                    }
+
+                let imagePath = pair.imagePath;
+
+                if (imageBase64) {
+                    imagePath = `${themeFolder}/${pairId}.png`;
+                    fs.writeFileSync(path.join(themePath, `${pairId}.png`), Buffer.from(imageBase64, 'base64'));
+                    saved++;
                 }
+
+                pairRecords.push({
+                    pairId,
+                    name: name || pairId,
+                    sortOrder: sortOrder ?? 0,
+                    imagePath: imagePath || `${themeFolder}/${pairId}.png`
+                });
             }
         }
 
@@ -279,9 +234,10 @@ router.put('/themes/:theme', requireAdmin, (req, res) => {
             fs.writeFileSync(path.join(themePath, 'back.png'), Buffer.from(back, 'base64'));
         }
 
-        // Spara config.json
-        if (config && typeof config === 'object') {
-            fs.writeFileSync(path.join(themePath, 'config.json'), JSON.stringify(config, null, 2));
+        // Uppdatera metadata och par i databasen
+        await Theme.update(theme.id, { displayName });
+        if (pairRecords.length > 0) {
+            await Theme.setPairs(theme.id, pairRecords);
         }
 
         // Synka till databasen för persistens
@@ -297,25 +253,37 @@ router.put('/themes/:theme', requireAdmin, (req, res) => {
 });
 
 /**
+ * PUT /api/admin/themes/:theme/pairs
+ * Uppdatera bara par-namn och sortering utan att skriva om bilder.
+ */
+router.put('/themes/:theme/pairs', requireAdmin, async (req, res) => {
+    try {
+        const theme = await Theme.findByFolder(req.params.theme);
+        if (!theme) {
+            return res.status(404).json({ success: false, error: 'Tema hittades inte' });
+        }
+
+        await Theme.setPairs(theme.id, req.body.pairs || []);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Admin update pairs error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
  * POST /api/admin/themes/:theme/upload
- * Spara kortleksbilder direkt till servern (dataURL-format, bakåtkompatibel)
+ * Spara kortleksbilder direkt till servern (dataURL-format, bakåtkompatibel fallback)
  */
 router.post('/themes/:theme/upload', requireAdmin, (req, res) => {
     try {
         const themeFolder = req.params.theme;
-        const { cards, back } = req.body;
+        const { pairs, back } = req.body;
 
         if (!themeFolder || !/^[a-z0-9-]+$/.test(themeFolder)) {
             return res.status(400).json({
                 success: false,
                 error: 'Ogiltigt temanamn. Endast små bokstäver, siffror och bindestreck.'
-            });
-        }
-
-        if (!cards || typeof cards !== 'object') {
-            return res.status(400).json({
-                success: false,
-                error: 'Kortdata saknas'
             });
         }
 
@@ -326,43 +294,25 @@ router.post('/themes/:theme/upload', requireAdmin, (req, res) => {
             fs.mkdirSync(themePath, { recursive: true });
         }
 
-        const suitMap = {
-            hearts: 'aubergine',
-            diamonds: 'radish',
-            clubs: 'pepper',
-            spades: 'potato'
-        };
-
         let saved = 0;
         const errors = [];
 
-        // Spara kort
-        for (const [suit, ranks] of Object.entries(cards)) {
-            const suitFolder = suitMap[suit];
-            if (!suitFolder) {
-                errors.push(`Okänd färg: ${suit}`);
-                continue;
-            }
-
-            const suitPath = path.join(themePath, suitFolder);
-            if (!fs.existsSync(suitPath)) {
-                fs.mkdirSync(suitPath, { recursive: true });
-            }
-
-            for (const [rank, dataUrl] of Object.entries(ranks)) {
-                if (!dataUrl || typeof dataUrl !== 'string') {
+        // Hantera par-bilder direkt
+        if (Array.isArray(pairs)) {
+            for (const pair of pairs) {
+                const { pairId, dataUrl } = pair;
+                if (!pairId || !dataUrl || typeof dataUrl !== 'string') {
                     continue;
                 }
 
                 const base64Match = dataUrl.match(/^data:image\/(png|jpeg|webp);base64,(.+)$/);
                 if (!base64Match) {
-                    errors.push(`Ogiltigt format för ${suit} ${rank}`);
+                    errors.push(`Ogiltigt format för ${pairId}`);
                     continue;
                 }
 
                 const buffer = Buffer.from(base64Match[2], 'base64');
-                const filePath = path.join(suitPath, `${rank}.png`);
-                fs.writeFileSync(filePath, buffer);
+                fs.writeFileSync(path.join(themePath, `${pairId}.png`), buffer);
                 saved++;
             }
         }
@@ -380,11 +330,11 @@ router.post('/themes/:theme/upload', requireAdmin, (req, res) => {
             success: true,
             saved,
             errors: errors.length > 0 ? errors : undefined,
-            message: `${saved} kort sparade i /assets/cards/${themeFolder}/`
+            message: `${saved} bilder sparade i /assets/cards/${themeFolder}/`
         });
     } catch (err) {
         console.error('Admin upload error:', err);
-        res.status(500).json({ success: false, error: 'Kunde inte spara kort' });
+        res.status(500).json({ success: false, error: 'Kunde inte spara bilder' });
     }
 });
 

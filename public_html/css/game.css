@@ -3263,3 +3263,92 @@ input:checked + .toggle::after {
 .offline-banner.offline-connected {
     background: #16a34a;
 }
+
+/* Par-baserade kort */
+.pair-name {
+    position: absolute;
+    bottom: 4px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 4px;
+}
+
+.pair-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1e3a5f, #0d2137);
+    border-radius: var(--radius-md);
+    color: white;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+/* Par-väljare i ask-dialog */
+.pair-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    justify-content: center;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: var(--space-sm);
+}
+
+.pair-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    padding: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-width: 64px;
+}
+
+.pair-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pair-btn.selected {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+
+.pair-btn-image {
+    width: 48px;
+    height: 68px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    box-shadow: 1px 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+.pair-btn-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    text-align: center;
+    max-width: 70px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

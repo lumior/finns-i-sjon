@@ -370,7 +370,7 @@ function disconnectLobbySocket() {
 
 async function loadDeckThemes() {
     try {
-        const response = await fetch('/api/admin/themes');
+        const response = await fetch('/api/themes');
         if (!response.ok) {
             return;
         }

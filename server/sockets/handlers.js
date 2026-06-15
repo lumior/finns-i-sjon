@@ -202,7 +202,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
         socket.on(
             'dev_ai_vs_ai',
-            rateLimit('dev_ai_vs_ai', 5, 60000, () => {
+            rateLimit('dev_ai_vs_ai', 5, 60000, async () => {
                 const room = roomManager.getRoomBySocket(socket.id);
                 if (!room) {
                     socket.emit('error', { message: 'Du är inte i ett rum' });
@@ -237,7 +237,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 }
 
                 game.setIo(io);
-                game.startGame();
+                await game.startGame();
 
                 broadcastToRoom(game, 'game_started', { firstPlayer: game.getCurrentPlayer()?.name }, true);
 
@@ -269,7 +269,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
         socket.on(
             'start_game',
-            rateLimit('start_game', 5, 60000, () => {
+            rateLimit('start_game', 5, 60000, async () => {
                 const room = roomManager.getRoomBySocket(socket.id);
                 if (!room) {
                     return;
@@ -296,7 +296,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 game.players.forEach(p => {
                     p.ready = false;
                 });
-                game.startGame();
+                await game.startGame();
                 game.onGameEnd = () => handleGameEnd(game, room);
 
                 broadcastToRoom(game, 'game_started', {}, true);

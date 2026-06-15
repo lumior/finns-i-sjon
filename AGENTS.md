@@ -310,6 +310,8 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `friendships` — vänförfrågningar (status: `pending`/`accepted`); används av vännerlista-API:t
 - `achievements` — upplåsta achievements per användare
 - `game_snapshots` — JSON-snapshots av spelstatus för crash-recovery
+- `themes` — metadata för kortleksteman (`folder_name`, `display_name`, `description`, `is_active`)
+- `theme_pairs` — par per tema (`pair_id`, `name`, `sort_order`, `image_path`)
 - `theme_files` — base64-kodade kortleksbilder för persistens på ephemeral filesystem
 
 ### Index
@@ -320,6 +322,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 - `idx_games_created` (games.created_at DESC)
 - `idx_game_participants_user` (game_participants.user_id)
 - `idx_game_events_game` (game_events.game_id)
+- `idx_theme_pairs_theme` (theme_pairs.theme_id)
 
 **Observera:** SQLite-fallback initierar **inte** dessa index.
 
@@ -416,7 +419,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 | `start_game` | Värd startar spelet (stödjer omstart om state är FINISHED) |
 | `toggle_ready` | Växla ready-status i vänteläge |
 | `ask_cards` | Fråga motståndare om kort (AI = synkront, människa = pending-ask) |
-| `respond_to_ask` | Svara på pågående förfrågan (hasCard, rank) |
+| `respond_to_ask` | Svara på pågående förfrågan (hasCard, pairId) |
 | `chat_message` | Skicka chattmeddelande (saneras, achievements möjliga) |
 | `add_ai` | Lägg till AI-spelare |
 | `remove_ai` | Ta bort AI-spelare |
@@ -485,22 +488,33 @@ ICE-servrar:
 
 ## 12. Kortleks-teman och tillgångar
 
-Kortleksbilderna ligger under `public_html/assets/cards/` och är organiserade i **tema-kategorier** (t.ex. `vegetable`, `frukt`, `saker`). Varje kategori innehåller 4 undermappar som motsvarar "färger":
+Spelet använder en **par-baserad kortlek**. Varje tema består av 25–26 par (50–52 kort). Ett par är två kort med samma `pairId` och samma bild. Par-namnen lagras i databasen (`theme_pairs`) och kan redigeras via admin-panelen.
 
-| Färg (suit) | Mappnamn |
-|-------------|----------|
-| Hearts      | `aubergine` |
-| Diamonds    | `radish` |
-| Clubs       | `pepper` |
-| Spades      | `potato` |
+### Databasmodell
 
-Varje färg-mapp innehåller 13 bildfiler: `A.png`, `2.png` … `10.png`, `J.png`, `Q.png`, `K.png`.
+- `themes` — metadata för varje tema (`folder_name`, `display_name`, `description`, `is_active`).
+- `theme_pairs` — varje pars `pair_id`, `name`, `sort_order` och `image_path`.
+- `theme_files` — base64-kodade bilder för persistens på ephemeral filesystem.
 
-**Fallback:** Om en bild saknas renderas kortet med standard Unicode (rank + färgsymbol).
+### Filsystem
 
-**Admin-API:** `server/routes/admin.js` exponerar `/api/admin/themes`, `/api/admin/themes/:theme`, `/api/admin/themes/:theme/config`, `POST /api/admin/themes`, `PUT /api/admin/themes/:theme` och `POST /api/admin/themes/:theme/upload` för att lista, skapa och uppdatera teman. Admin-panelen finns under `public_html/admin/`.
+Bilderna ligger under `public_html/assets/cards/{tema}/{pairId}.png` (t.ex. `frukt/pair-1.png`). Baksidan sparas som `{tema}/back.png`.
 
-**Detaljerad dokumentation:** Omfattande admin-funktioner (pip-mönster, face cards, mallar, import/export, undo/redo, drag & drop) beskrivs i `CHANGELOG.md` och `ANALYS.md`.
+Vid serverstart seedas `themes`/`theme_pairs` från befintliga filsystemstemat via `Theme.seedFromFilesystem()`. Gamla teman med suit/rank-struktur (`{tema}/{suit}/{rank}.png`) migreras till par baserat på valörer.
+
+### Admin-API
+
+- `GET /api/themes` — publik lista över teman och par.
+- `GET /api/admin/themes` — admin-lista.
+- `GET /api/admin/themes/:theme` — tema med par.
+- `PUT /api/admin/themes/:theme/pairs` — uppdatera par-namn/sortering.
+- `POST /api/admin/themes/:theme/upload` — ladda upp par-bilder.
+- `POST /api/admin/themes`, `PUT /api/admin/themes/:theme` — skapa/uppdatera tema med par.
+
+### Admin-panel
+
+- `public_html/admin/pairs.html` + `pairs.js` — hantera par-namn och bilder per tema.
+- `public_html/admin/index.html` — huvudpanel med länk till par-hantering.
 
 ---
 
@@ -567,8 +581,8 @@ Använd den interna helper-funktionen `broadcastToRoom(game, event, basePayload,
 
 ### Att ändra spelregler (ask/fisk)
 Spelmotorn använder två privata metoder för gemensam logik:
-- `_processAskSuccess(asker, target, rank, matchingCards)` — hanterar kortöverföring, par-bildning, achievements och gameOver.
-- `_processAskFish(asker, target, rank)` — hanterar fiskning, kortdragning, lucky fish och tur-övergång.
+- `_processAskSuccess(asker, target, pairId, matchingCards)` — hanterar kortöverföring, par-bildning, achievements och gameOver.
+- `_processAskFish(asker, target, pairId)` — hanterar fiskning, kortdragning, lucky fish och tur-övergång.
 
 Både `askForCards()` (synkront, AI-motståndare) och `respondToAsk()` (asynkront, mänskliga spelare) anropar dessa. Lägg inte till duplicerad logik i någon av dem — extraktera istället till en ny privat metod.
 

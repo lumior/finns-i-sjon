@@ -1,30 +1,48 @@
-const { SUITS, RANKS } = require('../utils/constants');
+const Theme = require('../models/Theme');
 
 class CardDeck {
     constructor() {
         this.cards = [];
         this.discarded = [];
-        this.init();
     }
 
-    init() {
+    async init(themeIdOrFolder) {
         this.cards = [];
-        for (const suit of SUITS) {
-            for (const rank of RANKS) {
-                this.cards.push({
-                    id: `${suit}-${rank}`,
-                    suit,
-                    rank,
-                    value: this.getCardValue(rank)
-                });
-            }
+        const theme = await Theme.findById(themeIdOrFolder);
+        const folderName = theme ? theme.folder_name : themeIdOrFolder;
+        const pairs = theme ? await Theme.getPairs(theme.id) : await Theme.getPairsByFolder(themeIdOrFolder);
+
+        if (pairs.length === 0) {
+            console.warn(`Inga par hittades för tema ${themeIdOrFolder}, skapar tom kortlek`);
+            return;
         }
+
+        for (const pair of pairs) {
+            const pairId = pair.pairId;
+            const name = pair.name;
+            const imagePath = pair.imagePath || `${folderName}/${pairId}.png`;
+
+            this.cards.push({
+                id: `${pairId}-a`,
+                pairId,
+                name,
+                image: `/assets/cards/${imagePath}`
+            });
+            this.cards.push({
+                id: `${pairId}-b`,
+                pairId,
+                name,
+                image: `/assets/cards/${imagePath}`
+            });
+        }
+
         this.shuffle();
     }
 
-    getCardValue(rank) {
-        const values = { J: 11, Q: 12, K: 13, A: 14 };
-        return values[rank] || parseInt(rank);
+    static async create(themeId) {
+        const deck = new CardDeck();
+        await deck.init(themeId);
+        return deck;
     }
 
     shuffle() {

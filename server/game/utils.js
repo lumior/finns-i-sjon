@@ -4,23 +4,23 @@
  */
 
 /**
- * Find all pairs (matching ranks) in a hand without mutating anything.
- * @param {Array} hand — array of card objects with `.rank` and `.id`
+ * Find all pairs (matching pairId) in a hand without mutating anything.
+ * @param {Array} hand — array of card objects with `.pairId` and `.id`
  * @returns {Array} array of pairs, each pair is [cardA, cardB]
  */
 function findPairs(hand) {
     const pairs = [];
-    const byRank = {};
+    const byPair = {};
 
     hand.forEach(card => {
-        if (!byRank[card.rank]) {
-            byRank[card.rank] = [];
+        if (!byPair[card.pairId]) {
+            byPair[card.pairId] = [];
         }
-        byRank[card.rank].push(card);
+        byPair[card.pairId].push(card);
     });
 
-    for (const rank in byRank) {
-        const cards = byRank[rank];
+    for (const pairId in byPair) {
+        const cards = byPair[pairId];
         while (cards.length >= 2) {
             pairs.push([cards.pop(), cards.pop()]);
         }

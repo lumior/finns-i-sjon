@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hantera par — Admin — FISK</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+    <style>
+        .pairs-toolbar {
+            display: flex;
+            gap: var(--space-md);
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: var(--space-lg);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+
+        .pairs-toolbar .form-group {
+            flex: 1;
+            min-width: 220px;
+            margin-bottom: 0;
+        }
+
+        .pairs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: var(--space-md);
+            margin-bottom: var(--space-xl);
+        }
+
+        .pair-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            transition: border-color 0.2s;
+        }
+
+        .pair-card:hover {
+            border-color: var(--accent);
+        }
+
+        .pair-preview {
+            width: 100%;
+            aspect-ratio: 5/7;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pair-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .pair-preview .placeholder {
+            font-size: 2.5rem;
+            opacity: 0.3;
+        }
+
+        .pair-id {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+
+        .pair-name-input {
+            width: 100%;
+            padding: 8px 10px;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .pair-name-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .pair-image-input {
+            width: 100%;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .save-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: var(--space-md);
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            gap: var(--space-md);
+            z-index: 100;
+        }
+
+        .save-bar .btn {
+            min-width: 160px;
+        }
+
+        .pairs-empty {
+            text-align: center;
+            padding: var(--space-xl);
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container" style="padding-bottom: 80px;">
+        <header class="admin-header">
+            <a href="/admin/" class="back-link">← Tillbaka till admin</a>
+            <h1>🖼️ Hantera par</h1>
+            <p>Redigera namn och byt bilder för varje par i ett kortlekstema.</p>
+        </header>
+
+        <div class="pairs-toolbar">
+            <div class="form-group">
+                <label for="theme-select">Välj tema</label>
+                <select id="theme-select">
+                    <option value="">-- Välj tema --</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="save-btn" disabled>Spara ändringar</button>
+        </div>
+
+        <div class="loading" id="pairs-loading" style="display: none;">Laddar par...</div>
+        <div class="pairs-empty" id="pairs-empty" style="display: none;">Välj ett tema för att börja redigera.</div>
+        <div class="pairs-grid" id="pairs-grid"></div>
+    </div>
+
+    <script src="/admin/pairs.js"></script>
+</body>
+</html>

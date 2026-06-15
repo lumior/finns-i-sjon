@@ -19,7 +19,7 @@ class GameEngine {
         this.gameType = gameType;
         this.players = [];
         this.aiPlayers = [];
-        this.deck = new CardDeck();
+        this.deck = null;
         this.state = GAME_STATES.WAITING;
         this.currentPlayerIndex = 0;
         this.pile = [];
@@ -114,7 +114,7 @@ class GameEngine {
             failedAsks: 0,
             fishings: 0,
             luckyFishings: 0,
-            rankHistory: [],
+            pairHistory: [],
             ready: false,
             reconnectToken: crypto.randomBytes(16).toString('hex')
         };
@@ -177,7 +177,7 @@ class GameEngine {
             failedAsks: 0,
             fishings: 0,
             luckyFishings: 0,
-            rankHistory: []
+            pairHistory: []
         };
 
         this.players.push(aiPlayer);
@@ -347,7 +347,7 @@ class GameEngine {
         return (connectedCount >= MIN_PLAYERS || aiCount >= 2) && this.state === GAME_STATES.WAITING;
     }
 
-    startGame() {
+    async startGame() {
         if (!this.canStart()) {
             this.debugLog('startGame FAILED', {
                 reason: 'canStart returned false',
@@ -358,7 +358,7 @@ class GameEngine {
         }
 
         this.state = GAME_STATES.DEALING;
-        this.deck = new CardDeck();
+        this.deck = await CardDeck.create(this.settings.deckTheme);
         this.startTime = Date.now();
         this.totalTurns = 0;
         this.gameEvents = [];
@@ -381,7 +381,7 @@ class GameEngine {
             player.failedAsks = 0;
             player.fishings = 0;
             player.luckyFishings = 0;
-            player.rankHistory = [];
+            player.pairHistory = [];
             player.chatCount = 0;
             player.wasBehind = false;
 
@@ -414,6 +414,7 @@ class GameEngine {
         });
         this.addLog('system', '🎴 Spelet har börjat! Lycka till!');
 
+        this.replenishHands();
         this.ensureCurrentPlayerHasCards();
         this.startTurnTimer();
 
@@ -450,7 +451,7 @@ class GameEngine {
 
     resetGame() {
         this.state = GAME_STATES.WAITING;
-        this.deck = new CardDeck();
+        this.deck = null;
         this.currentPlayerIndex = 0;
         this.pile = [];
         this.gameLog = [];
@@ -472,7 +473,7 @@ class GameEngine {
             player.failedAsks = 0;
             player.fishings = 0;
             player.luckyFishings = 0;
-            player.rankHistory = [];
+            player.pairHistory = [];
             player.surrendered = false;
             // Behåll connected-status för mänskliga spelare så att de kan starta om direkt
 
@@ -576,6 +577,7 @@ class GameEngine {
                 // Kolla om det nya kortet bildar ett par
                 extractPairs(currentPlayer, this.pile);
                 this.updateWasBehind();
+                this.replenishHands();
             }
         }
 
@@ -615,7 +617,7 @@ class GameEngine {
         return null;
     }
 
-    askForCards(askerSocketId, targetId, rank) {
+    askForCards(askerSocketId, targetId, pairId) {
         const asker = this.players.find(p => p.socketId === askerSocketId);
         const target = this.players.find(p => p.id === targetId || p.socketId === targetId);
 
@@ -628,8 +630,8 @@ class GameEngine {
         if (asker.id === target.id) {
             return { success: false, error: 'Du kan inte fråga dig själv' };
         }
-        if (!asker.hand.some(c => c.rank === rank)) {
-            return { success: false, error: `Du måste ha ${rank}:an själv för att fråga` };
+        if (!asker.hand.some(c => c.pairId === pairId)) {
+            return { success: false, error: 'Du måste ha ett kort från paret själv för att fråga' };
         }
         if (!target.connected) {
             return { success: false, error: `${target.name} är frånkopplad` };
@@ -638,29 +640,29 @@ class GameEngine {
         this.stopTurnTimer();
         this.totalTurns++;
 
-        const matchingCards = target.hand.filter(c => c.rank === rank);
+        const matchingCards = target.hand.filter(c => c.pairId === pairId);
 
         this.gameEvents.push({
             type: 'ask',
             turn: this.totalTurns,
             askerId: asker.id,
             targetId: target.id,
-            rank,
+            pairId,
             success: matchingCards.length > 0,
             askerHandSize: asker.hand.length,
             targetHandSize: target.hand.length
         });
 
-        asker.rankHistory.push(rank);
-        this.updateAIMemory('ask', asker.id, target.id, rank, matchingCards.length > 0);
+        asker.pairHistory.push(pairId);
+        this.updateAIMemory('ask', asker.id, target.id, pairId, matchingCards.length > 0);
 
         if (matchingCards.length > 0) {
-            const { newPairs, gameOver } = this._processAskSuccess(asker, target, rank, matchingCards);
+            const { newPairs, gameOver } = this._processAskSuccess(asker, target, pairId, matchingCards);
 
             this.debugLog('askForCards SUCCESS', {
                 asker: asker.name,
                 target: target.name,
-                rank,
+                pairId,
                 gotCards: matchingCards.length,
                 gameOver,
                 askerHand: asker.hand.length,
@@ -681,23 +683,23 @@ class GameEngine {
                 nextPlayer: askerSocketId,
                 askerName: asker.name,
                 targetName: target.name,
-                rank
+                pairId
             };
         }
 
         const { drawnCard, newPairs, fishedSuccess, luckyMessage, gameOver, nextPlayerId } = this._processAskFish(
             asker,
             target,
-            rank
+            pairId
         );
         const nextPlayerObj = this.players.find(p => p.socketId === nextPlayerId || p.id === nextPlayerId);
 
         this.debugLog('askForCards FISH', {
             asker: asker.name,
             target: target.name,
-            rank,
+            pairId,
             fishedSuccess,
-            drawnCard: drawnCard?.rank || null,
+            drawnCard: drawnCard?.pairId || null,
             gameOver,
             nextPlayer: nextPlayerObj?.name || null,
             askerHand: asker.hand.length,
@@ -716,11 +718,11 @@ class GameEngine {
             nextPlayerName: nextPlayerObj?.name,
             askerName: asker.name,
             targetName: target.name,
-            rank
+            pairId
         };
     }
 
-    requestAsk(askerSocketId, targetId, rank) {
+    requestAsk(askerSocketId, targetId, pairId) {
         const asker = this.players.find(p => p.socketId === askerSocketId);
         const target = this.players.find(p => p.id === targetId || p.socketId === targetId);
 
@@ -733,8 +735,8 @@ class GameEngine {
         if (asker.id === target.id) {
             return { success: false, error: 'Du kan inte fråga dig själv' };
         }
-        if (!asker.hand.some(c => c.rank === rank)) {
-            return { success: false, error: `Du måste ha ${rank}:an själv för att fråga` };
+        if (!asker.hand.some(c => c.pairId === pairId)) {
+            return { success: false, error: 'Du måste ha ett kort från paret själv för att fråga' };
         }
         if (!target.connected) {
             return { success: false, error: `${target.name} är frånkopplad` };
@@ -752,26 +754,26 @@ class GameEngine {
             targetSocketId: target.socketId,
             targetName: target.name,
             askerName: asker.name,
-            rank,
+            pairId,
             timestamp: Date.now()
         };
 
-        this.debugLog('requestAsk', { asker: asker.name, target: target.name, rank });
+        this.debugLog('requestAsk', { asker: asker.name, target: target.name, pairId });
 
         return {
             success: true,
             askerName: asker.name,
             targetName: target.name,
-            rank
+            pairId
         };
     }
 
-    respondToAsk(targetSocketId, hasCard, givenRank, isAutoResolve = false) {
+    respondToAsk(targetSocketId, hasCard, givenPairId, isAutoResolve = false) {
         if (!this.pendingAsk) {
             return { success: false, error: 'Ingen aktiv förfrågan' };
         }
 
-        const { askerId, targetId, rank } = this.pendingAsk;
+        const { askerId, targetId, pairId } = this.pendingAsk;
         const target = this.players.find(p => p.id === targetId || p.socketId === targetId);
         const asker = this.players.find(p => p.id === askerId || p.socketId === askerId);
 
@@ -791,15 +793,15 @@ class GameEngine {
 
         this.totalTurns++;
 
-        const matchingCards = target.hand.filter(c => c.rank === rank);
+        const matchingCards = target.hand.filter(c => c.pairId === pairId);
 
         if (hasCard && matchingCards.length > 0) {
-            const { newPairs, gameOver } = this._processAskSuccess(asker, target, rank, matchingCards);
+            const { newPairs, gameOver } = this._processAskSuccess(asker, target, pairId, matchingCards);
 
             this.debugLog('respondToAsk SUCCESS', {
                 asker: asker.name,
                 target: target.name,
-                rank,
+                pairId,
                 gotCards: matchingCards.length,
                 gameOver
             });
@@ -819,28 +821,29 @@ class GameEngine {
                 nextPlayer: asker.socketId || askerId,
                 askerName: asker.name,
                 targetName: target.name,
-                rank
+                pairId
             };
         }
 
         // "Finns i sjön!" - target har inte kortet eller ljög (behandlas som fisk)
+        const pairName = asker.hand.find(c => c.pairId === pairId)?.name || pairId;
         if (hasCard && matchingCards.length === 0) {
-            this.addLog('system', `🚫 ${target.name} försökte ljuga men har inte ${rank}:an! Fisk!`);
+            this.addLog('system', `🚫 ${target.name} försökte ljuga men har inte ${pairName}! Fisk!`);
         }
 
         const { drawnCard, newPairs, fishedSuccess, luckyMessage, gameOver, nextPlayerId } = this._processAskFish(
             asker,
             target,
-            rank
+            pairId
         );
         const nextPlayerObj = this.players.find(p => p.socketId === nextPlayerId || p.id === nextPlayerId);
 
         this.debugLog('respondToAsk FISH', {
             asker: asker.name,
             target: target.name,
-            rank,
+            pairId,
             fishedSuccess,
-            drawnCard: drawnCard?.rank || null,
+            drawnCard: drawnCard?.pairId || null,
             gameOver,
             nextPlayer: nextPlayerObj?.name || null
         });
@@ -859,12 +862,12 @@ class GameEngine {
             nextPlayerName: nextPlayerObj?.name,
             askerName: asker.name,
             targetName: target.name,
-            rank
+            pairId
         };
     }
 
-    _processAskSuccess(asker, target, rank, matchingCards) {
-        target.hand = target.hand.filter(c => c.rank !== rank);
+    _processAskSuccess(asker, target, pairId, matchingCards) {
+        target.hand = target.hand.filter(c => c.pairId !== pairId);
         asker.hand.push(...matchingCards);
         asker.successfulAsks++;
 
@@ -873,9 +876,10 @@ class GameEngine {
         this.syncAIHand(asker);
         this.syncAIHand(target);
 
+        const pairName = matchingCards[0]?.name || pairId;
         this.addLog(
             'success',
-            `🎯 ${asker.name} frågade ${target.name} om ${rank}:an och fick ${matchingCards.length} kort!`
+            `🎯 ${asker.name} frågade ${target.name} om ${pairName} och fick ${matchingCards.length} kort!`
         );
 
         this.checkAchievements(asker, 'successful_ask');
@@ -886,15 +890,17 @@ class GameEngine {
         const gameOver = this.checkGameOver();
         if (!gameOver) {
             this.ensureCurrentPlayerHasCards();
+            this.replenishHands();
         }
 
         return { newPairs, gameOver };
     }
 
-    _processAskFish(asker, target, rank) {
+    _processAskFish(asker, target, pairId) {
         asker.failedAsks++;
 
-        this.addLog('fish', `🌊 ${asker.name} frågade ${target.name} om ${rank}:an... "Finns i sjön!"`);
+        const pairName = asker.hand.find(c => c.pairId === pairId)?.name || pairId;
+        this.addLog('fish', `🌊 ${asker.name} frågade ${target.name} om ${pairName}... "Finns i sjön!"`);
 
         const drawnCard = this.deck.draw(1);
         let newPairs = [];
@@ -905,10 +911,10 @@ class GameEngine {
             asker.hand.push(drawnCard);
             asker.fishings++;
 
-            if (drawnCard.rank === rank) {
+            if (drawnCard.pairId === pairId) {
                 fishedSuccess = true;
                 asker.luckyFishings++;
-                luckyMessage = `🎣 ${asker.name} fiskade upp ${rank}:an! Tur!`;
+                luckyMessage = `🎣 ${asker.name} fiskade upp ${drawnCard.name || pairId}! Tur!`;
                 this.addLog('luck', luckyMessage);
                 this.checkAchievements(asker, 'lucky_fish');
             } else {
@@ -917,6 +923,7 @@ class GameEngine {
 
             newPairs = extractPairs(asker, this.pile);
             this.updateWasBehind();
+            this.replenishHands();
         } else {
             this.addLog('system', 'Sjön är tom!');
         }
@@ -928,6 +935,7 @@ class GameEngine {
 
         if (!gameOver) {
             this.ensureCurrentPlayerHasCards();
+            this.replenishHands();
             this.startTurnTimer();
         }
 
@@ -994,10 +1002,10 @@ class GameEngine {
         this.debugLog('makeAIMove DECISION', {
             ai: currentPlayer.name,
             target: decision.targetId,
-            rank: decision.rank
+            pairId: decision.pairId
         });
 
-        const result = this.askForCards(currentPlayer.socketId, decision.targetId, decision.rank);
+        const result = this.askForCards(currentPlayer.socketId, decision.targetId, decision.pairId);
 
         this.players.forEach(player => {
             if (player.connected && !player.isAI) {
@@ -1146,6 +1154,27 @@ class GameEngine {
         }
     }
 
+    replenishHands() {
+        for (const player of this.players) {
+            if (!player.connected || player.surrendered) {
+                continue;
+            }
+            while (player.hand.length < 3 && !this.deck.isEmpty()) {
+                const drawn = this.deck.draw(1);
+                if (!drawn) {
+                    break;
+                }
+                player.hand.push(drawn);
+                this.addLog('draw', `${player.name} drog ett kort för att fylla på handen`);
+                extractPairs(player, this.pile);
+                this.updateWasBehind();
+                if (player.isAI) {
+                    this.syncAIHand(player);
+                }
+            }
+        }
+    }
+
     checkGameOver() {
         const activePlayers = this.players.filter(p => p.connected && !p.surrendered);
         const allHandsEmpty = activePlayers.every(p => p.hand.length === 0);
@@ -1279,9 +1308,9 @@ class GameEngine {
         return achievements;
     }
 
-    updateAIMemory(type, playerId, targetId, rank, success) {
+    updateAIMemory(type, playerId, targetId, pairId, success) {
         for (const ai of this.aiPlayers) {
-            ai.updateMemory({ type, playerId, targetId, rank, success });
+            ai.updateMemory({ type, playerId, targetId, pairId, success });
         }
     }
 
@@ -1408,7 +1437,7 @@ class GameEngine {
                 successfulAsks: p.successfulAsks,
                 failedAsks: p.failedAsks,
                 fishings: p.fishings,
-                rankHistory: p.rankHistory,
+                pairHistory: p.pairHistory,
                 ready: p.ready || false
             })),
             yourHand: player ? player.hand : isSpectator ? [] : null,

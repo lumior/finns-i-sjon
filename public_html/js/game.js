@@ -2,7 +2,7 @@ class GameClient {
     constructor() {
         this.gameState = null;
         this.selectedTarget = null;
-        this.selectedRank = null;
+        this.selectedPairId = null;
         this.isHost = false;
         this.isSpectator = false;
         this.roomId = new URLSearchParams(window.location.search).get('room');
@@ -155,11 +155,11 @@ class GameClient {
         });
         
         gameSocket.on('ask_pending', (data) => {
-            this.showAskPending(data.targetName, data.rank);
+            this.showAskPending(data.targetName, data.pairId, data.pairName);
         });
         
         gameSocket.on('card_request', (data) => {
-            this.showCardRequest(data.askerName, data.rank);
+            this.showCardRequest(data.askerName, data.pairId, data.pairName);
         });
         
         gameSocket.on('chat_message', (msg) => {
@@ -420,7 +420,7 @@ class GameClient {
                 const cardEl = e.target.closest('.card');
                 if (!cardEl || !this.pendingCardRequest) return;
                 if (cardEl.classList.contains('card-request-highlight')) {
-                    this.respondToAskClick(true, this.pendingCardRequest.rank);
+                    this.respondToAskClick(true, this.pendingCardRequest.pairId);
                 }
             });
         }
@@ -430,7 +430,7 @@ class GameClient {
         if (giveBtn) {
             giveBtn.addEventListener('click', () => {
                 if (this.pendingCardRequest) {
-                    this.respondToAskClick(true, this.pendingCardRequest.rank);
+                    this.respondToAskClick(true, this.pendingCardRequest.pairId);
                 }
             });
         }
@@ -438,7 +438,7 @@ class GameClient {
         if (fiskBtnEl) {
             fiskBtnEl.addEventListener('click', () => {
                 if (this.pendingCardRequest) {
-                    this.respondToAskClick(false, this.pendingCardRequest.rank);
+                    this.respondToAskClick(false, this.pendingCardRequest.pairId);
                 }
             });
         }
@@ -880,9 +880,10 @@ class GameClient {
             }
         }
         
+        const pairName = data.pairName || data.pairId;
         if (data.gotCards) {
             this.addLogEntry(
-                `🎯 ${data.askerName} frågade ${data.targetName} om ${data.rank}:an och fick kort!`,
+                `🎯 ${data.askerName} frågade ${data.targetName} om ${pairName} och fick kort!`,
                 'success'
             );
         } else if (data.fishedSuccess) {
@@ -892,7 +893,7 @@ class GameClient {
             );
         } else {
             this.addLogEntry(
-                `🌊 ${data.askerName} frågade ${data.targetName} om ${data.rank}:an... "Finns i sjön!"`,
+                `🌊 ${data.askerName} frågade ${data.targetName} om ${pairName}... "Finns i sjön!"`,
                 'fish'
             );
         }
@@ -1276,29 +1277,20 @@ class GameClient {
         pairs = pairs || [];
         console.log('🃏 renderHand called:', { handLength: hand.length, deckTheme: this.settings.deckTheme, useImageDeck: this.settings.deckTheme !== 'standard', pairsLength: pairs.length });
         const container = document.getElementById('my-hand');
-        const suits = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
 
         let sortedHand = [...hand];
 
         if (this.settings.autoSort) {
-            const rankOrder = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
             sortedHand.sort((a, b) => {
-                const av = rankOrder.indexOf(a.rank);
-                const bv = rankOrder.indexOf(b.rank);
-                return av - bv;
+                const byPairId = String(a.pairId).localeCompare(String(b.pairId));
+                if (byPairId !== 0) return byPairId;
+                return String(a.name || '').localeCompare(String(b.name || ''));
             });
         }
 
         const cardStyleClass = `card-style-${this.settings.cardStyle}`;
         const deckTheme = this.settings.deckTheme;
         const useImageDeck = deckTheme !== 'standard';
-
-        const suitToVeggie = {
-            hearts: 'aubergine',
-            diamonds: 'radish',
-            clubs: 'pepper',
-            spades: 'potato'
-        };
 
         // Anpassa handens kompakthet efter antal kort på små skärmar
         container.classList.toggle('hand-compact', sortedHand.length >= 8);
@@ -1332,41 +1324,41 @@ class GameClient {
                 cardEl.className = `card ${cardStyleClass}`;
                 cardEl.dataset.cardId = card.id;
                 cardEl.dataset.deckTheme = deckTheme;
+                cardEl.dataset.pairId = card.pairId;
 
                 if (useImageDeck) {
                     cardEl.classList.add('card-deck-image');
-                    const veggie = suitToVeggie[card.suit];
-                    const isRedCard = card.suit === 'hearts' || card.suit === 'diamonds';
                     const img = document.createElement('img');
-                    img.src = `/assets/cards/${deckTheme}/${veggie}/${card.rank}.png`;
-                    img.alt = card.rank;
-                    img.dataset.fbRank = card.rank;
-                    img.dataset.fbSuit = suits[card.suit];
-                    img.dataset.fbRed = isRedCard;
+                    img.src = card.image || `/assets/cards/${deckTheme}/${card.pairId}.png`;
+                    img.alt = card.name || card.pairId;
+                    img.dataset.fbName = card.name || card.pairId;
                     img.addEventListener(
                         'error',
                         function onCardImgError() {
                             this.style.display = 'none';
                             const parent = this.parentElement;
                             parent.classList.remove('card-deck-image');
-                            const isRed = this.dataset.fbRed === 'true';
-                            parent.classList.add(isRed ? 'red' : 'black');
-                            parent.innerHTML = `<span class='rank-top'>${this.dataset.fbRank}</span><span class='suit'>${this.dataset.fbSuit}</span><span class='rank-bottom'>${this.dataset.fbRank}</span>`;
+                            parent.classList.add('pair-fallback');
+                            parent.innerHTML = `<span class="pair-name">${this.dataset.fbName}</span>`;
                         },
                         { once: true }
                     );
                     cardEl.appendChild(img);
+                    const nameEl = document.createElement('span');
+                    nameEl.className = 'pair-name';
+                    nameEl.textContent = card.name || card.pairId;
+                    cardEl.appendChild(nameEl);
                 } else {
-                    const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
-                    cardEl.classList.add(isRed ? 'red' : 'black');
-                    cardEl.innerHTML = `<span class="rank-top">${card.rank}</span><span class="suit">${suits[card.suit]}</span><span class="rank-bottom">${card.rank}</span>`;
+                    cardEl.classList.add('pair-fallback');
+                    cardEl.innerHTML = `<span class="pair-name">${card.name || card.pairId}</span>`;
                 }
             }
 
             // Uppdatera alltid transform och stil så ordningen blir rätt
             cardEl.style.transform = transformStyle;
-            cardEl.className = `card ${cardStyleClass}${useImageDeck ? ' card-deck-image' : ''}${!useImageDeck && (card.suit === 'hearts' || card.suit === 'diamonds') ? ' red' : !useImageDeck ? ' black' : ''}`;
+            cardEl.className = `card ${cardStyleClass}${useImageDeck ? ' card-deck-image' : ' pair-fallback'}`;
             cardEl.dataset.deckTheme = deckTheme;
+            cardEl.dataset.pairId = card.pairId;
 
             fragment.appendChild(cardEl);
         });
@@ -1405,14 +1397,14 @@ class GameClient {
 
         // Om det finns en aktiv card request, highlighta matchande kort
         if (this.pendingCardRequest) {
-            const requestedRank = this.pendingCardRequest.rank;
+            const requestedPairId = this.pendingCardRequest.pairId;
             const cards = container.querySelectorAll('.card');
             const matchingCards = [];
 
             cards.forEach(cardEl => {
                 const cardId = cardEl.dataset.cardId;
                 const cardData = hand.find(c => c.id === cardId);
-                if (cardData && cardData.rank === requestedRank) {
+                if (cardData && cardData.pairId === requestedPairId) {
                     cardEl.classList.add('card-request-highlight');
                     matchingCards.push(cardEl);
                 } else {
@@ -1547,13 +1539,13 @@ class GameClient {
 
     showAskDialog() {
         if (!this.gameState || this.isSpectator) return;
-        
+
         const dialog = document.getElementById('ask-dialog');
         const targetContainer = document.getElementById('target-players');
-        const rankContainer = document.getElementById('rank-selector');
-        
+        const pairContainer = document.getElementById('rank-selector');
+
         const targets = this.gameState.players.filter(p => !p.isYou && p.connected && !p.surrendered);
-        
+
         targetContainer.innerHTML = targets.map(p => `
             <button class="target-player-btn" data-player-id="${p.id}">
                 <img src="${p.avatar || '/assets/images/default-avatar.png'}" class="tp-avatar" alt="${p.name}">
@@ -1561,69 +1553,57 @@ class GameClient {
                 <span class="tp-cards">${p.cardCount} kort</span>
             </button>
         `).join('');
-        
-        const suits = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
-        const suitToVeggie = {
-            hearts: 'aubergine',
-            diamonds: 'radish',
-            clubs: 'pepper',
-            spades: 'potato'
-        };
-        const myRanks = [...new Set(this.gameState.yourHand.map(c => c.rank))];
-        const rankOrder = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-        const availableRanks = rankOrder.filter(r => myRanks.includes(r));
-        
-        // Hitta ett exempelkort för varje unik rank (för att visa rätt färg/symbol)
-        const rankExamples = {};
+
+        // Samla unika par från handen
+        const pairMap = new Map();
         this.gameState.yourHand.forEach(c => {
-            if (!rankExamples[c.rank]) rankExamples[c.rank] = c;
+            if (!pairMap.has(c.pairId)) {
+                pairMap.set(c.pairId, c);
+            }
         });
-        
+        const pairs = Array.from(pairMap.values()).sort((a, b) =>
+            String(a.pairId).localeCompare(String(b.pairId))
+        );
+
         const deckTheme = this.settings.deckTheme;
         const useImageDeck = deckTheme !== 'standard';
 
-        rankContainer.innerHTML = availableRanks.map(r => {
-            const example = rankExamples[r];
-            const isRed = example.suit === 'hearts' || example.suit === 'diamonds';
-            
+        pairContainer.innerHTML = pairs.map(pair => {
+            const pairName = pair.name || pair.pairId;
+
             if (useImageDeck) {
-                const veggie = suitToVeggie[example.suit];
+                const imgSrc = pair.image || `/assets/cards/${deckTheme}/${pair.pairId}.png`;
                 return `
-                    <button class="rank-btn rank-btn-image" data-rank="${r}"
+                    <button class="rank-btn pair-btn pair-btn-image" data-pair-id="${pair.pairId}" data-pair-name="${pairName}"
                         style="background: transparent; border: none; box-shadow: none; padding: 0;">
-                        <img src="/assets/cards/${deckTheme}/${veggie}/${r}.png" alt="${r}"
+                        <img src="${imgSrc}" alt="${pairName}"
                              style="width: 50px; height: 70px; object-fit: cover; border-radius: var(--radius-md); display: block; box-shadow: 1px 1px 6px rgba(0,0,0,0.3);"
-                             data-fb-rank="${r}"
-                             data-fb-suit="${suits[example.suit]}"
-                             data-fb-red="${isRed}">
+                             data-fb-name="${pairName}">
+                        <span class="pair-btn-label">${pairName}</span>
                     </button>
                 `;
             }
-            
+
             return `
-                <button class="rank-btn ${isRed ? 'red' : 'black'}" data-rank="${r}">
-                    <span class="rc-rank-top">${r}</span>
-                    <span class="rc-suit">${suits[example.suit]}</span>
-                    <span class="rc-rank-bottom">${r}</span>
+                <button class="rank-btn pair-btn" data-pair-id="${pair.pairId}" data-pair-name="${pairName}">
+                    <span class="pair-btn-label">${pairName}</span>
                 </button>
             `;
         }).join('');
-        
-        // Sätt upp fallback-lyssnare för rank-knapparnas bilder
-        rankContainer.querySelectorAll('.rank-btn-image img').forEach(img => {
-            img.addEventListener('error', function onRankImgError() {
+
+        // Fallback för bildfel i par-väljaren
+        pairContainer.querySelectorAll('.pair-btn-image img').forEach(img => {
+            img.addEventListener('error', function onPairImgError() {
                 this.style.display = 'none';
                 const parent = this.parentElement;
                 parent.style.background = 'linear-gradient(135deg, #ffffff, #f1f5f9)';
                 parent.style.border = '2px solid var(--border-color)';
                 parent.style.boxShadow = '1px 1px 6px rgba(0,0,0,0.3)';
-                const isRed = this.dataset.fbRed === 'true';
-                parent.classList.add(isRed ? 'red' : 'black');
-                parent.innerHTML = `<span class='rc-rank-top'>${this.dataset.fbRank}</span><span class='rc-suit'>${this.dataset.fbSuit}</span><span class='rc-rank-bottom'>${this.dataset.fbRank}</span>`;
-                this.removeEventListener('error', onRankImgError);
+                parent.innerHTML = `<span class="pair-btn-label">${this.dataset.fbName}</span>`;
+                this.removeEventListener('error', onPairImgError);
             }, { once: true });
         });
-        
+
         targetContainer.querySelectorAll('.target-player-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 targetContainer.querySelectorAll('.target-player-btn').forEach(b => b.classList.remove('selected'));
@@ -1632,22 +1612,22 @@ class GameClient {
                 this.updateConfirmButton();
             });
         });
-        
-        rankContainer.querySelectorAll('.rank-btn').forEach(btn => {
+
+        pairContainer.querySelectorAll('.pair-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                rankContainer.querySelectorAll('.rank-btn').forEach(b => b.classList.remove('selected'));
+                pairContainer.querySelectorAll('.pair-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
-                this.selectedRank = btn.dataset.rank;
+                this.selectedPairId = btn.dataset.pairId;
                 this.updateConfirmButton();
             });
         });
-        
+
         this.selectedTarget = null;
-        this.selectedRank = null;
+        this.selectedPairId = null;
         this.updateConfirmButton();
-        
+
         dialog.classList.remove('hidden');
-        
+
         if (window.animationManager) {
             animationManager.fadeIn(dialog);
         }
@@ -1657,17 +1637,17 @@ class GameClient {
         const dialog = document.getElementById('ask-dialog');
         dialog.classList.add('hidden');
         this.selectedTarget = null;
-        this.selectedRank = null;
+        this.selectedPairId = null;
     }
 
     updateConfirmButton() {
         const btn = document.getElementById('confirm-ask');
         const confidenceSpan = document.getElementById('ask-confidence');
-        btn.disabled = !(this.selectedTarget && this.selectedRank);
-        
-        if (this.selectedTarget && this.selectedRank) {
+        btn.disabled = !(this.selectedTarget && this.selectedPairId);
+
+        if (this.selectedTarget && this.selectedPairId) {
             const target = this.gameState.players.find(p => p.id === this.selectedTarget);
-            const targetAsked = target?.rankHistory?.filter(r => r === this.selectedRank).length || 0;
+            const targetAsked = target?.pairHistory?.filter(p => p === this.selectedPairId).length || 0;
             const confidence = Math.min(30 + targetAsked * 20, 95);
             confidenceSpan.textContent = confidence > 50 ? `(~${confidence}% chans)` : '';
         } else {
@@ -1676,48 +1656,50 @@ class GameClient {
     }
 
     confirmAsk() {
-        if (!this.selectedTarget || !this.selectedRank) return;
-        
+        if (!this.selectedTarget || !this.selectedPairId) return;
+
         gameSocket.emit('ask_cards', {
             targetId: this.selectedTarget,
-            rank: this.selectedRank
+            pairId: this.selectedPairId
         });
-        
+
         this.hideAskDialog();
     }
-    
-    showAskPending(targetName, rank) {
+
+    showAskPending(targetName, pairId, pairName) {
         const banner = document.getElementById('ask-pending-banner');
         const text = banner.querySelector('.ask-pending-text');
-        
-        text.textContent = `Du frågade ${targetName} om ${rank}:an. Väntar på svar...`;
+        const name = pairName || pairId;
+
+        text.textContent = `Du frågade ${targetName} om ${name}. Väntar på svar...`;
         banner.classList.remove('hidden');
     }
-    
+
     hideAskPending() {
         const banner = document.getElementById('ask-pending-banner');
         if (banner) banner.classList.add('hidden');
-        
+
         if (this.pendingAskTimer) {
             clearInterval(this.pendingAskTimer);
             this.pendingAskTimer = null;
         }
     }
-    
-    showCardRequest(askerName, rank) {
-        this.pendingCardRequest = { askerName, rank };
-        
+
+    showCardRequest(askerName, pairId, pairName) {
+        this.pendingCardRequest = { askerName, pairId, pairName };
+
         const overlay = document.getElementById('card-request-overlay');
         const title = document.getElementById('card-request-title');
         const subtitle = document.getElementById('card-request-subtitle');
         const fiskBtn = document.getElementById('card-request-fisk');
-        
-        title.textContent = `${askerName} frågar efter ${rank}:an!`;
-        
+        const name = pairName || pairId;
+
+        title.textContent = `${askerName} frågar efter ${name}!`;
+
         // Kolla om vi har kortet
-        const hasCard = this.gameState?.yourHand?.some(c => c.rank === rank);
+        const hasCard = this.gameState?.yourHand?.some(c => c.pairId === pairId);
         const giveBtn = document.getElementById('card-request-give');
-        
+
         if (hasCard) {
             subtitle.textContent = 'Du har det kortet! Klicka för att ge det.';
             if (giveBtn) giveBtn.classList.remove('hidden');
@@ -1727,44 +1709,44 @@ class GameClient {
             if (giveBtn) giveBtn.classList.add('hidden');
             fiskBtn.classList.remove('hidden');
         }
-        
+
         overlay.classList.remove('hidden');
-        
+
         // Re-rendera handen för att få fram highlight
         if (this.gameState) {
             this.renderHand(this.gameState.yourHand, this.gameState.yourPairs);
         }
-        
+
         // Knapphanterare registreras en gång i setupUI via event delegation
-        
+
         // Ingen synlig countdown — servern hanterar timeout automatiskt
     }
-    
+
     hideCardRequest() {
         const overlay = document.getElementById('card-request-overlay');
         if (overlay) overlay.classList.add('hidden');
-        
+
         this.pendingCardRequest = null;
-        
+
         if (this.cardRequestCountdown) {
             clearInterval(this.cardRequestCountdown);
             this.cardRequestCountdown = null;
         }
-        
+
         // Re-rendera handen för att ta bort highlight
         if (this.gameState) {
             this.renderHand(this.gameState.yourHand, this.gameState.yourPairs);
         }
     }
-    
-    respondToAskClick(hasCard, rank) {
+
+    respondToAskClick(hasCard, pairId) {
         if (!this.pendingCardRequest) return;
-        
+
         gameSocket.emit('respond_to_ask', {
             hasCard: hasCard,
-            rank: rank
+            pairId: pairId
         });
-        
+
         this.hideCardRequest();
     }
 

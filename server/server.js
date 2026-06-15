@@ -131,6 +131,7 @@ app.use('/api/games', gamesRoutes);
 app.use('/api/rooms', createRoomRouter(roomManager));
 app.use('/api/stats', statsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/themes', require('./routes/themes'));
 app.use('/api/friends', friendsRoutes);
 
 // Publika teman — listar alla kortleksteman
@@ -175,6 +176,10 @@ registerSocketHandlers(io, roomManager, {
 // Vänta på databasanslutning och återställ temafiler vid start (Railway ephemeral filesystem)
 db.waitForConnection()
     .then(() => db.restoreThemeFiles())
+    .then(() => {
+        const Theme = require('./models/Theme');
+        return Theme.seedFromFilesystem();
+    })
     .catch(err => {
         console.error('Fel vid återställning av temafiler:', err.message);
     });

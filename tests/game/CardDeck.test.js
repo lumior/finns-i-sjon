@@ -1,10 +1,12 @@
 const CardDeck = require('../../server/game/CardDeck');
+const { ensureTestTheme } = require('./test-theme-helper');
 
 describe('CardDeck', () => {
     let deck;
 
-    beforeEach(() => {
-        deck = new CardDeck();
+    beforeEach(async () => {
+        await ensureTestTheme();
+        deck = await CardDeck.create('standard');
     });
 
     test('should initialize with 52 cards', () => {

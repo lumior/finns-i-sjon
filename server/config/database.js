@@ -28,6 +28,12 @@ class Database {
     }
 
     async connect() {
+        // I testmiljön använd alltid SQLite för snabbhet och isolering
+        if (process.env.NODE_ENV === 'test') {
+            this.initSQLiteFallback();
+            return;
+        }
+
         // 1. Försök PostgreSQL (Railway standard)
         if (process.env.DATABASE_URL) {
             try {
@@ -192,6 +198,33 @@ class Database {
                 )
             `);
 
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS themes (
+                    id SERIAL PRIMARY KEY,
+                    folder_name VARCHAR(50) UNIQUE NOT NULL,
+                    display_name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    is_active BOOLEAN DEFAULT true,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS theme_pairs (
+                    id SERIAL PRIMARY KEY,
+                    theme_id INT NOT NULL,
+                    pair_id VARCHAR(20) NOT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    sort_order INT DEFAULT 0,
+                    image_path VARCHAR(200),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(theme_id, pair_id),
+                    FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE CASCADE
+                )
+            `);
+
             // Index för prestanda
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
@@ -199,6 +232,7 @@ class Database {
             await this.run(`CREATE INDEX IF NOT EXISTS idx_games_created ON games(created_at DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_participants_user ON game_participants(user_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
+            await this.run(`CREATE INDEX IF NOT EXISTS idx_theme_pairs_theme ON theme_pairs(theme_id)`);
 
             // Migration: lägg till email_verified för befintliga databaser
             await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified SMALLINT DEFAULT 0`).catch(
@@ -328,6 +362,44 @@ class Database {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS theme_files (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    theme_name VARCHAR(50) NOT NULL,
+                    file_path VARCHAR(100) NOT NULL,
+                    file_data LONGTEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(theme_name, file_path)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS themes (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    folder_name VARCHAR(50) UNIQUE NOT NULL,
+                    display_name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    is_active TINYINT DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS theme_pairs (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    theme_id INT NOT NULL,
+                    pair_id VARCHAR(20) NOT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    sort_order INT DEFAULT 0,
+                    image_path VARCHAR(200),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE(theme_id, pair_id),
+                    FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id)`);
@@ -429,6 +501,13 @@ class Database {
             this.db.run(
                 `CREATE TABLE IF NOT EXISTS theme_files (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_name TEXT NOT NULL, file_path TEXT NOT NULL, file_data TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_name, file_path))`
             );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS themes (id INTEGER PRIMARY KEY AUTOINCREMENT, folder_name TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL, description TEXT, is_active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS theme_pairs (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_id INTEGER NOT NULL, pair_id TEXT NOT NULL, name TEXT NOT NULL, sort_order INTEGER DEFAULT 0, image_path TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_id, pair_id), FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE CASCADE)`
+            );
+            this.db.run(`CREATE INDEX IF NOT EXISTS idx_theme_pairs_theme ON theme_pairs(theme_id)`);
             // Migration: lägg till email_verified, is_admin och user_tokens för befintliga SQLite-databaser
             this.db.run(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`, () => {});
             this.db.run(`ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`, () => {});
@@ -553,8 +632,6 @@ class Database {
             return;
         }
 
-        const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-        const SUIT_FOLDERS = ['aubergine', 'radish', 'pepper', 'potato'];
         let saved = 0;
 
         try {
@@ -565,30 +642,30 @@ class Database {
                 await this.run('DELETE FROM theme_files WHERE theme_name = ?', [themeName]);
             }
 
-            // Spara alla kortfiler
-            for (const folder of SUIT_FOLDERS) {
-                const suitPath = path.join(themePath, folder);
-                if (!fs.existsSync(suitPath)) {
-                    continue;
-                }
-                for (const rank of RANKS) {
-                    const filePath = path.join(suitPath, `${rank}.png`);
-                    if (fs.existsSync(filePath)) {
-                        const base64 = fs.readFileSync(filePath).toString('base64');
-                        const dbPath = `${themeName}/${folder}/${rank}.png`;
-                        if (this.isPostgres) {
-                            await this.run(
-                                'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES ($1, $2, $3)',
-                                [themeName, dbPath, base64]
-                            );
-                        } else {
-                            await this.run(
-                                'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES (?, ?, ?)',
-                                [themeName, dbPath, base64]
-                            );
-                        }
-                        saved++;
+            // Hämta par från databasen för att veta vilka bilder som ska sparas
+            const Theme = require('../models/Theme');
+            const theme = await Theme.findByFolder(themeName);
+            const pairs = theme ? await Theme.getPairs(theme.id) : [];
+
+            // Spara par-bilder (nya strukturen)
+            for (const pair of pairs) {
+                const filePath = path.join(themePath, `${pair.pairId}.png`);
+                if (fs.existsSync(filePath)) {
+                    const base64 = fs.readFileSync(filePath).toString('base64');
+                    const dbPath = `${themeName}/${pair.pairId}.png`;
+                    if (this.isPostgres) {
+                        await this.run(
+                            'INSERT INTO theme_files (theme_name, file_path, file_data) VALUES ($1, $2, $3)',
+                            [themeName, dbPath, base64]
+                        );
+                    } else {
+                        await this.run('INSERT INTO theme_files (theme_name, file_path, file_data) VALUES (?, ?, ?)', [
+                            themeName,
+                            dbPath,
+                            base64
+                        ]);
                     }
+                    saved++;
                 }
             }
 

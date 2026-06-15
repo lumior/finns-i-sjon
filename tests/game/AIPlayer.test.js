@@ -22,20 +22,20 @@ describe('AIPlayer', () => {
             type: 'ask',
             playerId: 'p1',
             targetId: 'p2',
-            rank: '7',
+            pairId: 'pair-7',
             success: true
         });
         expect(ai.memory.askedCards.has('p1')).toBe(true);
         const asked = ai.memory.askedCards.get('p1');
-        expect(asked['7']).toBeDefined();
-        expect(asked['7'].count).toBe(1);
+        expect(asked['pair-7']).toBeDefined();
+        expect(asked['pair-7'].count).toBe(1);
     });
 
     test('should make a decision with cards', () => {
         ai.hand = [
-            { rank: '7', suit: 'hearts' },
-            { rank: '7', suit: 'diamonds' },
-            { rank: 'K', suit: 'spades' }
+            { pairId: 'pair-7', name: 'Par 7' },
+            { pairId: 'pair-7', name: 'Par 7' },
+            { pairId: 'pair-K', name: 'Par K' }
         ];
         const choice = ai.makeDecision({ deckRemaining: 40 }, [
             { id: 'p1', name: 'Alice', socketId: 's1', connected: true, cardCount: 5 },
@@ -43,8 +43,8 @@ describe('AIPlayer', () => {
         ]);
         expect(choice).toBeDefined();
         expect(choice).toHaveProperty('targetId');
-        expect(choice).toHaveProperty('rank');
-        expect(['7', 'K']).toContain(choice.rank);
+        expect(choice).toHaveProperty('pairId');
+        expect(['pair-7', 'pair-K']).toContain(choice.pairId);
     });
 
     test('should return null with empty hand', () => {
@@ -61,9 +61,9 @@ describe('AIPlayer', () => {
                 type: 'ask',
                 playerId: 'p1',
                 targetId: 'p2',
-                rank: `${i}`,
+                pairId: `pair-${i}`,
                 success: false,
-                cards: [{ rank: `${i}` }]
+                cards: [{ pairId: `pair-${i}` }]
             });
         }
         // Memory should have been pruned to stay near capacity
@@ -80,7 +80,7 @@ describe('AIPlayer', () => {
             type: 'ask',
             playerId: 'p1',
             targetId: 'p2',
-            rank: '7',
+            pairId: 'pair-7',
             success: true
         });
         expect(ai.consecutiveAsks).toBe(1);
@@ -92,7 +92,7 @@ describe('AIPlayer', () => {
             type: 'ask',
             playerId: 'p1',
             targetId: 'p2',
-            rank: '7',
+            pairId: 'pair-7',
             success: false
         });
         expect(ai.consecutiveAsks).toBe(0);
@@ -103,15 +103,15 @@ describe('AIPlayer', () => {
         difficulties.forEach(diff => {
             const testAi = new AIPlayer(diff, `AI-${diff}`);
             testAi.hand = [
-                { rank: 'A', suit: 'spades' },
-                { rank: '2', suit: 'hearts' }
+                { pairId: 'pair-A', name: 'Par A' },
+                { pairId: 'pair-2', name: 'Par 2' }
             ];
             const choice = testAi.makeDecision({ deckRemaining: 40 }, [
                 { id: 'p1', name: 'Alice', socketId: 's1', connected: true, cardCount: 3 }
             ]);
             expect(choice).toBeDefined();
             expect(choice).toHaveProperty('targetId');
-            expect(choice).toHaveProperty('rank');
+            expect(choice).toHaveProperty('pairId');
         });
     });
 });
