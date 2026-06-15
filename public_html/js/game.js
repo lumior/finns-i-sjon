@@ -128,7 +128,12 @@ class GameClient {
             this.handleReadyStatusUpdate(data.readyStatus);
         });
         
-        gameSocket.on('game_state_update', (state) => {
+        gameSocket.on('game_state_update', (data) => {
+            const state = data?.gameState || data;
+            if (!state || !state.players) {
+                console.warn('⚠️ game_state_update utan giltig gameState:', data);
+                return;
+            }
             const current = state.players?.find(p => p.isCurrentPlayer);
             const you = state.players?.find(p => p.isYou);
             console.log('📊 [GAME_STATE]', {

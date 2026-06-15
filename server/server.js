@@ -134,36 +134,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/themes', require('./routes/themes'));
 app.use('/api/friends', friendsRoutes);
 
-// Publika teman — listar alla kortleksteman
-app.get('/api/themes', (req, res) => {
-    try {
-        const fs = require('fs');
-        const path = require('path');
-        const cardsDir = path.join(__dirname, '../public_html/assets/cards');
-
-        if (!fs.existsSync(cardsDir)) {
-            return res.json({ themes: [] });
-        }
-
-        const themes = [];
-        const entries = fs.readdirSync(cardsDir, { withFileTypes: true });
-
-        for (const entry of entries) {
-            if (entry.isDirectory() && entry.name !== 'README.md') {
-                themes.push({
-                    id: entry.name,
-                    name: entry.name.charAt(0).toUpperCase() + entry.name.slice(1)
-                });
-            }
-        }
-
-        res.json({ themes: [{ id: 'standard', name: 'Standard' }, ...themes] });
-    } catch (err) {
-        console.error('Themes API error:', err);
-        res.status(500).json({ error: 'Kunde inte läsa teman' });
-    }
-});
-
 // Socket.IO
 registerSocketHandlers(io, roomManager, {
     Game,
