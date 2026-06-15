@@ -1,0 +1,162 @@
+{
+  "themeName": "exempeltema",
+  "displayName": "Exempeltema",
+  "pairs": [
+    {
+      "pairId": "pair-A",
+      "name": "Äpple",
+      "sortOrder": 0,
+      "imagePath": "exempeltema/pair-A.png"
+    },
+    {
+      "pairId": "pair-B",
+      "name": "Bil",
+      "sortOrder": 1,
+      "imagePath": "exempeltema/pair-B.png"
+    },
+    {
+      "pairId": "pair-C",
+      "name": "Citron",
+      "sortOrder": 2,
+      "imagePath": "exempeltema/pair-C.png"
+    },
+    {
+      "pairId": "pair-D",
+      "name": "Duva",
+      "sortOrder": 3,
+      "imagePath": "exempeltema/pair-D.png"
+    },
+    {
+      "pairId": "pair-E",
+      "name": "Eld",
+      "sortOrder": 4,
+      "imagePath": "exempeltema/pair-E.png"
+    },
+    {
+      "pairId": "pair-F",
+      "name": "Fisk",
+      "sortOrder": 5,
+      "imagePath": "exempeltema/pair-F.png"
+    },
+    {
+      "pairId": "pair-G",
+      "name": "Gris",
+      "sortOrder": 6,
+      "imagePath": "exempeltema/pair-G.png"
+    },
+    {
+      "pairId": "pair-H",
+      "name": "Hund",
+      "sortOrder": 7,
+      "imagePath": "exempeltema/pair-H.png"
+    },
+    {
+      "pairId": "pair-I",
+      "name": "Is",
+      "sortOrder": 8,
+      "imagePath": "exempeltema/pair-I.png"
+    },
+    {
+      "pairId": "pair-J",
+      "name": "Juvel",
+      "sortOrder": 9,
+      "imagePath": "exempeltema/pair-J.png"
+    },
+    {
+      "pairId": "pair-K",
+      "name": "Katt",
+      "sortOrder": 10,
+      "imagePath": "exempeltema/pair-K.png"
+    },
+    {
+      "pairId": "pair-L",
+      "name": "Lök",
+      "sortOrder": 11,
+      "imagePath": "exempeltema/pair-L.png"
+    },
+    {
+      "pairId": "pair-M",
+      "name": "Moln",
+      "sortOrder": 12,
+      "imagePath": "exempeltema/pair-M.png"
+    },
+    {
+      "pairId": "pair-N",
+      "name": "Natt",
+      "sortOrder": 13,
+      "imagePath": "exempeltema/pair-N.png"
+    },
+    {
+      "pairId": "pair-O",
+      "name": "Ost",
+      "sortOrder": 14,
+      "imagePath": "exempeltema/pair-O.png"
+    },
+    {
+      "pairId": "pair-P",
+      "name": "Päron",
+      "sortOrder": 15,
+      "imagePath": "exempeltema/pair-P.png"
+    },
+    {
+      "pairId": "pair-Q",
+      "name": "Quiz",
+      "sortOrder": 16,
+      "imagePath": "exempeltema/pair-Q.png"
+    },
+    {
+      "pairId": "pair-R",
+      "name": "Ros",
+      "sortOrder": 17,
+      "imagePath": "exempeltema/pair-R.png"
+    },
+    {
+      "pairId": "pair-S",
+      "name": "Sol",
+      "sortOrder": 18,
+      "imagePath": "exempeltema/pair-S.png"
+    },
+    {
+      "pairId": "pair-T",
+      "name": "Träd",
+      "sortOrder": 19,
+      "imagePath": "exempeltema/pair-T.png"
+    },
+    {
+      "pairId": "pair-U",
+      "name": "Uggla",
+      "sortOrder": 20,
+      "imagePath": "exempeltema/pair-U.png"
+    },
+    {
+      "pairId": "pair-V",
+      "name": "Vulkan",
+      "sortOrder": 21,
+      "imagePath": "exempeltema/pair-V.png"
+    },
+    {
+      "pairId": "pair-W",
+      "name": "Varg",
+      "sortOrder": 22,
+      "imagePath": "exempeltema/pair-W.png"
+    },
+    {
+      "pairId": "pair-X",
+      "name": "Xylofon",
+      "sortOrder": 23,
+      "imagePath": "exempeltema/pair-X.png"
+    },
+    {
+      "pairId": "pair-Y",
+      "name": "Yacht",
+      "sortOrder": 24,
+      "imagePath": "exempeltema/pair-Y.png"
+    },
+    {
+      "pairId": "pair-Z",
+      "name": "Zebra",
+      "sortOrder": 25,
+      "imagePath": "exempeltema/pair-Z.png"
+    }
+  ]
+}
