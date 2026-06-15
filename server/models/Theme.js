@@ -144,12 +144,28 @@ class Theme {
                 .sort();
 
             if (pairFiles.length > 0) {
+                // Läs config.json för par-namn om den finns
+                const configPairs = {};
+                const configPath = path.join(CARDS_DIR, folderName, 'config.json');
+                if (fs.existsSync(configPath)) {
+                    try {
+                        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                        if (config.pairs) {
+                            config.pairs.forEach(p => {
+                                configPairs[p.pairId] = p.name;
+                            });
+                        }
+                    } catch (err) {
+                        console.warn(`Kunde inte läsa config.json för ${folderName}:`, err.message);
+                    }
+                }
+
                 let sortOrder = 0;
                 for (const file of pairFiles) {
                     const pairId = file.replace('.png', '');
                     await Theme.addPair(theme.id, {
                         pairId,
-                        name: pairId,
+                        name: configPairs[pairId] || pairId,
                         sortOrder: sortOrder++,
                         imagePath: `${folderName}/${file}`
                     });

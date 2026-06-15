@@ -19,7 +19,7 @@ class GameEngine {
         this.gameType = gameType;
         this.players = [];
         this.aiPlayers = [];
-        this.deck = null;
+        this.deck = new CardDeck();
         this.state = GAME_STATES.WAITING;
         this.currentPlayerIndex = 0;
         this.pile = [];
@@ -451,7 +451,7 @@ class GameEngine {
 
     resetGame() {
         this.state = GAME_STATES.WAITING;
-        this.deck = null;
+        this.deck = new CardDeck();
         this.currentPlayerIndex = 0;
         this.pile = [];
         this.gameLog = [];

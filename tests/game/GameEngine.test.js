@@ -21,6 +21,14 @@ describe('GameEngine', () => {
         expect(result.success).toBe(false);
     });
 
+    test('should return public state before game has started', () => {
+        game.addPlayer('socket1', 'Alice');
+        const state = game.getPublicState('socket1');
+        expect(state).toBeDefined();
+        expect(state.deckRemaining).toBe(0);
+        expect(state.players).toHaveLength(1);
+    });
+
     test('should start game with enough players', async () => {
         game.addPlayer('socket1', 'Alice');
         game.addPlayer('socket2', 'Bob');

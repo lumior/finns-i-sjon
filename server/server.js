@@ -173,39 +173,42 @@ registerSocketHandlers(io, roomManager, {
     escapeHtml
 });
 
-// Vänta på databasanslutning och återställ temafiler vid start (Railway ephemeral filesystem)
+// Vänta på databasanslutning, återställ temafiler och seeda teman innan servern startar
+let httpServer;
 db.waitForConnection()
     .then(() => db.restoreThemeFiles())
     .then(() => {
         const Theme = require('./models/Theme');
         return Theme.seedFromFilesystem();
     })
+    .then(() => {
+        httpServer = server.listen(PORT, '0.0.0.0', () => {
+            console.log('🎣 ==========================================');
+            console.log('🎴  FISK - Finns i sjön');
+            console.log('🎣 ==========================================');
+            console.log(`🌐 Server körs på port ${PORT}`);
+            console.log(`📊 API: http://localhost:${PORT}/api`);
+            console.log(`🎮 Spel: http://localhost:${PORT}`);
+            console.log('');
+            console.log('Funktioner:');
+            console.log('  ✅ Realtidsmultiplayer (WebSocket)');
+            console.log('  ✅ Användarkonton & JWT-auth');
+            console.log('  ✅ ELO-rankningssystem');
+            console.log('  ✅ 4 AI-svårighetsgrader');
+            console.log('  ✅ Spectator-läge');
+            console.log('  ✅ Chatt & spel-logg');
+            console.log('  ✅ Turn-timer');
+            console.log('  ✅ Privata rum med lösenord');
+            console.log('  ✅ Achievements-system');
+            console.log('  ✅ Spelhistorik & statistik');
+            console.log('  ✅ Topplista & sökning');
+            console.log('');
+        });
+    })
     .catch(err => {
-        console.error('Fel vid återställning av temafiler:', err.message);
+        console.error('❌ Kritiskt fel vid uppstart:', err);
+        process.exit(1);
     });
-
-const httpServer = server.listen(PORT, '0.0.0.0', () => {
-    console.log('🎣 ==========================================');
-    console.log('🎴  FISK - Finns i sjön');
-    console.log('🎣 ==========================================');
-    console.log(`🌐 Server körs på port ${PORT}`);
-    console.log(`📊 API: http://localhost:${PORT}/api`);
-    console.log(`🎮 Spel: http://localhost:${PORT}`);
-    console.log('');
-    console.log('Funktioner:');
-    console.log('  ✅ Realtidsmultiplayer (WebSocket)');
-    console.log('  ✅ Användarkonton & JWT-auth');
-    console.log('  ✅ ELO-rankningssystem');
-    console.log('  ✅ 4 AI-svårighetsgrader');
-    console.log('  ✅ Spectator-läge');
-    console.log('  ✅ Chatt & spel-logg');
-    console.log('  ✅ Turn-timer');
-    console.log('  ✅ Privata rum med lösenord');
-    console.log('  ✅ Achievements-system');
-    console.log('  ✅ Spelhistorik & statistik');
-    console.log('  ✅ Topplista & sökning');
-    console.log('');
-});
 
 function gracefulShutdown(signal) {
     console.log(`\n${signal} mottaget. Stänger ner servern…`);
