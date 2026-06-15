@@ -8,7 +8,13 @@ class CardDeck {
 
     async init(themeIdOrFolder) {
         this.cards = [];
-        const theme = await Theme.findById(themeIdOrFolder);
+        let theme = null;
+        if (/^\d+$/.test(String(themeIdOrFolder))) {
+            theme = await Theme.findById(themeIdOrFolder);
+        }
+        if (!theme) {
+            theme = await Theme.findByFolder(themeIdOrFolder);
+        }
         const folderName = theme ? theme.folder_name : themeIdOrFolder;
         const pairs = theme ? await Theme.getPairs(theme.id) : await Theme.getPairsByFolder(themeIdOrFolder);
 
