@@ -11,6 +11,10 @@ router.get('/', async (req, res) => {
         const themes = await Theme.list();
         const result = [];
         for (const theme of themes) {
+            if (!theme || !theme.id) {
+                console.warn('⚠️ /api/themes: tema utan id, hoppar över:', theme);
+                continue;
+            }
             const pairs = await Theme.getPairs(theme.id);
             result.push({
                 id: theme.folder_name,
@@ -28,7 +32,8 @@ router.get('/', async (req, res) => {
         }
         res.json({ success: true, themes: result });
     } catch (err) {
-        console.error('Themes error:', err);
+        console.error('❌ /api/themes error:', err.message);
+        console.error(err.stack);
         res.status(500).json({ success: false, error: 'Kunde inte läsa teman' });
     }
 });
@@ -61,7 +66,8 @@ router.get('/:folder', async (req, res) => {
             }
         });
     } catch (err) {
-        console.error('Theme detail error:', err);
+        console.error('❌ /api/themes/:folder error:', err.message);
+        console.error(err.stack);
         res.status(500).json({ success: false, error: 'Kunde inte läsa tema' });
     }
 });
