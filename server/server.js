@@ -206,4 +206,19 @@ function gracefulShutdown(signal) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+process.on('uncaughtException', err => {
+    console.error('❌ Uncaught Exception:', err);
+    if (httpServer) {
+        httpServer.close(() => {
+            process.exit(1);
+        });
+    } else {
+        process.exit(1);
+    }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 module.exports = { app, server, io };
