@@ -1109,7 +1109,7 @@ class GameClient {
             if (state.turnTimeRemaining !== null) {
                 const remaining = Math.ceil(state.turnTimeRemaining / 1000);
                 timerText.textContent = remaining;
-                const percentage = (state.turnTimeRemaining / 45000) * 100;
+                const percentage = (state.turnTimeRemaining / 180000) * 100;
                 timerProgress.style.strokeDasharray = `${percentage}, 100`;
                 
                 if (remaining <= 10) {
