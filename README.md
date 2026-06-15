@@ -9,7 +9,7 @@
 - **4 AI-svårighetsgrader** – Från nybörjare till mästare med avancerade strategier
 - **Rumsbaserade bord** – Skapa privata eller publika spelbord
 - **Spectator-läge** – Titta på pågående spel som åskådare
-- **Tur-timer** – 45 sekunder per tur för att hålla tempot uppe
+- **Tur-timer** – 3 minuter per tur för att hålla tempot uppe
 - **Kompletta spelregler** – Automatisk par-detektering, "Finns i sjön!"-logik
 
 ### 👤 Användare
