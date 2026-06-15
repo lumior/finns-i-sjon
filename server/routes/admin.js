@@ -34,8 +34,11 @@ async function scanThemes() {
             name: theme.display_name,
             folder: theme.folder_name,
             pairCount: pairs.length,
-            complete: pairs.length >= 25,
-            preview: pairs.length > 0 ? pairs[pairs.length - 1].image_path : null,
+            // BAKÅTKOMPATIBILITET: admin-panelen förväntar cardCount och ranks
+            cardCount: pairs.length * 2,
+            ranks: pairs.map(p => p.pair_id),
+            complete: pairs.length >= 13,
+            preview: pairs.length > 0 ? `/assets/cards/${pairs[pairs.length - 1].image_path}` : null,
             editable: true
         });
     }
