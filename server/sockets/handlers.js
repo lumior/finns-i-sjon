@@ -297,8 +297,9 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                     p.ready = false;
                 });
 
+                let startResult;
                 try {
-                    await game.startGame();
+                    startResult = await game.startGame();
                 } catch (startErr) {
                     console.error('❌ Fel vid startGame:', startErr);
                     socket.emit('error', { message: 'Kunde inte starta spelet. Kontrollera kortlekstemat.' });
@@ -306,6 +307,11 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 }
 
                 game.onGameEnd = () => handleGameEnd(game, room);
+
+                if (startResult?.gameOver) {
+                    handleGameEnd(game, room);
+                    return;
+                }
 
                 broadcastToRoom(game, 'game_started', {}, true);
 

@@ -414,11 +414,11 @@ class GameEngine {
         });
         this.addLog('system', '🎴 Spelet har börjat! Lycka till!');
 
-        this.replenishHands();
         this.ensureCurrentPlayerHasCards();
+        const gameOver = this.checkGameOver();
         this.startTurnTimer();
 
-        return true;
+        return { success: true, gameOver };
     }
 
     startTurnTimer() {

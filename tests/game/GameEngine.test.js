@@ -33,7 +33,7 @@ describe('GameEngine', () => {
         game.addPlayer('socket1', 'Alice');
         game.addPlayer('socket2', 'Bob');
         const result = await game.startGame();
-        expect(result).toBe(true);
+        expect(result.success).toBe(true);
         expect(game.state).toBe('playing');
     });
 
