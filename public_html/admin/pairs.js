@@ -118,7 +118,9 @@ function renderPairs(theme) {
     gridEl.innerHTML = pairs.map((pair, index) => {
         const imageSrc = pair.imagePath
             ? `/assets/cards/${pair.imagePath}?v=${Date.now()}`
-            : `/assets/cards/${theme.folder}/${pair.pairId}.png?v=${Date.now()}`;
+            : pair.pairId.startsWith('pair-')
+              ? `/assets/cards/${theme.folder}/aubergine/${pair.pairId.replace(/^pair-/, '')}.png?v=${Date.now()}`
+              : `/assets/cards/${theme.folder}/${pair.pairId}.png?v=${Date.now()}`;
 
         return `
             <div class="pair-card" data-pair-id="${pair.pairId}" data-sort-order="${index}">

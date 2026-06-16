@@ -1331,10 +1331,10 @@ class GameClient {
                 cardEl.dataset.deckTheme = deckTheme;
                 cardEl.dataset.pairId = card.pairId;
 
-                if (useImageDeck) {
+                if (useImageDeck && card.image) {
                     cardEl.classList.add('card-deck-image');
                     const img = document.createElement('img');
-                    img.src = card.image || `/assets/cards/${deckTheme}/${card.pairId}.png`;
+                    img.src = card.image;
                     img.alt = card.name || card.pairId;
                     img.dataset.fbName = card.name || card.pairId;
                     img.addEventListener(
@@ -1361,7 +1361,8 @@ class GameClient {
 
             // Uppdatera alltid transform och stil så ordningen blir rätt
             cardEl.style.transform = transformStyle;
-            cardEl.className = `card ${cardStyleClass}${useImageDeck ? ' card-deck-image' : ' pair-fallback'}`;
+            const hasCardImage = useImageDeck && card.image;
+            cardEl.className = `card ${cardStyleClass}${hasCardImage ? ' card-deck-image' : ' pair-fallback'}`;
             cardEl.dataset.deckTheme = deckTheme;
             cardEl.dataset.pairId = card.pairId;
 
@@ -1576,12 +1577,11 @@ class GameClient {
         pairContainer.innerHTML = pairs.map(pair => {
             const pairName = pair.name || pair.pairId;
 
-            if (useImageDeck) {
-                const imgSrc = pair.image || `/assets/cards/${deckTheme}/${pair.pairId}.png`;
+            if (useImageDeck && pair.image) {
                 return `
                     <button class="rank-btn pair-btn pair-btn-image" data-pair-id="${pair.pairId}" data-pair-name="${pairName}"
                         style="background: transparent; border: none; box-shadow: none; padding: 0;">
-                        <img src="${imgSrc}" alt="${pairName}"
+                        <img src="${pair.image}" alt="${pairName}"
                              style="width: 50px; height: 70px; object-fit: cover; border-radius: var(--radius-md); display: block; box-shadow: 1px 1px 6px rgba(0,0,0,0.3);"
                              data-fb-name="${pairName}">
                         <span class="pair-btn-label">${pairName}</span>

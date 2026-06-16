@@ -17,6 +17,36 @@ function requireAdmin(req, res, next) {
 }
 
 const CARDS_DIR = path.join(__dirname, '../../public_html/assets/cards');
+const LEGACY_SUIT_FOLDERS = ['aubergine', 'radish', 'pepper', 'potato'];
+
+/**
+ * Hjälpfunktion: hitta rätt bildsökväg för ett par, med stöd för både
+ * flat struktur (pair-A.png) och legacy struktur (aubergine/A.png).
+ */
+function resolvePairImagePath(themeFolder, pairId, currentImagePath) {
+    if (currentImagePath && fs.existsSync(path.join(CARDS_DIR, currentImagePath))) {
+        return currentImagePath;
+    }
+
+    const themePath = path.join(CARDS_DIR, themeFolder);
+
+    // Ny struktur: pair-*.png direkt i temamappen
+    const flatPath = path.join(themePath, `${pairId}.png`);
+    if (fs.existsSync(flatPath)) {
+        return `${themeFolder}/${pairId}.png`;
+    }
+
+    // Legacy-struktur: {suit}/{rank}.png
+    const rank = String(pairId).replace(/^pair-/, '');
+    for (const sub of LEGACY_SUIT_FOLDERS) {
+        const legacyPath = path.join(themePath, sub, `${rank}.png`);
+        if (fs.existsSync(legacyPath)) {
+            return `${themeFolder}/${sub}/${rank}.png`;
+        }
+    }
+
+    return currentImagePath || null;
+}
 
 /**
  * Hjälpfunktion: skanna teman från databasen
@@ -214,6 +244,9 @@ router.put('/themes/:theme', requireAdmin, async (req, res) => {
             fs.mkdirSync(themePath, { recursive: true });
         }
 
+        const existingPairs = await Theme.getPairs(theme.id);
+        const existingImagePathByPairId = new Map(existingPairs.map(p => [p.pair_id, p.image_path]));
+
         let saved = 0;
         const pairRecords = [];
 
@@ -233,11 +266,16 @@ router.put('/themes/:theme', requireAdmin, async (req, res) => {
                     saved++;
                 }
 
+                // Om ingen sökväg angivits, bevara befintlig DB-sökväg eller
+                // lös upp rätt sökväg utifrån filsystemet (legacy vs flat struktur).
+                const existingPath = existingImagePathByPairId.get(pairId);
+                imagePath = resolvePairImagePath(themeFolder, pairId, imagePath || existingPath);
+
                 pairRecords.push({
                     pairId,
                     name: name || pairId,
                     sortOrder: sortOrder ?? 0,
-                    imagePath: imagePath || `${themeFolder}/${pairId}.png`
+                    imagePath: imagePath || null
                 });
             }
         }
@@ -276,7 +314,23 @@ router.put('/themes/:theme/pairs', requireAdmin, async (req, res) => {
             return res.status(404).json({ success: false, error: 'Tema hittades inte' });
         }
 
-        await Theme.setPairs(theme.id, req.body.pairs || []);
+        // Bevara befintliga image_path-värden eftersom klienten inte skickar dem,
+        // men reparera dem om de pekar på en fil som inte finns.
+        const existingPairs = await Theme.getPairs(theme.id);
+        const imagePathByPairId = new Map(existingPairs.map(p => [p.pair_id, p.image_path]));
+
+        const mergedPairs = (req.body.pairs || []).map(pair => {
+            const pairId = pair.pairId;
+            const existingPath = imagePathByPairId.get(pairId);
+            return {
+                pairId,
+                name: pair.name,
+                sortOrder: pair.sortOrder ?? 0,
+                imagePath: resolvePairImagePath(req.params.theme, pairId, existingPath)
+            };
+        });
+
+        await Theme.setPairs(theme.id, mergedPairs);
         res.json({ success: true });
     } catch (err) {
         console.error('Admin update pairs error:', err);
@@ -288,7 +342,7 @@ router.put('/themes/:theme/pairs', requireAdmin, async (req, res) => {
  * POST /api/admin/themes/:theme/upload
  * Spara kortleksbilder direkt till servern (dataURL-format, bakåtkompatibel fallback)
  */
-router.post('/themes/:theme/upload', requireAdmin, (req, res) => {
+router.post('/themes/:theme/upload', requireAdmin, async (req, res) => {
     try {
         const themeFolder = req.params.theme;
         const { pairs, back } = req.body;
@@ -300,6 +354,11 @@ router.post('/themes/:theme/upload', requireAdmin, (req, res) => {
             });
         }
 
+        const theme = await Theme.findByFolder(themeFolder);
+        if (!theme) {
+            return res.status(404).json({ success: false, error: 'Tema hittades inte' });
+        }
+
         const themePath = path.join(CARDS_DIR, themeFolder);
 
         // Skapa tema-mapp om den inte finns
@@ -309,6 +368,7 @@ router.post('/themes/:theme/upload', requireAdmin, (req, res) => {
 
         let saved = 0;
         const errors = [];
+        const uploadedPairIds = [];
 
         // Hantera par-bilder direkt
         if (Array.isArray(pairs)) {
@@ -326,8 +386,15 @@ router.post('/themes/:theme/upload', requireAdmin, (req, res) => {
 
                 const buffer = Buffer.from(base64Match[2], 'base64');
                 fs.writeFileSync(path.join(themePath, `${pairId}.png`), buffer);
+                uploadedPairIds.push(pairId);
                 saved++;
             }
+        }
+
+        // Uppdatera image_path i databasen för uppladdade par så att spelet
+        // använder den nya flata filen istället för en gammal legacy-sökväg.
+        for (const pairId of uploadedPairIds) {
+            await Theme.updatePair(theme.id, pairId, { imagePath: `${themeFolder}/${pairId}.png` });
         }
 
         // Spara baksida om den finns
@@ -338,6 +405,11 @@ router.post('/themes/:theme/upload', requireAdmin, (req, res) => {
                 fs.writeFileSync(path.join(themePath, 'back.png'), buffer);
             }
         }
+
+        // Synka till databasen för persistens
+        db.saveThemeFiles(themeFolder).catch(err => {
+            console.error('DB-synk fel:', err.message);
+        });
 
         res.json({
             success: true,

@@ -491,15 +491,14 @@ class AnimationManager {
                 const zIndex = cardIdx === 1 ? '2' : '1';
 
                 let cardInner;
-                if (useImageDeck) {
-                    const imgSrc = card.image || `/assets/cards/${deckTheme}/${card.pairId}.png`;
-                    cardInner = `<img class="pc-card-img" src="${imgSrc}" alt="${displayName}" data-fallback="${displayName}">`;
+                if (useImageDeck && card.image) {
+                    cardInner = `<img class="pc-card-img" src="${card.image}" alt="${displayName}" data-fallback="${displayName}">`;
                 } else {
                     cardInner = `<span class="pc-rank-top">${displayName}</span><span class="pc-suit">🃏</span><span class="pc-rank-bottom">${displayName}</span>`;
                 }
 
                 cardsHtml += `
-                    <div class="pair-card-mini ${useImageDeck ? '' : 'black'}" style="margin-left:${marginLeft};z-index:${zIndex};transform:scale(${scaleDown});">
+                    <div class="pair-card-mini ${useImageDeck && card.image ? '' : 'black'}" style="margin-left:${marginLeft};z-index:${zIndex};transform:scale(${scaleDown});">
                         ${cardInner}
                     </div>
                 `;
@@ -549,9 +548,8 @@ class AnimationManager {
 
         let cardHtml;
         let setupFallback = null;
-        if (useImageDeck) {
-            const imgSrc = drawnCard.image || `/assets/cards/${deckTheme}/${drawnCard.pairId}.png`;
-            cardHtml = `<img class="lf-card-img" src="${imgSrc}" alt="${displayName}" data-fb-name="${displayName}">`;
+        if (useImageDeck && drawnCard.image) {
+            cardHtml = `<img class="lf-card-img" src="${drawnCard.image}" alt="${displayName}" data-fb-name="${displayName}">`;
             setupFallback = (img) => {
                 img.addEventListener('error', function onLuckyFishError() {
                     this.style.display = 'none';
@@ -567,7 +565,7 @@ class AnimationManager {
 
         container.innerHTML = `
             <div class="lucky-fish-label">🐟 TURFISK!</div>
-            <div class="lucky-fish-card ${useImageDeck ? '' : 'black'}">
+            <div class="lucky-fish-card ${useImageDeck && drawnCard.image ? '' : 'black'}">
                 ${cardHtml}
             </div>
             <div class="lucky-fish-sub">${displayName} — bildade ett par!</div>

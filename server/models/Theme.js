@@ -72,21 +72,23 @@ class Theme {
     }
 
     /**
-     * Fyll i image_path för par som saknar det, baserat på filsystemet.
-     * Används för att reparera äldre databasposter där kolumnalias
-     * tidigare lästes felaktigt (PostgreSQL viker camelCase till gemener).
+     * Fyll i image_path för par som saknar det, eller reparera felaktiga
+     * sökvägar som inte pekar på en existerande fil. Används för att åtgärda
+     * äldre databasposter där image_path sattes till fel sökväg
+     * (t.ex. /vegetable/pair-A.png istället för /vegetable/aubergine/A.png).
      */
     static async repairMissingImagePaths(themeId, folderName, pairs) {
         const legacyFolders = ['aubergine', 'radish', 'pepper', 'potato'];
         const hasLegacy = legacyFolders.some(f => fs.existsSync(path.join(CARDS_DIR, folderName, f)));
 
         for (const pair of pairs) {
-            if (pair.image_path) {
+            let imagePath = pair.image_path;
+            const pairId = pair.pair_id;
+            const currentExists = imagePath && fs.existsSync(path.join(CARDS_DIR, imagePath));
+
+            if (currentExists) {
                 continue;
             }
-
-            let imagePath = null;
-            const pairId = pair.pair_id;
 
             // Ny struktur: pair-*.png direkt i temamappen
             const newPath = path.join(CARDS_DIR, folderName, `${pairId}.png`);
@@ -103,7 +105,7 @@ class Theme {
                 }
             }
 
-            if (imagePath) {
+            if (imagePath && imagePath !== pair.image_path) {
                 await Theme.updatePair(themeId, pairId, { imagePath });
             }
         }
