@@ -1300,7 +1300,14 @@ class GameClient {
     renderHand(hand = [], pairs = []) {
         hand = hand || [];
         pairs = pairs || [];
-        console.log('🃏 renderHand called:', { handLength: hand.length, deckTheme: this.settings.deckTheme, useImageDeck: this.settings.deckTheme !== 'standard', pairsLength: pairs.length });
+        const missingImage = hand.filter(c => !c.image).length;
+        console.log('🃏 renderHand called:', {
+            handLength: hand.length,
+            deckTheme: this.settings.deckTheme,
+            useImageDeck: this.settings.deckTheme !== 'standard',
+            pairsLength: pairs.length,
+            missingImage
+        });
         const container = document.getElementById('my-hand');
 
         let sortedHand = [...hand];
