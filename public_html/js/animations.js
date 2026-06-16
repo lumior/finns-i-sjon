@@ -472,8 +472,6 @@ class AnimationManager {
     animatePairCards(newPairs) {
         if (!this.enabled || !newPairs || newPairs.length === 0) return;
 
-        const suits = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
-        const suitToVeggie = { hearts: 'pepper', diamonds: 'radish', clubs: 'potato', spades: 'aubergine' };
         const deckTheme = localStorage.getItem('deckTheme') || 'standard';
         const useImageDeck = deckTheme !== 'standard';
         const totalCards = newPairs.reduce((sum, p) => sum + p.length, 0);
@@ -482,32 +480,31 @@ class AnimationManager {
         const container = document.createElement('div');
         container.className = 'pair-cards-popup';
 
+        const firstCard = newPairs[0][0];
+        const rankText = firstCard.name || firstCard.pairId || 'PAR';
+
         let cardsHtml = '';
         newPairs.forEach((pair, pairIdx) => {
             pair.forEach((card, cardIdx) => {
-                const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
-                const suitSymbol = suits[card.suit] || '♠';
-                const veggie = suitToVeggie[card.suit];
+                const displayName = card.name || card.pairId || '';
                 const marginLeft = cardIdx === 0 && pairIdx > 0 ? '12px' : (cardIdx === 1 ? '-18px' : '0');
                 const zIndex = cardIdx === 1 ? '2' : '1';
 
                 let cardInner;
                 if (useImageDeck) {
-                    cardInner = `<img class="pc-card-img" src="/assets/cards/${deckTheme}/${veggie}/${card.rank}.png" alt="${card.rank}" onerror="this.style.display='none';this.parentElement.classList.add('${isRed ? 'red' : 'black'}');this.parentElement.innerHTML='<span class=\\'pc-rank-top\\'>${card.rank}</span><span class=\\'pc-suit\\'>${suitSymbol}</span><span class=\\'pc-rank-bottom\\'>${card.rank}</span>'">`;
+                    const imgSrc = card.image || `/assets/cards/${deckTheme}/${card.pairId}.png`;
+                    cardInner = `<img class="pc-card-img" src="${imgSrc}" alt="${displayName}" data-fallback="${displayName}">`;
                 } else {
-                    cardInner = `<span class="pc-rank-top">${card.rank}</span><span class="pc-suit">${suitSymbol}</span><span class="pc-rank-bottom">${card.rank}</span>`;
+                    cardInner = `<span class="pc-rank-top">${displayName}</span><span class="pc-suit">🃏</span><span class="pc-rank-bottom">${displayName}</span>`;
                 }
 
                 cardsHtml += `
-                    <div class="pair-card-mini ${useImageDeck ? '' : (isRed ? 'red' : 'black')}" style="margin-left:${marginLeft};z-index:${zIndex};transform:scale(${scaleDown});">
+                    <div class="pair-card-mini ${useImageDeck ? '' : 'black'}" style="margin-left:${marginLeft};z-index:${zIndex};transform:scale(${scaleDown});">
                         ${cardInner}
                     </div>
                 `;
             });
         });
-
-        const firstCard = newPairs[0][0];
-        const rankText = `${firstCard.rank}:or`;
 
         container.innerHTML = `
             <div class="pair-cards-label">${newPairs.length > 1 ? newPairs.length + ' PAR!' : 'PAR!'}</div>
@@ -516,6 +513,17 @@ class AnimationManager {
         `;
 
         document.body.appendChild(container);
+
+        // Fallback vid bildfel (CSP-säkert, ingen inline handler)
+        container.querySelectorAll('.pc-card-img').forEach(img => {
+            img.addEventListener('error', function onPairImgError() {
+                this.style.display = 'none';
+                const parent = this.parentElement;
+                parent.classList.add('black');
+                parent.innerHTML = `<span class="pc-rank-top">${this.dataset.fallback}</span><span class="pc-suit">🃏</span><span class="pc-rank-bottom">${this.dataset.fallback}</span>`;
+                this.removeEventListener('error', onPairImgError);
+            }, { once: true });
+        });
 
         this.spawnParticles(window.innerWidth / 2, window.innerHeight / 2, 'gold', 30);
 
@@ -531,42 +539,38 @@ class AnimationManager {
             console.log('🎣 animateLuckyFish early return — enabled:', this.enabled, 'card:', drawnCard);
             return;
         }
-        
+
         const container = document.createElement('div');
         container.className = 'lucky-fish-popup';
-        
-        const suits = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
-        const suitToVeggie = { hearts: 'pepper', diamonds: 'radish', clubs: 'potato', spades: 'aubergine' };
+
         const deckTheme = localStorage.getItem('deckTheme') || 'standard';
         const useImageDeck = deckTheme !== 'standard';
-        const isRed = drawnCard.suit === 'hearts' || drawnCard.suit === 'diamonds';
-        const suitSymbol = suits[drawnCard.suit] || '♠';
-        
+        const displayName = drawnCard.name || drawnCard.pairId || '';
+
         let cardHtml;
         let setupFallback = null;
         if (useImageDeck) {
-            const veggie = suitToVeggie[drawnCard.suit];
-            cardHtml = `<img class="lf-card-img" src="/assets/cards/${deckTheme}/${veggie}/${drawnCard.rank}.png" alt="${drawnCard.rank}" data-fb-rank="${drawnCard.rank}" data-fb-suit="${suitSymbol}" data-fb-red="${isRed}">`;
+            const imgSrc = drawnCard.image || `/assets/cards/${deckTheme}/${drawnCard.pairId}.png`;
+            cardHtml = `<img class="lf-card-img" src="${imgSrc}" alt="${displayName}" data-fb-name="${displayName}">`;
             setupFallback = (img) => {
                 img.addEventListener('error', function onLuckyFishError() {
                     this.style.display = 'none';
                     const parent = this.parentElement;
-                    const isRedCard = this.dataset.fbRed === 'true';
-                    parent.classList.add(isRedCard ? 'red' : 'black');
-                    parent.innerHTML = `<span class='lf-rank-top'>${this.dataset.fbRank}</span><span class='lf-suit'>${this.dataset.fbSuit}</span><span class='lf-rank-bottom'>${this.dataset.fbRank}</span>`;
+                    parent.classList.add('black');
+                    parent.innerHTML = `<span class='lf-rank-top'>${this.dataset.fbName}</span><span class='lf-suit'>🃏</span><span class='lf-rank-bottom'>${this.dataset.fbName}</span>`;
                     this.removeEventListener('error', onLuckyFishError);
                 }, { once: true });
             };
         } else {
-            cardHtml = `<span class="lf-rank-top">${drawnCard.rank}</span><span class="lf-suit">${suitSymbol}</span><span class="lf-rank-bottom">${drawnCard.rank}</span>`;
+            cardHtml = `<span class="lf-rank-top">${displayName}</span><span class="lf-suit">🃏</span><span class="lf-rank-bottom">${displayName}</span>`;
         }
-        
+
         container.innerHTML = `
             <div class="lucky-fish-label">🐟 TURFISK!</div>
-            <div class="lucky-fish-card ${useImageDeck ? '' : (isRed ? 'red' : 'black')}">
+            <div class="lucky-fish-card ${useImageDeck ? '' : 'black'}">
                 ${cardHtml}
             </div>
-            <div class="lucky-fish-sub">${drawnCard.rank}${suitSymbol} — bildade ett par!</div>
+            <div class="lucky-fish-sub">${displayName} — bildade ett par!</div>
         `;
         
         document.body.appendChild(container);

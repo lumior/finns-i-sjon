@@ -898,7 +898,7 @@ async function loadThemes() {
         grid.innerHTML = data.themes.map(theme => `
             <div class="theme-card">
                 <div class="theme-preview">
-                    ${theme.preview ? `<img src="${theme.preview}" alt="${theme.name}" onerror="this.style.display='none';this.parentElement.innerHTML='<span class=\\'placeholder\\'>🃏</span>'">` : '<span class="placeholder">🃏</span>'}
+                    ${theme.preview ? `<img src="${theme.preview}" alt="${theme.name}" data-fallback="🃏">` : '<span class="placeholder">🃏</span>'}
                 </div>
                 <div class="theme-name">${theme.name}</div>
                 <div class="theme-meta">
@@ -909,6 +909,15 @@ async function loadThemes() {
                 </div>
             </div>
         `).join('');
+
+        // CSP-säker fallback för förhandsbilder
+        grid.querySelectorAll('.theme-preview img').forEach(img => {
+            img.addEventListener('error', function onThemePreviewError() {
+                this.style.display = 'none';
+                this.parentElement.innerHTML = `<span class="placeholder">${this.dataset.fallback}</span>`;
+                this.removeEventListener('error', onThemePreviewError);
+            }, { once: true });
+        });
     } catch (err) {
         loading.textContent = 'Kunde inte ladda teman. Försök igen senare.';
         console.error(err);

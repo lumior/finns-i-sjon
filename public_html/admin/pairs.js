@@ -123,7 +123,7 @@ function renderPairs(theme) {
         return `
             <div class="pair-card" data-pair-id="${pair.pairId}" data-sort-order="${index}">
                 <div class="pair-preview">
-                    <img src="${imageSrc}" alt="${pair.name || pair.pairId}" id="preview-${pair.pairId}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\'placeholder\'>🃏</span>'">
+                    <img src="${imageSrc}" alt="${pair.name || pair.pairId}" id="preview-${pair.pairId}" data-fallback="🃏">
                 </div>
                 <div class="pair-id">${pair.pairId}</div>
                 <input type="text" class="pair-name-input" data-pair-id="${pair.pairId}" value="${escapeHtml(pair.name || '')}" placeholder="Par-namn">
@@ -131,6 +131,15 @@ function renderPairs(theme) {
             </div>
         `;
     }).join('');
+
+    // CSP-säker fallback vid bildfel
+    gridEl.querySelectorAll('.pair-preview img').forEach(img => {
+        img.addEventListener('error', function onPairPreviewError() {
+            this.style.display = 'none';
+            this.parentElement.innerHTML = `<span class="placeholder">${this.dataset.fallback}</span>`;
+            this.removeEventListener('error', onPairPreviewError);
+        }, { once: true });
+    });
 
     gridEl.querySelectorAll('.pair-image-input').forEach(input => {
         input.addEventListener('change', () => previewSelectedImage(input));
