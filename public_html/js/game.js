@@ -64,7 +64,11 @@ class GameClient {
             const res = await fetch('/api/themes');
             const data = await res.json();
             if (data.themes && data.themes.length > 0) {
-                this.availableThemes = data.themes;
+                // Standard-temat ska alltid finnas med i listan
+                const hasStandard = data.themes.some(t => t.id === 'standard');
+                this.availableThemes = hasStandard
+                    ? data.themes
+                    : [{ id: 'standard', name: 'Standard' }, ...data.themes];
                 this.populateThemeSelect();
             }
         } catch (err) {
@@ -326,26 +330,42 @@ class GameClient {
             });
         }
         
-        document.getElementById('deck-toggle').addEventListener('click', () => {
-            const isAIMode = new URLSearchParams(window.location.search).get('ai');
-            const currentIndex = this.availableThemes.findIndex(t => t.id === this.settings.deckTheme);
-            const nextIndex = (currentIndex + 1) % this.availableThemes.length;
-            const newTheme = this.availableThemes[nextIndex].id;
-            
-            // I multiplayer-rum: värden skickar till server så alla får samma tema
-            if (!isAIMode && this.isHost) {
-                gameSocket.emit('update_settings', { deckTheme: newTheme });
-                return;
-            }
-            
-            // I AI-läge eller om man inte är värd: ändra lokalt
-            this.settings.deckTheme = newTheme;
-            localStorage.setItem('deckTheme', newTheme);
-            document.getElementById('setting-deck-theme').value = newTheme;
-            this.updateDeckToggle(newTheme);
-            this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
-            this.renderOpponents(this.gameState?.players || []);
-        });
+        const deckToggle = document.getElementById('deck-toggle');
+        if (deckToggle) {
+            deckToggle.addEventListener('click', () => {
+                const isAIMode = new URLSearchParams(window.location.search).get('ai');
+                const currentIndex = this.availableThemes.findIndex(t => t.id === this.settings.deckTheme);
+                const nextIndex = (currentIndex + 1) % this.availableThemes.length;
+                const newTheme = this.availableThemes[nextIndex]?.id;
+
+                console.log('🎴 deck-toggle clicked:', {
+                    isAIMode: !!isAIMode,
+                    isHost: this.isHost,
+                    availableThemes: this.availableThemes.map(t => t.id),
+                    currentTheme: this.settings.deckTheme,
+                    newTheme
+                });
+
+                if (!newTheme) {
+                    console.warn('🎴 Inga teman tillgängliga');
+                    return;
+                }
+
+                // I multiplayer-rum: värden skickar till server så alla får samma tema
+                if (!isAIMode && this.isHost) {
+                    gameSocket.emit('update_settings', { deckTheme: newTheme });
+                    return;
+                }
+
+                // I AI-läge eller om man inte är värd: ändra lokalt
+                this.settings.deckTheme = newTheme;
+                localStorage.setItem('deckTheme', newTheme);
+                document.getElementById('setting-deck-theme').value = newTheme;
+                this.updateDeckToggle(newTheme);
+                this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
+                this.renderOpponents(this.gameState?.players || []);
+            });
+        }
         
         document.querySelectorAll('.modal-close, .modal-overlay').forEach(el => {
             el.addEventListener('click', (e) => {
