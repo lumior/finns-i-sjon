@@ -2,6 +2,27 @@
    FINNS I SJÖN — PAR-HANTERING (ADMIN)
    ======================================== */
 
+function getAuthToken() {
+    return localStorage.getItem('token');
+}
+
+function authHeaders(contentType = 'application/json') {
+    const token = getAuthToken();
+    const headers = { 'Content-Type': contentType };
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+}
+
+function requireAuth() {
+    if (!getAuthToken()) {
+        showToast('Du måste logga in som administratör för att spara ändringar.', 'error');
+        return false;
+    }
+    return true;
+}
+
 const themeSelect = document.getElementById('theme-select');
 const saveBtn = document.getElementById('save-btn');
 const loadingEl = document.getElementById('pairs-loading');
@@ -146,10 +167,16 @@ async function saveChanges() {
             sortOrder: index
         }));
 
+        if (!requireAuth()) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Spara ändringar';
+            return;
+        }
+
         // 1. Spara namn och sortering
         const nameRes = await fetch(`/api/admin/themes/${encodeURIComponent(currentFolder)}/pairs`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders(),
             body: JSON.stringify({ pairs })
         });
 
@@ -174,7 +201,7 @@ async function saveChanges() {
         if (uploadPairs.length > 0) {
             const uploadRes = await fetch(`/api/admin/themes/${encodeURIComponent(currentFolder)}/upload`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify({ pairs: uploadPairs })
             });
 

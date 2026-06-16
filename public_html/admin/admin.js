@@ -5,6 +5,30 @@
 
 /* global JSZip, saveAs */
 
+function getAuthToken() {
+    return localStorage.getItem('token');
+}
+
+function authHeaders(contentType = 'application/json') {
+    const token = getAuthToken();
+    const headers = {};
+    if (contentType) {
+        headers['Content-Type'] = contentType;
+    }
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+}
+
+function requireAuth() {
+    if (!getAuthToken()) {
+        showToast('Du måste logga in som administratör för att spara ändringar.', 'error');
+        return false;
+    }
+    return true;
+}
+
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
 const SUIT_NAMES = {
@@ -3655,10 +3679,16 @@ async function generateAndUpload() {
     btn.disabled = true;
     btn.textContent = '⏳ Laddar upp...';
 
+    if (!requireAuth()) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+    }
+
     try {
         const res = await fetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders(),
             body: JSON.stringify(isUpdate ? { cards, back, config } : { themeName, cards, back, config })
         });
         const data = await res.json();
