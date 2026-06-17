@@ -720,14 +720,14 @@ html, body {
     color: white;
 }
 
-.rank-btn-image.selected {
+.pair-btn-image.selected {
     background: transparent !important;
     border: 3px solid var(--primary) !important;
     box-shadow: 0 0 15px rgba(99, 102, 241, 0.6) !important;
     transform: scale(1.1) translateY(-4px);
 }
 
-.rank-btn-image.selected img {
+.pair-btn-image.selected img {
     box-shadow: 0 0 15px rgba(99, 102, 241, 0.6) !important;
 }
 
