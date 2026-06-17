@@ -722,13 +722,13 @@ html, body {
 
 .pair-btn-image.selected {
     background: transparent !important;
-    border: 3px solid var(--primary) !important;
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.6) !important;
-    transform: scale(1.1) translateY(-4px);
+    border: none !important;
+    box-shadow: none !important;
+    transform: scale(1.05);
 }
 
 .pair-btn-image.selected img {
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.6) !important;
+    box-shadow: 0 0 0 3px var(--primary), 0 0 15px rgba(99, 102, 241, 0.6) !important;
 }
 
 .rank-btn:disabled {
