@@ -3352,3 +3352,37 @@ input:checked + .toggle::after {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* ── Feedback för kortleksbyte ── */
+#deck-toggle.theme-changed {
+    animation: deckTogglePulse 0.3s ease;
+}
+
+.game-toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    z-index: 10000;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.toast-info {
+    background: var(--accent, #6366f1);
+    color: #fff;
+}
+
+.toast-success {
+    background: var(--success, #22c55e);
+    color: #fff;
+}
+
+.toast-error {
+    background: var(--danger, #ef4444);
+    color: #fff;
+}

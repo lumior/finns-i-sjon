@@ -104,6 +104,48 @@ class GameClient {
             : `Aktivt: ${theme ? theme.name : themeId}. Temat kan bara ändras i vänteläget.`;
     }
 
+    showDeckThemeFeedback(themeName) {
+        if (window.audioManager) {
+            audioManager.playClick();
+        }
+
+        const deckToggle = document.getElementById('deck-toggle');
+        if (deckToggle) {
+            deckToggle.classList.add('theme-changed');
+            setTimeout(() => deckToggle.classList.remove('theme-changed'), 300);
+        }
+
+        this.showToast(`Kortlek: ${themeName}`, 'info');
+    }
+
+    showToast(message, type = 'info', duration = 2000) {
+        const existing = document.querySelector('.game-toast');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.className = `game-toast toast-${type}`;
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease, fadeOut 0.2s ease ${duration - 200}ms forwards;
+            background: ${type === 'error' ? 'var(--danger)' : type === 'success' ? 'var(--success)' : 'var(--accent)'};
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            pointer-events: none;
+        `;
+
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), duration);
+    }
+
     connectSocket() {
         gameSocket.connect();
         
@@ -220,6 +262,7 @@ class GameClient {
         gameSocket.on('settings_updated', (settings) => {
             this.addLogEntry('Inställningar uppdaterade', 'system');
             if (settings.deckTheme) {
+                const themeName = this.availableThemes.find(t => t.id === settings.deckTheme)?.name || settings.deckTheme;
                 this.settings.deckTheme = settings.deckTheme;
                 localStorage.setItem('deckTheme', settings.deckTheme);
                 const settingSelect = document.getElementById('setting-deck-theme');
@@ -227,6 +270,7 @@ class GameClient {
                 this.updateDeckToggle(settings.deckTheme);
                 this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
                 this.renderOpponents(this.gameState?.players || []);
+                this.showDeckThemeFeedback(themeName);
             }
         });
         
@@ -364,9 +408,12 @@ class GameClient {
                     return;
                 }
 
+                const themeName = this.availableThemes.find(t => t.id === newTheme)?.name || newTheme;
+
                 // I multiplayer-rum: värden skickar till server så alla får samma tema
                 if (!isAIMode && this.isHost) {
                     gameSocket.emit('update_settings', { deckTheme: newTheme });
+                    this.showDeckThemeFeedback(themeName);
                     return;
                 }
 
@@ -377,6 +424,7 @@ class GameClient {
                 this.updateDeckToggle(newTheme);
                 this.renderHand(this.gameState?.yourHand, this.gameState?.yourPairs);
                 this.renderOpponents(this.gameState?.players || []);
+                this.showDeckThemeFeedback(themeName);
             });
         }
         

@@ -312,6 +312,27 @@ class AudioManager {
         osc.stop(this.context.currentTime + 0.05);
     }
 
+    playClick() {
+        if (!this.enabled || !this.initialized) return;
+        this.resume();
+
+        const osc = this.context.createOscillator();
+        const gain = this.context.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, this.context.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(400, this.context.currentTime + 0.08);
+
+        gain.gain.setValueAtTime(0.15, this.context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.08);
+
+        osc.start(this.context.currentTime);
+        osc.stop(this.context.currentTime + 0.08);
+    }
+
     startBackgroundMusic() {
         if (!this.musicEnabled || !this.initialized) return;
         
