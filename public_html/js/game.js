@@ -415,16 +415,17 @@ class GameClient {
                     return;
                 }
 
-                const themeName = this.availableThemes.find(t => t.id === newTheme)?.name || newTheme;
-
-                // I multiplayer-rum: värden skickar till server så alla får samma tema
-                if (!isAIMode && this.isHost) {
+                // Värden skickar till server så att alla spelare (och servern)
+                // får samma tema. UI uppdateras först när settings_updated
+                // bekräftas, vilket undviker att indikatorn och korten visas
+                // med olika teman vid snabb start.
+                if (this.isHost) {
                     gameSocket.emit('update_settings', { deckTheme: newTheme });
-                    this.showDeckThemeFeedback(themeName);
                     return;
                 }
 
-                // I AI-läge eller om man inte är värd: ändra lokalt
+                // Fallback för icke-värdar (knappen är normalt dold för dessa)
+                const themeName = this.availableThemes.find(t => t.id === newTheme)?.name || newTheme;
                 this.settings.deckTheme = newTheme;
                 localStorage.setItem('deckTheme', newTheme);
                 document.getElementById('setting-deck-theme').value = newTheme;
@@ -1095,6 +1096,16 @@ class GameClient {
         if (!this.gameState) return;
         
         const state = this.gameState;
+        
+        // Synkronisera klientens tema med serverns faktiska tema så att
+        // indikatorn alltid matchar de utdelade korten.
+        const serverDeckTheme = state.settings?.deckTheme;
+        if (serverDeckTheme && this.settings.deckTheme !== serverDeckTheme) {
+            this.settings.deckTheme = serverDeckTheme;
+            localStorage.setItem('deckTheme', serverDeckTheme);
+            const settingSelect = document.getElementById('setting-deck-theme');
+            if (settingSelect) settingSelect.value = serverDeckTheme;
+        }
         
         document.getElementById('room-name').textContent = `Bord: ${state.roomId}`;
         document.getElementById('game-type').textContent = state.gameType || 'Standard';
