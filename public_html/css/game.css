@@ -160,6 +160,18 @@ html, body {
     font-size: 0.75rem;
 }
 
+.current-theme {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    padding-left: var(--space-xs);
+    margin-left: var(--space-xs);
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .game-board {
     display: grid;
     grid-template-rows: auto 1fr auto;

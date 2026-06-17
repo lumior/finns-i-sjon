@@ -102,6 +102,12 @@ class GameClient {
         deckToggle.title = canChange
             ? `Aktivt: ${theme ? theme.name : themeId}. Klicka för ${nextTheme ? nextTheme.name : 'nästa'}`
             : `Aktivt: ${theme ? theme.name : themeId}. Temat kan bara ändras i vänteläget.`;
+
+        const currentThemeEl = document.getElementById('current-theme');
+        if (currentThemeEl) {
+            currentThemeEl.textContent = theme ? theme.name : themeId;
+            currentThemeEl.classList.remove('hidden');
+        }
     }
 
     showDeckThemeFeedback(themeName) {
@@ -405,6 +411,7 @@ class GameClient {
                 // är korten redan utdelade med det aktuella temat.
                 if (this.gameState && this.gameState.state !== 'waiting') {
                     console.log('🎴 Kortlek kan inte ändras under pågående spel');
+                    this.showToast('Kortleken kan bara bytas innan spelet startar', 'info');
                     return;
                 }
 
