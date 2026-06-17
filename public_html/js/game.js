@@ -95,8 +95,13 @@ class GameClient {
         const nextIndex = (this.availableThemes.findIndex(t => t.id === themeId) + 1) % this.availableThemes.length;
         const nextTheme = this.availableThemes[nextIndex];
 
+        const canChange = !this.gameState || this.gameState.state === 'waiting';
+        deckToggle.disabled = !canChange;
+        deckToggle.classList.toggle('disabled', !canChange);
         deckToggle.textContent = themeId === 'standard' ? '🥗' : '🎴';
-        deckToggle.title = `Aktivt: ${theme ? theme.name : themeId}. Klicka för ${nextTheme ? nextTheme.name : 'nästa'}`;
+        deckToggle.title = canChange
+            ? `Aktivt: ${theme ? theme.name : themeId}. Klicka för ${nextTheme ? nextTheme.name : 'nästa'}`
+            : `Aktivt: ${theme ? theme.name : themeId}. Temat kan bara ändras i vänteläget.`;
     }
 
     connectSocket() {
@@ -343,11 +348,19 @@ class GameClient {
                     isHost: this.isHost,
                     availableThemes: this.availableThemes.map(t => t.id),
                     currentTheme: this.settings.deckTheme,
-                    newTheme
+                    newTheme,
+                    gameState: this.gameState?.state
                 });
 
                 if (!newTheme) {
                     console.warn('🎴 Inga teman tillgängliga');
+                    return;
+                }
+
+                // Kortleken kan bara bytas i vänteläget; under pågående spel
+                // är korten redan utdelade med det aktuella temat.
+                if (this.gameState && this.gameState.state !== 'waiting') {
+                    console.log('🎴 Kortlek kan inte ändras under pågående spel');
                     return;
                 }
 
@@ -1032,6 +1045,7 @@ class GameClient {
         document.getElementById('game-type').textContent = state.gameType || 'Standard';
         
         this.updateTurnIndicator(state);
+        this.updateDeckToggle(this.settings.deckTheme);
         document.getElementById('deck-count').textContent = state.deckRemaining;
         
         this.renderOpponents(state.players);
