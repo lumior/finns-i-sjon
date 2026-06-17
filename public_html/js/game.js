@@ -1371,6 +1371,7 @@ class GameClient {
                             const parent = this.parentElement;
                             parent.classList.remove('card-deck-image');
                             parent.classList.add('pair-fallback');
+                            parent.dataset.imageFailed = 'true';
                             parent.innerHTML = `<span class="pair-name">${this.dataset.fbName}</span>`;
                         },
                         { once: true }
@@ -1388,7 +1389,8 @@ class GameClient {
 
             // Uppdatera alltid transform och stil så ordningen blir rätt
             cardEl.style.transform = transformStyle;
-            const hasCardImage = useImageDeck && card.image;
+            const imageFailed = cardEl.dataset.imageFailed === 'true';
+            const hasCardImage = useImageDeck && card.image && !imageFailed;
             cardEl.className = `card ${cardStyleClass}${hasCardImage ? ' card-deck-image' : ' pair-fallback'}`;
             cardEl.dataset.deckTheme = deckTheme;
             cardEl.dataset.pairId = card.pairId;
