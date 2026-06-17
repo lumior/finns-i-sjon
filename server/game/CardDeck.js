@@ -1,4 +1,5 @@
 const Theme = require('../models/Theme');
+const { SUITS, RANKS, SUIT_SYMBOLS, SUIT_COLORS } = require('../utils/constants');
 const fs = require('fs');
 const path = require('path');
 
@@ -12,6 +13,28 @@ class CardDeck {
 
     async init(themeIdOrFolder) {
         this.cards = [];
+
+        // Standard-temat finns inte i databasen; skapa en klassisk kortlek
+        // med 4 färger × 13 valörer. Frontend renderar dessa med text/Unicode.
+        if (themeIdOrFolder === 'standard') {
+            for (const rank of RANKS) {
+                const pairId = `pair-${rank}`;
+                for (const suit of SUITS) {
+                    this.cards.push({
+                        id: `${pairId}-${suit}`,
+                        pairId,
+                        name: rank,
+                        suit,
+                        suitSymbol: SUIT_SYMBOLS[suit],
+                        suitColor: SUIT_COLORS[suit],
+                        image: null
+                    });
+                }
+            }
+            this.shuffle();
+            return;
+        }
+
         let theme = null;
         if (/^\d+$/.test(String(themeIdOrFolder))) {
             theme = await Theme.findById(themeIdOrFolder);
