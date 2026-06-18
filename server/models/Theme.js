@@ -58,7 +58,7 @@ class Theme {
         // Använd snake_case-kolumnnamn direkt; PostgreSQL viker annars
         // icke-citerade camelCase-alias till gemener (pairId -> pairid).
         return db.query(
-            'SELECT pair_id, name, sort_order, image_path FROM theme_pairs WHERE theme_id = ? ORDER BY sort_order, pair_id',
+            'SELECT pair_id, name, sort_order, image_path, image_path_b FROM theme_pairs WHERE theme_id = ? ORDER BY sort_order, pair_id',
             [themeId]
         );
     }
@@ -82,44 +82,60 @@ class Theme {
         const hasLegacy = legacyFolders.some(f => fs.existsSync(path.join(CARDS_DIR, folderName, f)));
 
         for (const pair of pairs) {
-            let imagePath = pair.image_path;
             const pairId = pair.pair_id;
-            const currentExists = imagePath && fs.existsSync(path.join(CARDS_DIR, imagePath));
 
-            if (currentExists) {
-                continue;
-            }
+            // Primär bild (kort A)
+            let imagePath = pair.image_path;
+            const currentAExists = imagePath && fs.existsSync(path.join(CARDS_DIR, imagePath));
+            if (!currentAExists) {
+                // Ny struktur: pair-*.png direkt i temamappen
+                const newPath = path.join(CARDS_DIR, folderName, `${pairId}.png`);
+                if (fs.existsSync(newPath)) {
+                    imagePath = `${folderName}/${pairId}.png`;
+                }
 
-            // Ny struktur: pair-*.png direkt i temamappen
-            const newPath = path.join(CARDS_DIR, folderName, `${pairId}.png`);
-            if (fs.existsSync(newPath)) {
-                imagePath = `${folderName}/${pairId}.png`;
-            }
-
-            // Legacy-struktur: aubergine/{rank}.png
-            if (!imagePath && hasLegacy) {
-                const rank = pairId.replace(/^pair-/, '');
-                const legacyPath = path.join(CARDS_DIR, folderName, 'aubergine', `${rank}.png`);
-                if (fs.existsSync(legacyPath)) {
-                    imagePath = `${folderName}/aubergine/${rank}.png`;
+                // Legacy-struktur: aubergine/{rank}.png
+                if (!imagePath && hasLegacy) {
+                    const rank = pairId.replace(/^pair-/, '');
+                    const legacyPath = path.join(CARDS_DIR, folderName, 'aubergine', `${rank}.png`);
+                    if (fs.existsSync(legacyPath)) {
+                        imagePath = `${folderName}/aubergine/${rank}.png`;
+                    }
                 }
             }
 
+            // Sekundär bild (kort B) — valfri
+            let imagePathB = pair.image_path_b;
+            const currentBExists = imagePathB && fs.existsSync(path.join(CARDS_DIR, imagePathB));
+            if (!currentBExists) {
+                const newPathB = path.join(CARDS_DIR, folderName, `${pairId}-b.png`);
+                if (fs.existsSync(newPathB)) {
+                    imagePathB = `${folderName}/${pairId}-b.png`;
+                }
+            }
+
+            const updates = {};
             if (imagePath && imagePath !== pair.image_path) {
-                await Theme.updatePair(themeId, pairId, { imagePath });
+                updates.imagePath = imagePath;
+            }
+            if (imagePathB && imagePathB !== pair.image_path_b) {
+                updates.imagePathB = imagePathB;
+            }
+            if (Object.keys(updates).length > 0) {
+                await Theme.updatePair(themeId, pairId, updates);
             }
         }
     }
 
-    static async addPair(themeId, { pairId, name, sortOrder = 0, imagePath = null }) {
+    static async addPair(themeId, { pairId, name, sortOrder = 0, imagePath = null, imagePathB = null }) {
         const result = await db.run(
-            'INSERT INTO theme_pairs (theme_id, pair_id, name, sort_order, image_path) VALUES (?, ?, ?, ?, ?)',
-            [themeId, pairId, name, sortOrder, imagePath]
+            'INSERT INTO theme_pairs (theme_id, pair_id, name, sort_order, image_path, image_path_b) VALUES (?, ?, ?, ?, ?, ?)',
+            [themeId, pairId, name, sortOrder, imagePath, imagePathB]
         );
         return db.get('SELECT * FROM theme_pairs WHERE id = ?', [result.id]);
     }
 
-    static async updatePair(themeId, pairId, { name, sortOrder, imagePath }) {
+    static async updatePair(themeId, pairId, { name, sortOrder, imagePath, imagePathB }) {
         const fields = [];
         const values = [];
         if (name !== undefined) {
@@ -133,6 +149,10 @@ class Theme {
         if (imagePath !== undefined) {
             fields.push('image_path = ?');
             values.push(imagePath);
+        }
+        if (imagePathB !== undefined) {
+            fields.push('image_path_b = ?');
+            values.push(imagePathB);
         }
         if (fields.length === 0) {
             return db.get('SELECT * FROM theme_pairs WHERE theme_id = ? AND pair_id = ?', [themeId, pairId]);
@@ -184,7 +204,7 @@ class Theme {
             // Försök hitta par från nya strukturen (pair-*.png direkt i temamappen)
             const pairFiles = fs
                 .readdirSync(path.join(CARDS_DIR, folderName))
-                .filter(f => f.startsWith('pair-') && f.endsWith('.png'))
+                .filter(f => f.startsWith('pair-') && f.endsWith('.png') && !f.endsWith('-b.png'))
                 .sort();
 
             if (pairFiles.length > 0) {
@@ -207,11 +227,15 @@ class Theme {
                 let sortOrder = 0;
                 for (const file of pairFiles) {
                     const pairId = file.replace('.png', '');
+                    const imagePathB = fs.existsSync(path.join(CARDS_DIR, folderName, `${pairId}-b.png`))
+                        ? `${folderName}/${pairId}-b.png`
+                        : null;
                     await Theme.addPair(theme.id, {
                         pairId,
                         name: configPairs[pairId] || pairId,
                         sortOrder: sortOrder++,
-                        imagePath: `${folderName}/${file}`
+                        imagePath: `${folderName}/${file}`,
+                        imagePathB
                     });
                 }
                 continue;
@@ -262,7 +286,8 @@ class Theme {
                 pairId: `pair-${i}`,
                 name: `Par ${i}`,
                 sortOrder: i - 1,
-                imagePath: null
+                imagePath: null,
+                imagePathB: null
             });
         }
         await Theme.setPairs(theme.id, pairs);

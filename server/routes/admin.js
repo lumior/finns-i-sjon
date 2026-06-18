@@ -114,7 +114,8 @@ router.get('/themes/:theme', async (req, res) => {
                     pairId: p.pair_id,
                     name: p.name,
                     sortOrder: p.sort_order,
-                    imagePath: p.image_path
+                    imagePath: p.image_path,
+                    imagePathB: p.image_path_b
                 })),
                 editable: true
             }
@@ -177,20 +178,29 @@ router.post('/themes', requireAdmin, async (req, res) => {
 
         if (Array.isArray(pairs)) {
             for (const pair of pairs) {
-                const { pairId, name, sortOrder, imageBase64 } = pair;
-                if (!pairId || !imageBase64) {
+                const { pairId, name, sortOrder, imageBase64, imageBase64B } = pair;
+                if (!pairId) {
                     continue;
                 }
 
-                const imagePath = `${themeName}/${pairId}.png`;
-                fs.writeFileSync(path.join(themePath, `${pairId}.png`), Buffer.from(imageBase64, 'base64'));
-                saved++;
+                const imagePath = imageBase64 ? `${themeName}/${pairId}.png` : null;
+                if (imageBase64) {
+                    fs.writeFileSync(path.join(themePath, `${pairId}.png`), Buffer.from(imageBase64, 'base64'));
+                    saved++;
+                }
+
+                const imagePathB = imageBase64B ? `${themeName}/${pairId}-b.png` : null;
+                if (imageBase64B) {
+                    fs.writeFileSync(path.join(themePath, `${pairId}-b.png`), Buffer.from(imageBase64B, 'base64'));
+                    saved++;
+                }
 
                 pairRecords.push({
                     pairId,
                     name: name || pairId,
                     sortOrder: sortOrder ?? 0,
-                    imagePath
+                    imagePath,
+                    imagePathB
                 });
             }
         }
@@ -246,6 +256,7 @@ router.put('/themes/:theme', requireAdmin, async (req, res) => {
 
         const existingPairs = await Theme.getPairs(theme.id);
         const existingImagePathByPairId = new Map(existingPairs.map(p => [p.pair_id, p.image_path]));
+        const existingImagePathBByPairId = new Map(existingPairs.map(p => [p.pair_id, p.image_path_b]));
 
         let saved = 0;
         const pairRecords = [];
@@ -253,16 +264,23 @@ router.put('/themes/:theme', requireAdmin, async (req, res) => {
         // Spara par-bilder
         if (Array.isArray(pairs)) {
             for (const pair of pairs) {
-                const { pairId, name, sortOrder, imageBase64 } = pair;
+                const { pairId, name, sortOrder, imageBase64, imageBase64B } = pair;
                 if (!pairId) {
                     continue;
                 }
 
                 let imagePath = pair.imagePath;
+                let imagePathB = pair.imagePathB;
 
                 if (imageBase64) {
                     imagePath = `${themeFolder}/${pairId}.png`;
                     fs.writeFileSync(path.join(themePath, `${pairId}.png`), Buffer.from(imageBase64, 'base64'));
+                    saved++;
+                }
+
+                if (imageBase64B) {
+                    imagePathB = `${themeFolder}/${pairId}-b.png`;
+                    fs.writeFileSync(path.join(themePath, `${pairId}-b.png`), Buffer.from(imageBase64B, 'base64'));
                     saved++;
                 }
 
@@ -271,11 +289,15 @@ router.put('/themes/:theme', requireAdmin, async (req, res) => {
                 const existingPath = existingImagePathByPairId.get(pairId);
                 imagePath = resolvePairImagePath(themeFolder, pairId, imagePath || existingPath);
 
+                const existingPathB = existingImagePathBByPairId.get(pairId);
+                imagePathB = imagePathB || existingPathB || null;
+
                 pairRecords.push({
                     pairId,
                     name: name || pairId,
                     sortOrder: sortOrder ?? 0,
-                    imagePath: imagePath || null
+                    imagePath: imagePath || null,
+                    imagePathB: imagePathB || null
                 });
             }
         }
@@ -318,15 +340,18 @@ router.put('/themes/:theme/pairs', requireAdmin, async (req, res) => {
         // men reparera dem om de pekar på en fil som inte finns.
         const existingPairs = await Theme.getPairs(theme.id);
         const imagePathByPairId = new Map(existingPairs.map(p => [p.pair_id, p.image_path]));
+        const imagePathBByPairId = new Map(existingPairs.map(p => [p.pair_id, p.image_path_b]));
 
         const mergedPairs = (req.body.pairs || []).map(pair => {
             const pairId = pair.pairId;
             const existingPath = imagePathByPairId.get(pairId);
+            const existingPathB = imagePathBByPairId.get(pairId);
             return {
                 pairId,
                 name: pair.name,
                 sortOrder: pair.sortOrder ?? 0,
-                imagePath: resolvePairImagePath(req.params.theme, pairId, existingPath)
+                imagePath: resolvePairImagePath(req.params.theme, pairId, existingPath),
+                imagePathB: pair.imagePathB !== undefined ? pair.imagePathB : existingPathB || null
             };
         });
 
@@ -373,28 +398,42 @@ router.post('/themes/:theme/upload', requireAdmin, async (req, res) => {
         // Hantera par-bilder direkt
         if (Array.isArray(pairs)) {
             for (const pair of pairs) {
-                const { pairId, dataUrl } = pair;
-                if (!pairId || !dataUrl || typeof dataUrl !== 'string') {
+                const { pairId, dataUrl, dataUrlB } = pair;
+                if (!pairId) {
                     continue;
                 }
 
-                const base64Match = dataUrl.match(/^data:image\/(png|jpeg|webp);base64,(.+)$/);
-                if (!base64Match) {
-                    errors.push(`Ogiltigt format för ${pairId}`);
-                    continue;
+                const updates = {};
+
+                if (dataUrl && typeof dataUrl === 'string') {
+                    const base64Match = dataUrl.match(/^data:image\/(png|jpeg|webp);base64,(.+)$/);
+                    if (!base64Match) {
+                        errors.push(`Ogiltigt format för ${pairId} (A)`);
+                    } else {
+                        const buffer = Buffer.from(base64Match[2], 'base64');
+                        fs.writeFileSync(path.join(themePath, `${pairId}.png`), buffer);
+                        updates.imagePath = `${themeFolder}/${pairId}.png`;
+                        saved++;
+                    }
                 }
 
-                const buffer = Buffer.from(base64Match[2], 'base64');
-                fs.writeFileSync(path.join(themePath, `${pairId}.png`), buffer);
-                uploadedPairIds.push(pairId);
-                saved++;
+                if (dataUrlB && typeof dataUrlB === 'string') {
+                    const base64MatchB = dataUrlB.match(/^data:image\/(png|jpeg|webp);base64,(.+)$/);
+                    if (!base64MatchB) {
+                        errors.push(`Ogiltigt format för ${pairId} (B)`);
+                    } else {
+                        const bufferB = Buffer.from(base64MatchB[2], 'base64');
+                        fs.writeFileSync(path.join(themePath, `${pairId}-b.png`), bufferB);
+                        updates.imagePathB = `${themeFolder}/${pairId}-b.png`;
+                        saved++;
+                    }
+                }
+
+                if (Object.keys(updates).length > 0) {
+                    uploadedPairIds.push(pairId);
+                    await Theme.updatePair(theme.id, pairId, updates);
+                }
             }
-        }
-
-        // Uppdatera image_path i databasen för uppladdade par så att spelet
-        // använder den nya flata filen istället för en gammal legacy-sökväg.
-        for (const pairId of uploadedPairIds) {
-            await Theme.updatePair(theme.id, pairId, { imagePath: `${themeFolder}/${pairId}.png` });
         }
 
         // Spara baksida om den finns

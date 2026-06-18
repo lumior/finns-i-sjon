@@ -54,6 +54,7 @@ class CardDeck {
             const pairId = pair.pair_id;
             const name = pair.name;
             let imagePath = pair.image_path;
+            let imagePathB = pair.image_path_b;
 
             if (!imagePath) {
                 // Fallback: försök hitta bilden i filsystemet
@@ -73,19 +74,28 @@ class CardDeck {
                 }
             }
 
-            const finalImagePath = imagePath || `${folderName}/${pairId}.png`;
+            // Fallback för sekundär bild (kort B) — används endast om den finns på disk
+            if (!imagePathB) {
+                const newPathB = path.join(CARDS_DIR, folderName, `${pairId}-b.png`);
+                if (fs.existsSync(newPathB)) {
+                    imagePathB = `${folderName}/${pairId}-b.png`;
+                }
+            }
+
+            const finalImagePathA = imagePath || `${folderName}/${pairId}.png`;
+            const finalImagePathB = imagePathB || finalImagePathA;
 
             this.cards.push({
                 id: `${pairId}-a`,
                 pairId,
                 name,
-                image: `/assets/cards/${finalImagePath}`
+                image: `/assets/cards/${finalImagePathA}`
             });
             this.cards.push({
                 id: `${pairId}-b`,
                 pairId,
                 name,
-                image: `/assets/cards/${finalImagePath}`
+                image: `/assets/cards/${finalImagePathB}`
             });
         }
 

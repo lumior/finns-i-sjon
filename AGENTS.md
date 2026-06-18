@@ -311,7 +311,7 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `achievements` — upplåsta achievements per användare
 - `game_snapshots` — JSON-snapshots av spelstatus för crash-recovery
 - `themes` — metadata för kortleksteman (`folder_name`, `display_name`, `description`, `is_active`)
-- `theme_pairs` — par per tema (`pair_id`, `name`, `sort_order`, `image_path`)
+- `theme_pairs` — par per tema (`pair_id`, `name`, `sort_order`, `image_path`, `image_path_b`)
 - `theme_files` — base64-kodade kortleksbilder för persistens på ephemeral filesystem
 
 ### Index
@@ -488,17 +488,17 @@ ICE-servrar:
 
 ## 12. Kortleks-teman och tillgångar
 
-Spelet använder en **par-baserad kortlek**. Varje tema består av 25–26 par (50–52 kort). Ett par är två kort med samma `pairId` och samma bild. Par-namnen lagras i databasen (`theme_pairs`) och kan redigeras via admin-panelen.
+Spelet använder en **par-baserad kortlek**. Varje tema består av 25–26 par (50–52 kort). Ett par är två kort med samma `pairId`. Som standard har båda korten samma bild, men admin-panelen stöder även **olika bilder** på de två korten i paret.
 
 ### Databasmodell
 
 - `themes` — metadata för varje tema (`folder_name`, `display_name`, `description`, `is_active`).
-- `theme_pairs` — varje pars `pair_id`, `name`, `sort_order` och `image_path`.
+- `theme_pairs` — varje pars `pair_id`, `name`, `sort_order`, `image_path` (kort A) och `image_path_b` (valfritt, kort B).
 - `theme_files` — base64-kodade bilder för persistens på ephemeral filesystem.
 
 ### Filsystem
 
-Bilderna ligger under `public_html/assets/cards/{tema}/{pairId}.png` (t.ex. `frukt/pair-1.png`). Baksidan sparas som `{tema}/back.png`.
+Bilderna ligger under `public_html/assets/cards/{tema}/{pairId}.png` (t.ex. `frukt/pair-1.png`). Om de två korten i paret har olika bilder sparas den andra som `{tema}/{pairId}-b.png` (t.ex. `frukt/pair-1-b.png`). Baksidan sparas som `{tema}/back.png`.
 
 Vid serverstart seedas `themes`/`theme_pairs` från befintliga filsystemstemat via `Theme.seedFromFilesystem()`. Gamla teman med suit/rank-struktur (`{tema}/{suit}/{rank}.png`) migreras till par baserat på valörer.
 
@@ -513,8 +513,8 @@ Vid serverstart seedas `themes`/`theme_pairs` från befintliga filsystemstemat v
 
 ### Admin-panel
 
-- `public_html/admin/pairs.html` + `pairs.js` — hantera par-namn och bilder per tema.
-- `public_html/admin/index.html` — huvudpanel med länk till par-hantering.
+- `public_html/admin/pairs.html` + `pairs.js` — **primär editor** för att skapa nya par-baserade teman med 26 par, anpassade `pairId`, namn och en eller två bilder per par.
+- `public_html/admin/index.html` — huvudpanel med länk till par-hantering (klassisk suit/rank-designer finns kvar för legacy-teman).
 
 ---
 
@@ -631,7 +631,7 @@ Projektet har en uppsättning markdown-filer i roten som komplement till denna f
 ### Vanliga fallgropar
 - **`README.md` refererar ibland till `public/`** — projektets faktiska statiska mapp är `public_html/`.
 - **`scripts/`** innehåller one-off migrationer (t.ex. `update-user-avatars.js`). De körs manuellt vid behov, inte som en del av byggprocessen.
-- **Kortleksstrukturen** har ändrats från flat (`assets/cards/aubergine/`) till kategoriserad (`assets/cards/vegetable/aubergine/`). Kod som läser teman (t.ex. admin-routes) hanterar båda nivåerna.
+- **Kortleksstrukturen** är par-baserad. Nya teman skapas via par-editorn (`admin/pairs.html`) med 26 par. Kod som läser teman (t.ex. admin-routes) hanterar både nya flat-strukturen (`{tema}/{pairId}.png` / `{pairId}-b.png`) och legacy suit/rank-mappar.
 - **`filterChat()` använder word boundaries med svenskt teckenstöd** (`[^a-zåäöA-ZÅÄÖ]`). `\b` fungerar inte korrekt med åäö i JavaScript.
 
 ---

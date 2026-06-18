@@ -29,9 +29,13 @@
             margin-bottom: 0;
         }
 
+        .pairs-toolbar .btn {
+            white-space: nowrap;
+        }
+
         .pairs-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: var(--space-md);
             margin-bottom: var(--space-xl);
         }
@@ -51,6 +55,17 @@
             border-color: var(--accent);
         }
 
+        .pair-card.missing-a {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .pair-previews {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-sm);
+        }
+
         .pair-preview {
             width: 100%;
             aspect-ratio: 5/7;
@@ -60,6 +75,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
         }
 
         .pair-preview img {
@@ -69,16 +85,23 @@
         }
 
         .pair-preview .placeholder {
-            font-size: 2.5rem;
+            font-size: 2rem;
             opacity: 0.3;
         }
 
-        .pair-id {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            font-family: monospace;
+        .pair-preview-label {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            font-weight: 600;
         }
 
+        .pair-id-input,
         .pair-name-input {
             width: 100%;
             padding: 8px 10px;
@@ -86,18 +109,43 @@
             border: 2px solid var(--border-color);
             border-radius: var(--radius-sm);
             color: var(--text-primary);
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
 
+        .pair-id-input:focus,
         .pair-name-input:focus {
             outline: none;
             border-color: var(--accent);
         }
 
+        .pair-id-input.invalid {
+            border-color: var(--danger);
+        }
+
         .pair-image-input {
             width: 100%;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-secondary);
+        }
+
+        .pair-image-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .same-image-toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .same-image-toggle input {
+            cursor: pointer;
         }
 
         .save-bar {
@@ -123,6 +171,59 @@
             padding: var(--space-xl);
             color: var(--text-secondary);
         }
+
+        .create-theme-section {
+            display: none;
+            margin-bottom: var(--space-lg);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+
+        .create-theme-section.active {
+            display: block;
+        }
+
+        .create-theme-actions {
+            display: flex;
+            gap: var(--space-sm);
+            margin-top: var(--space-sm);
+        }
+
+        .theme-info {
+            margin-bottom: var(--space-md);
+            padding: var(--space-sm) var(--space-md);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+        }
+
+        .theme-info h2 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+        .theme-info p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .pair-count {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .danger-text {
+            color: var(--danger);
+            font-size: 0.75rem;
+        }
     </style>
 </head>
 <body>
@@ -130,7 +231,7 @@
         <header class="admin-header">
             <a href="/admin/" class="back-link">← Tillbaka till admin</a>
             <h1>🖼️ Hantera par</h1>
-            <p>Redigera namn och byt bilder för varje par i ett kortlekstema.</p>
+            <p>Skapa och redigera par-baserade kortlekar. Varje par består av två kort — samma eller olika bilder.</p>
         </header>
 
         <div class="pairs-toolbar">
@@ -140,14 +241,42 @@
                     <option value="">-- Välj tema --</option>
                 </select>
             </div>
+            <button class="btn btn-secondary" id="create-theme-toggle-btn">➕ Nytt tema</button>
             <button class="btn btn-primary" id="save-btn" disabled>Spara ändringar</button>
         </div>
 
+        <div class="create-theme-section" id="create-theme-section">
+            <h3>Skapa nytt par-baserat tema</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="new-theme-folder">Mappnamn (tekniskt)</label>
+                    <input type="text" id="new-theme-folder" placeholder="t.ex. frukt-tema" maxlength="30">
+                    <small>Endast små bokstäver, siffror och bindestreck.</small>
+                </div>
+                <div class="form-group">
+                    <label for="new-theme-name">Visningsnamn</label>
+                    <input type="text" id="new-theme-name" placeholder="t.ex. Frukt-tema" maxlength="50">
+                </div>
+            </div>
+            <div class="create-theme-actions">
+                <button class="btn btn-primary" id="create-theme-btn">Skapa tema med 26 par</button>
+                <button class="btn btn-small" id="cancel-create-btn">Avbryt</button>
+            </div>
+        </div>
+
+        <div class="theme-info" id="theme-info" style="display: none;">
+            <div>
+                <h2 id="theme-info-name">—</h2>
+                <p id="theme-info-folder">—</p>
+            </div>
+            <div class="pair-count" id="pair-count">0 par</div>
+        </div>
+
         <div class="loading" id="pairs-loading" style="display: none;">Laddar par...</div>
-        <div class="pairs-empty" id="pairs-empty" style="display: none;">Välj ett tema för att börja redigera.</div>
+        <div class="pairs-empty" id="pairs-empty">Välj ett tema för att börja redigera.</div>
         <div class="pairs-grid" id="pairs-grid"></div>
     </div>
 
-    <script src="/admin/pairs.js?v=2"></script>
+    <script src="/admin/pairs.js?v=3"></script>
 </body>
 </html>
