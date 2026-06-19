@@ -191,6 +191,66 @@
             margin-top: var(--space-sm);
         }
 
+        .ai-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-md);
+            align-items: flex-end;
+            margin-bottom: var(--space-lg);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+
+        .ai-toolbar .form-group {
+            margin-bottom: 0;
+            min-width: 140px;
+        }
+
+        .ai-toolbar input[type="color"] {
+            width: 60px;
+            height: 40px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+
+        .ai-progress-wrap {
+            display: none;
+            margin-bottom: var(--space-lg);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+
+        .ai-progress-wrap.active {
+            display: block;
+        }
+
+        .ai-progress-bar {
+            width: 100%;
+            height: 12px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: var(--space-sm);
+        }
+
+        .ai-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            transition: width 0.3s ease;
+        }
+
+        .ai-progress-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
         .theme-info {
             margin-bottom: var(--space-md);
             padding: var(--space-sm) var(--space-md);
@@ -242,7 +302,37 @@
                 </select>
             </div>
             <button class="btn btn-secondary" id="create-theme-toggle-btn">➕ Nytt tema</button>
+            <button class="btn btn-ai" id="ai-generate-btn" disabled>🤖 Generera med AI</button>
             <button class="btn btn-primary" id="save-btn" disabled>Spara ändringar</button>
+        </div>
+
+        <div class="ai-toolbar" id="ai-toolbar" style="display: none;">
+            <div class="form-group">
+                <label for="ai-primary-color">Primärfärg</label>
+                <input type="color" id="ai-primary-color" value="#4a90d9">
+            </div>
+            <div class="form-group">
+                <label for="ai-secondary-color">Sekundärfärg</label>
+                <input type="color" id="ai-secondary-color" value="#f5a623">
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 220px;">
+                <label for="ai-style">Stil</label>
+                <select id="ai-style" class="pair-name-input" style="font-size: 0.85rem;">
+                    <option value="Vector illustration, flat design, no text">Vektor / flat design</option>
+                    <option value="Colorful cartoon illustration, no text">Cartoon</option>
+                    <option value="Watercolor painting, soft colors, no text">Akvarell</option>
+                    <option value="Pixel art, retro game style, no text">Pixelart</option>
+                    <option value="3D render, soft lighting, no text">3D-render</option>
+                </select>
+            </div>
+            <button class="btn btn-small" id="ai-cancel-btn" style="display: none;">⛔ Avbryt</button>
+        </div>
+
+        <div class="ai-progress-wrap" id="ai-progress-wrap">
+            <div class="ai-progress-bar">
+                <div class="ai-progress-fill" id="ai-progress-fill"></div>
+            </div>
+            <div class="ai-progress-text" id="ai-progress-text">Redo att generera</div>
         </div>
 
         <div class="create-theme-section" id="create-theme-section">
@@ -277,6 +367,6 @@
         <div class="pairs-grid" id="pairs-grid"></div>
     </div>
 
-    <script src="/admin/pairs.js?v=3"></script>
+    <script src="/admin/pairs.js?v=4"></script>
 </body>
 </html>

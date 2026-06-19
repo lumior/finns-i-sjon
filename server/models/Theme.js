@@ -58,7 +58,7 @@ class Theme {
         // Använd snake_case-kolumnnamn direkt; PostgreSQL viker annars
         // icke-citerade camelCase-alias till gemener (pairId -> pairid).
         return db.query(
-            'SELECT pair_id, name, sort_order, image_path, image_path_b FROM theme_pairs WHERE theme_id = ? ORDER BY sort_order, pair_id',
+            'SELECT pair_id, name, description, sort_order, image_path, image_path_b FROM theme_pairs WHERE theme_id = ? ORDER BY sort_order, pair_id',
             [themeId]
         );
     }
@@ -127,20 +127,27 @@ class Theme {
         }
     }
 
-    static async addPair(themeId, { pairId, name, sortOrder = 0, imagePath = null, imagePathB = null }) {
+    static async addPair(
+        themeId,
+        { pairId, name, description = '', sortOrder = 0, imagePath = null, imagePathB = null }
+    ) {
         const result = await db.run(
-            'INSERT INTO theme_pairs (theme_id, pair_id, name, sort_order, image_path, image_path_b) VALUES (?, ?, ?, ?, ?, ?)',
-            [themeId, pairId, name, sortOrder, imagePath, imagePathB]
+            'INSERT INTO theme_pairs (theme_id, pair_id, name, description, sort_order, image_path, image_path_b) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [themeId, pairId, name, description, sortOrder, imagePath, imagePathB]
         );
         return db.get('SELECT * FROM theme_pairs WHERE id = ?', [result.id]);
     }
 
-    static async updatePair(themeId, pairId, { name, sortOrder, imagePath, imagePathB }) {
+    static async updatePair(themeId, pairId, { name, description, sortOrder, imagePath, imagePathB }) {
         const fields = [];
         const values = [];
         if (name !== undefined) {
             fields.push('name = ?');
             values.push(name);
+        }
+        if (description !== undefined) {
+            fields.push('description = ?');
+            values.push(description);
         }
         if (sortOrder !== undefined) {
             fields.push('sort_order = ?');
@@ -233,6 +240,7 @@ class Theme {
                     await Theme.addPair(theme.id, {
                         pairId,
                         name: configPairs[pairId] || pairId,
+                        description: '',
                         sortOrder: sortOrder++,
                         imagePath: `${folderName}/${file}`,
                         imagePathB
@@ -285,6 +293,7 @@ class Theme {
             pairs.push({
                 pairId: `pair-${i}`,
                 name: `Par ${i}`,
+                description: '',
                 sortOrder: i - 1,
                 imagePath: null,
                 imagePathB: null

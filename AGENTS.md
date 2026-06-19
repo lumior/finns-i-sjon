@@ -311,7 +311,7 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `achievements` — upplåsta achievements per användare
 - `game_snapshots` — JSON-snapshots av spelstatus för crash-recovery
 - `themes` — metadata för kortleksteman (`folder_name`, `display_name`, `description`, `is_active`)
-- `theme_pairs` — par per tema (`pair_id`, `name`, `sort_order`, `image_path`, `image_path_b`)
+- `theme_pairs` — par per tema (`pair_id`, `name`, `description`, `sort_order`, `image_path`, `image_path_b`)
 - `theme_files` — base64-kodade kortleksbilder för persistens på ephemeral filesystem
 
 ### Index
@@ -493,7 +493,7 @@ Spelet använder en **par-baserad kortlek**. Varje tema består av 25–26 par (
 ### Databasmodell
 
 - `themes` — metadata för varje tema (`folder_name`, `display_name`, `description`, `is_active`).
-- `theme_pairs` — varje pars `pair_id`, `name`, `sort_order`, `image_path` (kort A) och `image_path_b` (valfritt, kort B).
+- `theme_pairs` — varje pars `pair_id`, `name`, `description`, `sort_order`, `image_path` (kort A) och `image_path_b` (valfritt, kort B).
 - `theme_files` — base64-kodade bilder för persistens på ephemeral filesystem.
 
 ### Filsystem
@@ -513,7 +513,7 @@ Vid serverstart seedas `themes`/`theme_pairs` från befintliga filsystemstemat v
 
 ### Admin-panel
 
-- `public_html/admin/pairs.html` + `pairs.js` — **primär editor** för att skapa nya par-baserade teman med 26 par, anpassade `pairId`, namn och en eller två bilder per par.
+- `public_html/admin/pairs.html` + `pairs.js` — **primär editor** för att skapa nya par-baserade teman med 26 par, anpassade `pairId`, namn, beskrivning och en eller två bilder per par. Innehåller AI-generering via Pollinations.ai baserat på beskrivning + valda färger.
 - `public_html/admin/index.html` — huvudpanel med länk till par-hantering (klassisk suit/rank-designer finns kvar för legacy-teman).
 
 ---

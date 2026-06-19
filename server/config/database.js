@@ -216,6 +216,7 @@ class Database {
                     theme_id INT NOT NULL,
                     pair_id VARCHAR(20) NOT NULL,
                     name VARCHAR(100) NOT NULL,
+                    description VARCHAR(255),
                     sort_order INT DEFAULT 0,
                     image_path VARCHAR(200),
                     image_path_b VARCHAR(200),
@@ -235,10 +236,11 @@ class Database {
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_theme_pairs_theme ON theme_pairs(theme_id)`);
 
-            // Migration: lägg till image_path_b för par med olika bilder
+            // Migration: lägg till image_path_b och description för theme_pairs
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS image_path_b VARCHAR(200)`).catch(
                 () => {}
             );
+            await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS description VARCHAR(255)`).catch(() => {});
 
             // Migration: lägg till email_verified för befintliga databaser
             await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified SMALLINT DEFAULT 0`).catch(
@@ -397,6 +399,7 @@ class Database {
                     theme_id INT NOT NULL,
                     pair_id VARCHAR(20) NOT NULL,
                     name VARCHAR(100) NOT NULL,
+                    description VARCHAR(255),
                     sort_order INT DEFAULT 0,
                     image_path VARCHAR(200),
                     image_path_b VARCHAR(200),
@@ -414,10 +417,11 @@ class Database {
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_participants_user ON game_participants(user_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
 
-            // Migration: lägg till image_path_b för par med olika bilder
+            // Migration: lägg till image_path_b och description för theme_pairs
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS image_path_b VARCHAR(200)`).catch(
                 () => {}
             );
+            await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS description VARCHAR(255)`).catch(() => {});
 
             // Migration: lägg till email_verified för befintliga databaser
             await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified TINYINT DEFAULT 0`).catch(
@@ -517,11 +521,12 @@ class Database {
                 `CREATE TABLE IF NOT EXISTS themes (id INTEGER PRIMARY KEY AUTOINCREMENT, folder_name TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL, description TEXT, is_active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
             );
             this.db.run(
-                `CREATE TABLE IF NOT EXISTS theme_pairs (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_id INTEGER NOT NULL, pair_id TEXT NOT NULL, name TEXT NOT NULL, sort_order INTEGER DEFAULT 0, image_path TEXT, image_path_b TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_id, pair_id), FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE CASCADE)`
+                `CREATE TABLE IF NOT EXISTS theme_pairs (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_id INTEGER NOT NULL, pair_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, sort_order INTEGER DEFAULT 0, image_path TEXT, image_path_b TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_id, pair_id), FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE CASCADE)`
             );
             this.db.run(`CREATE INDEX IF NOT EXISTS idx_theme_pairs_theme ON theme_pairs(theme_id)`);
-            // Migration: lägg till image_path_b för par med olika bilder
+            // Migration: lägg till image_path_b och description för theme_pairs
             this.db.run(`ALTER TABLE theme_pairs ADD COLUMN image_path_b TEXT`, () => {});
+            this.db.run(`ALTER TABLE theme_pairs ADD COLUMN description TEXT`, () => {});
 
             // Migration: lägg till email_verified, is_admin och user_tokens för befintliga SQLite-databaser
             this.db.run(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`, () => {});

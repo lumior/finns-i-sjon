@@ -28,6 +28,15 @@ function requireAuth() {
 
 const themeSelect = document.getElementById('theme-select');
 const saveBtn = document.getElementById('save-btn');
+const aiGenerateBtn = document.getElementById('ai-generate-btn');
+const aiToolbar = document.getElementById('ai-toolbar');
+const aiPrimaryColor = document.getElementById('ai-primary-color');
+const aiSecondaryColor = document.getElementById('ai-secondary-color');
+const aiStyle = document.getElementById('ai-style');
+const aiCancelBtn = document.getElementById('ai-cancel-btn');
+const aiProgressWrap = document.getElementById('ai-progress-wrap');
+const aiProgressFill = document.getElementById('ai-progress-fill');
+const aiProgressText = document.getElementById('ai-progress-text');
 const createThemeToggleBtn = document.getElementById('create-theme-toggle-btn');
 const createThemeSection = document.getElementById('create-theme-section');
 const createThemeBtn = document.getElementById('create-theme-btn');
@@ -45,6 +54,8 @@ const pairCountEl = document.getElementById('pair-count');
 let currentTheme = null;
 let currentFolder = null;
 let pairsData = [];
+let aiAbortController = null;
+let aiGenerating = false;
 
 /* ========================================
    INIT
@@ -62,6 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     saveBtn.addEventListener('click', saveChanges);
+    aiGenerateBtn.addEventListener('click', generateWithAI);
+    aiCancelBtn.addEventListener('click', cancelAIGeneration);
 
     createThemeToggleBtn.addEventListener('click', () => {
         createThemeSection.classList.toggle('active');
@@ -87,6 +100,9 @@ function resetView() {
     emptyEl.style.display = 'block';
     themeInfoEl.style.display = 'none';
     saveBtn.disabled = true;
+    aiGenerateBtn.disabled = true;
+    aiToolbar.style.display = 'none';
+    aiProgressWrap.classList.remove('active');
 }
 
 /* ========================================
@@ -142,6 +158,7 @@ async function loadTheme(folder) {
             originalPairId: p.pairId,
             pairId: p.pairId,
             name: p.name || p.pairId,
+            description: p.description || '',
             sortOrder: p.sortOrder ?? index,
             imagePath: p.imagePath || null,
             imagePathB: p.imagePathB || null,
@@ -157,6 +174,7 @@ async function loadTheme(folder) {
                 originalPairId: `pair-${nextIndex}`,
                 pairId: `pair-${nextIndex}`,
                 name: `Par ${nextIndex}`,
+                description: '',
                 sortOrder: pairsData.length,
                 imagePath: null,
                 imagePathB: null,
@@ -169,6 +187,8 @@ async function loadTheme(folder) {
         renderThemeInfo();
         renderPairs();
         saveBtn.disabled = false;
+        aiGenerateBtn.disabled = false;
+        aiToolbar.style.display = 'flex';
     } catch (err) {
         loadingEl.style.display = 'none';
         console.error(err);
@@ -231,6 +251,12 @@ function renderPairs() {
                         placeholder="Visningsnamn"
                         maxlength="100">
 
+                    <textarea
+                        class="pair-description-input"
+                        id="pair-description-${index}"
+                        placeholder="Emoji + beskrivning för AI, t.ex. 🍎 rött äpple"
+                        maxlength="250">${escapeHtml(pair.description || '')}</textarea>
+
                     <label class="same-image-toggle">
                         <input type="checkbox" id="same-image-${index}" ${pair.sameImage ? 'checked' : ''}>
                         <span>Samma bild på båda korten</span>
@@ -288,6 +314,10 @@ function renderPairs() {
 }
 
 function getPreviewSrc(pair, side) {
+    if (side === 'B' && pair.sameImage) {
+        return getPreviewSrc(pair, 'A');
+    }
+
     const file = side === 'A' ? pair.fileA : pair.fileB;
     if (file) {
         return URL.createObjectURL(file);
@@ -477,10 +507,12 @@ async function saveChanges() {
         const index = parseInt(card.dataset.index, 10);
         const pairIdInput = card.querySelector('.pair-id-input');
         const nameInput = card.querySelector('.pair-name-input');
+        const descriptionInput = card.querySelector('.pair-description-input');
         const sameImageCheckbox = card.querySelector('.same-image-toggle input');
 
         const pairId = pairIdInput.value.trim().toLowerCase();
         const name = nameInput.value.trim();
+        const description = descriptionInput ? descriptionInput.value.trim() : '';
 
         if (!pairId) {
             showToast(`Par ${index + 1} saknar ID`, 'error');
@@ -523,6 +555,7 @@ async function saveChanges() {
             originalPairId: pair.originalPairId,
             pairId,
             name: pair.name,
+            description: pair.description,
             sortOrder: i,
             imagePathB: pair.sameImage ? null : pair.imagePathB
         });
@@ -601,6 +634,198 @@ function readFileAsDataURL(file) {
         reader.onerror = () => reject(new Error('Kunde inte läsa bildfil'));
         reader.readAsDataURL(file);
     });
+}
+
+/* ========================================
+   AI-GENERERING
+   ======================================== */
+async function generateWithAI() {
+    if (!currentTheme || pairsData.length === 0 || aiGenerating) {
+        return;
+    }
+
+    const primaryColor = aiPrimaryColor.value;
+    const secondaryColor = aiSecondaryColor.value;
+    const style = aiStyle.value;
+
+    aiGenerating = true;
+    aiAbortController = new AbortController();
+    const signal = aiAbortController.signal;
+
+    aiGenerateBtn.disabled = true;
+    aiGenerateBtn.textContent = '⏳ Genererar...';
+    aiCancelBtn.style.display = 'inline-block';
+    aiProgressWrap.classList.add('active');
+
+    const pairsToGenerate = pairsData.filter(p => p.description && p.description.trim());
+    const total = pairsToGenerate.length;
+
+    if (total === 0) {
+        showToast('Fyll i beskrivningar (emoji + text) för minst ett par först.', 'error');
+        resetAIButtons();
+        return;
+    }
+
+    updateAIProgress(0, total, 'Startar AI-generering...');
+    showToast(`🤖 Genererar ${total} par. Tid: ~5–15 sekunder per bild.`);
+
+    let completed = 0;
+    let errors = 0;
+
+    for (const pair of pairsToGenerate) {
+        if (signal.aborted) {
+            break;
+        }
+
+        const index = pairsData.indexOf(pair);
+        updateAIProgress(completed, total, `${completed}/${total} — genererar ${pair.name}...`);
+
+        try {
+            const promptA = buildAIPrompt(pair.description, primaryColor, secondaryColor, style);
+            const seedA = simpleHash(`${currentFolder}-${pair.pairId}-${pair.description}-a`);
+            const dataUrlA = await fetchAIImageWithTimeout(promptA, seedA, signal, 45000);
+            pair.fileA = dataUrlToFile(dataUrlA, `${pair.pairId}.png`);
+
+            if (!pair.sameImage) {
+                const promptB = buildAIPrompt(pair.description, secondaryColor, primaryColor, style);
+                const seedB = simpleHash(`${currentFolder}-${pair.pairId}-${pair.description}-b`);
+                const dataUrlB = await fetchAIImageWithTimeout(promptB, seedB, signal, 45000);
+                pair.fileB = dataUrlToFile(dataUrlB, `${pair.pairId}-b.png`);
+            } else {
+                pair.fileB = null;
+            }
+
+            updatePreview(index, 'A');
+            updatePreview(index, 'B');
+            completed++;
+        } catch (err) {
+            if (signal.aborted) {
+                break;
+            }
+            console.error('AI-genereringsfel:', err);
+            errors++;
+            completed++;
+        }
+    }
+
+    resetAIButtons();
+
+    if (signal.aborted) {
+        showToast(`⛔ Generering avbruten. ${completed - errors}/${total} par färdiga.`);
+    } else if (errors > 0) {
+        showToast(`⚠️ Generering klar med ${errors} fel. Klicka på Spara för att spara de genererade bilderna.`);
+    } else {
+        showToast(`✅ AI-generering klar! ${completed} par genererade. Klicka på Spara för att spara.`);
+    }
+}
+
+function resetAIButtons() {
+    aiGenerating = false;
+    aiAbortController = null;
+    aiGenerateBtn.disabled = false;
+    aiGenerateBtn.textContent = '🤖 Generera med AI';
+    aiCancelBtn.style.display = 'none';
+    updateAIProgress(pairsData.length, pairsData.length, 'Klar');
+}
+
+function cancelAIGeneration() {
+    if (aiAbortController) {
+        aiAbortController.abort();
+    }
+}
+
+function buildAIPrompt(description, primaryColor, secondaryColor, style) {
+    const colorName = hexToColorName(primaryColor);
+    const secondaryName = hexToColorName(secondaryColor);
+    const cleanDesc = description.replace(/[\n\r]/g, ' ').trim();
+    return `${cleanDesc}, ${colorName} and ${secondaryName} background accents, ${style}, centered, no text, no border`;
+}
+
+async function fetchAIImageWithTimeout(prompt, seed, signal, timeoutMs) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error('AI-bildgenerering tog för lång tid'));
+        }, timeoutMs);
+
+        fetchAIImage(prompt, seed, signal)
+            .then(dataUrl => {
+                clearTimeout(timer);
+                resolve(dataUrl);
+            })
+            .catch(err => {
+                clearTimeout(timer);
+                reject(err);
+            });
+    });
+}
+
+async function fetchAIImage(prompt, seed, signal) {
+    const encoded = encodeURIComponent(prompt);
+    const url = `https://image.pollinations.ai/prompt/${encoded}?width=256&height=256&nologo=true&seed=${seed}`;
+
+    const res = await fetch(url, { signal });
+    if (!res.ok) {
+        throw new Error(`Pollinations svarade med ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Kunde inte läsa AI-bild'));
+        reader.readAsDataURL(blob);
+    });
+}
+
+function dataUrlToFile(dataUrl, filename) {
+    const match = dataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!match) {
+        return null;
+    }
+    const mime = match[1];
+    const base64 = match[2];
+    const bytes = atob(base64);
+    const array = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) {
+        array[i] = bytes.charCodeAt(i);
+    }
+    return new File([array], filename, { type: mime });
+}
+
+function updateAIProgress(completed, total, text) {
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    aiProgressFill.style.width = `${pct}%`;
+    aiProgressText.textContent = text || `${completed}/${total} klara`;
+}
+
+function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0;
+    }
+    return Math.abs(hash);
+}
+
+function hexToColorName(hex) {
+    const colors = {
+        '#000000': 'black',
+        '#ffffff': 'white',
+        '#ff0000': 'red',
+        '#00ff00': 'green',
+        '#0000ff': 'blue',
+        '#ffff00': 'yellow',
+        '#ff00ff': 'magenta',
+        '#00ffff': 'cyan',
+        '#ffa500': 'orange',
+        '#800080': 'purple',
+        '#a52a2a': 'brown',
+        '#808080': 'gray',
+        '#ffc0cb': 'pink'
+    };
+    const normalized = hex.toLowerCase();
+    return colors[normalized] || normalized;
 }
 
 /* ========================================

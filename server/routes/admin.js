@@ -113,6 +113,7 @@ router.get('/themes/:theme', async (req, res) => {
                 pairs: pairs.map(p => ({
                     pairId: p.pair_id,
                     name: p.name,
+                    description: p.description,
                     sortOrder: p.sort_order,
                     imagePath: p.image_path,
                     imagePathB: p.image_path_b
@@ -145,8 +146,10 @@ router.get('/themes/:theme/config', async (req, res) => {
                 pairs: pairs.map(p => ({
                     pairId: p.pair_id,
                     name: p.name,
+                    description: p.description,
                     sortOrder: p.sort_order,
-                    imagePath: p.image_path
+                    imagePath: p.image_path,
+                    imagePathB: p.image_path_b
                 }))
             }
         });
@@ -178,7 +181,7 @@ router.post('/themes', requireAdmin, async (req, res) => {
 
         if (Array.isArray(pairs)) {
             for (const pair of pairs) {
-                const { pairId, name, sortOrder, imageBase64, imageBase64B } = pair;
+                const { pairId, name, description, sortOrder, imageBase64, imageBase64B } = pair;
                 if (!pairId) {
                     continue;
                 }
@@ -198,6 +201,7 @@ router.post('/themes', requireAdmin, async (req, res) => {
                 pairRecords.push({
                     pairId,
                     name: name || pairId,
+                    description: description || '',
                     sortOrder: sortOrder ?? 0,
                     imagePath,
                     imagePathB
@@ -264,7 +268,7 @@ router.put('/themes/:theme', requireAdmin, async (req, res) => {
         // Spara par-bilder
         if (Array.isArray(pairs)) {
             for (const pair of pairs) {
-                const { pairId, name, sortOrder, imageBase64, imageBase64B } = pair;
+                const { pairId, name, description, sortOrder, imageBase64, imageBase64B } = pair;
                 if (!pairId) {
                     continue;
                 }
@@ -295,6 +299,7 @@ router.put('/themes/:theme', requireAdmin, async (req, res) => {
                 pairRecords.push({
                     pairId,
                     name: name || pairId,
+                    description: description || '',
                     sortOrder: sortOrder ?? 0,
                     imagePath: imagePath || null,
                     imagePathB: imagePathB || null
@@ -349,6 +354,7 @@ router.put('/themes/:theme/pairs', requireAdmin, async (req, res) => {
             return {
                 pairId,
                 name: pair.name,
+                description: pair.description || '',
                 sortOrder: pair.sortOrder ?? 0,
                 imagePath: resolvePairImagePath(req.params.theme, pairId, existingPath),
                 imagePathB: pair.imagePathB !== undefined ? pair.imagePathB : existingPathB || null
