@@ -537,6 +537,7 @@ async function saveChanges() {
         const idChanged = pair.originalPairId && pair.originalPairId !== pairId;
         pair.pairId = pairId;
         pair.name = name || pairId;
+        pair.description = description;
         pair.sameImage = sameImageCheckbox.checked;
 
         // Om par-ID ändrats är gamla bilder inte längre giltiga, men
