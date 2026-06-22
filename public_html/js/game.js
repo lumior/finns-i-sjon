@@ -127,6 +127,26 @@ class GameClient {
         this.showToast(`Kortlek: ${themeName}`, 'info');
     }
 
+    async startVoiceChat() {
+        if (this.voiceChat && this.voiceChat.isConnected) return;
+
+        if (this.voiceChat) {
+            this.voiceChat.disconnect();
+        }
+
+        const voiceBtn = document.getElementById('voice-chat-toggle');
+        this.voiceChat = new VideoChatManager(gameSocket);
+        const success = await this.voiceChat.initialize();
+
+        if (success) {
+            this.voiceUI = new VideoChatUI(this.voiceChat);
+            this.voiceUI.createUI();
+            this.voiceUI.show();
+            this.voiceUI.setStatus('Ansluten');
+            if (voiceBtn) voiceBtn.classList.add('active');
+        }
+    }
+
     showToast(message, type = 'info', duration = 2000) {
         const existing = document.querySelector('.game-toast');
         if (existing) existing.remove();
@@ -360,7 +380,7 @@ class GameClient {
             musicBtn.classList.toggle('muted', !enabled);
         });
         
-        // Röstchatt-knapp – manuell aktivering (nu med video!)
+        // Röstchatt-knapp – manuell aktivering/avaktivering
         const voiceBtn = document.getElementById('voice-chat-toggle');
         if (voiceBtn) {
             voiceBtn.addEventListener('click', async () => {
@@ -372,18 +392,7 @@ class GameClient {
                     }
                     voiceBtn.classList.remove('active');
                 } else {
-                    if (this.voiceChat) {
-                        this.voiceChat.disconnect();
-                    }
-                    this.voiceChat = new VideoChatManager(gameSocket);
-                    const success = await this.voiceChat.initialize();
-                    if (success) {
-                        this.voiceUI = new VideoChatUI(this.voiceChat);
-                        this.voiceUI.createUI();
-                        this.voiceUI.show();
-                        this.voiceUI.setStatus('Ansluten');
-                        voiceBtn.classList.add('active');
-                    }
+                    await this.startVoiceChat();
                 }
             });
         }
@@ -920,8 +929,11 @@ class GameClient {
             });
         }
         
-        // Röst/videochatt aktiveras manuellt via voice-chat-toggle-knappen,
-        // inte automatiskt vid spelets start.
+        // Starta röst/videochatt automatiskt vid spelstart mot människor
+        const hasHumanOpponent = this.gameState?.players?.some(p => !p.isYou && !p.isAI);
+        if (hasHumanOpponent) {
+            this.startVoiceChat();
+        }
     }
 
     handleTurnResult(data) {
