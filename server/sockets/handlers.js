@@ -394,12 +394,12 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
                 socket.emit('ask_pending', {
                     targetName: result.targetName,
-                    rank: result.rank
+                    pairId: result.pairId
                 });
 
                 io.to(target.socketId).emit('card_request', {
                     askerName: result.askerName,
-                    rank: result.rank
+                    pairId: result.pairId
                 });
             })
         );
@@ -407,14 +407,14 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
         socket.on(
             'respond_to_ask',
             rateLimit('respond_to_ask', 60, 60000, data => {
-                const { hasCard, rank } = data;
+                const { hasCard, pairId } = data;
                 const room = roomManager.getRoomBySocket(socket.id);
                 if (!room) {
                     return;
                 }
 
                 const game = room.game;
-                const result = game.respondToAsk(socket.id, hasCard, rank);
+                const result = game.respondToAsk(socket.id, hasCard, pairId);
 
                 if (!result.success) {
                     socket.emit('turn_result', {

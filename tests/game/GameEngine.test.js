@@ -197,4 +197,79 @@ describe('GameEngine', () => {
         expect(result.player.surrendered).toBe(true);
         expect(game.players[0].connected).toBe(false);
     });
+
+    test('should create pending ask with requestAsk', async () => {
+        game.addPlayer('socket1', 'Alice');
+        game.addPlayer('socket2', 'Bob');
+        await game.startGame();
+
+        game.players[0].hand = [{ pairId: 'pair-5', name: 'Par 5', id: 'pair-5-a' }];
+        game.players[1].hand = [{ pairId: 'pair-5', name: 'Par 5', id: 'pair-5-b' }];
+        game.currentPlayerIndex = 0;
+
+        const result = game.requestAsk('socket1', game.players[1].id, 'pair-5');
+        expect(result.success).toBe(true);
+        expect(game.pendingAsk).not.toBeNull();
+        expect(game.pendingAsk.pairId).toBe('pair-5');
+    });
+
+    test('should transfer card when responding with correct pairId', async () => {
+        game.addPlayer('socket1', 'Alice');
+        game.addPlayer('socket2', 'Bob');
+        await game.startGame();
+
+        game.deck.cards = []; // Förhindra att nya kort dras under testet
+        game.players[0].hand = [{ pairId: 'pair-5', name: 'Par 5', id: 'pair-5-a' }];
+        game.players[1].hand = [{ pairId: 'pair-5', name: 'Par 5', id: 'pair-5-b' }];
+        game.currentPlayerIndex = 0;
+
+        game.requestAsk('socket1', game.players[1].id, 'pair-5');
+        const result = game.respondToAsk('socket2', true, 'pair-5');
+
+        expect(result.success).toBe(true);
+        expect(result.gotCards).toBe(true);
+        const aliceHasBobCard =
+            game.players[0].hand.some(c => c.id === 'pair-5-b') ||
+            game.players[0].pairs.some(pair => pair.some(c => c.id === 'pair-5-b'));
+        expect(aliceHasBobCard).toBe(true);
+        expect(game.players[1].hand.length).toBe(0);
+        expect(game.pendingAsk).toBeNull();
+    });
+
+    test('should reject response with wrong pairId', async () => {
+        game.addPlayer('socket1', 'Alice');
+        game.addPlayer('socket2', 'Bob');
+        await game.startGame();
+
+        game.players[0].hand = [{ pairId: 'pair-5', name: 'Par 5', id: 'pair-5-a' }];
+        game.players[1].hand = [
+            { pairId: 'pair-5', name: 'Par 5', id: 'pair-5-b' },
+            { pairId: 'pair-K', name: 'Par K', id: 'pair-K-a' }
+        ];
+        game.currentPlayerIndex = 0;
+
+        game.requestAsk('socket1', game.players[1].id, 'pair-5');
+        const result = game.respondToAsk('socket2', true, 'pair-K');
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Fel kort');
+        expect(game.pendingAsk).not.toBeNull();
+    });
+
+    test('should handle fish response', async () => {
+        game.addPlayer('socket1', 'Alice');
+        game.addPlayer('socket2', 'Bob');
+        await game.startGame();
+
+        game.players[0].hand = [{ pairId: 'pair-5', name: 'Par 5', id: 'pair-5-a' }];
+        game.players[1].hand = [{ pairId: 'pair-K', name: 'Par K', id: 'pair-K-a' }];
+        game.currentPlayerIndex = 0;
+
+        game.requestAsk('socket1', game.players[1].id, 'pair-5');
+        const result = game.respondToAsk('socket2', false, null);
+
+        expect(result.success).toBe(true);
+        expect(result.gotCards).toBe(false);
+        expect(game.pendingAsk).toBeNull();
+    });
 });

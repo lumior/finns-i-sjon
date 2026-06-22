@@ -32,6 +32,9 @@ class GameClient {
         this.voiceUI = null;
         this.pendingCardRequest = null;
         this.pendingAskTimer = null;
+        this.selectedAskCardId = null;
+        this.selectedAskPairId = null;
+        this.selectedAskTargetId = null;
         this.cardRequestCountdown = null;
         this.wasMobileFabHidden = true;
         this.availableThemes = [{ id: 'standard', name: 'Standard' }];
@@ -507,18 +510,39 @@ class GameClient {
             this.closeModal(kickModal);
         });
         
-        // Event delegation för kort-klick vid pending card request
-        const handContainer = document.getElementById('player-hand');
+        // Event delegation för kort-klick: antingen välja kort att fråga efter
+        // eller svara på en pending card request
+        const handContainer = document.getElementById('my-hand');
         if (handContainer) {
             handContainer.addEventListener('click', (e) => {
                 const cardEl = e.target.closest('.card');
-                if (!cardEl || !this.pendingCardRequest) return;
-                if (cardEl.classList.contains('card-request-highlight')) {
-                    this.respondToAskClick(true, this.pendingCardRequest.pairId);
+                if (!cardEl) return;
+
+                if (this.pendingCardRequest) {
+                    // Svara på en förfrågan med det klickade kortets pairId
+                    const pairId = cardEl.dataset.pairId;
+                    if (pairId !== this.pendingCardRequest.pairId) {
+                        this.showToast('Fel kort — klicka på det kortet som efterfrågas', 'error');
+                        return;
+                    }
+                    this.respondToAskClick(true, pairId);
+                    return;
                 }
+
+                this.handleHandCardClick(cardEl);
             });
         }
-        
+
+        // Event delegation för motståndarval
+        const opponentsContainer = document.getElementById('opponents-area');
+        if (opponentsContainer) {
+            opponentsContainer.addEventListener('click', (e) => {
+                const opponentEl = e.target.closest('.opponent');
+                if (!opponentEl) return;
+                this.handleOpponentClick(opponentEl);
+            });
+        }
+
         // Card request-knappar (registreras en gång, använder pendingCardRequest-state)
         const giveBtn = document.getElementById('card-request-give');
         if (giveBtn) {
@@ -1118,7 +1142,8 @@ class GameClient {
         this.renderHand(state.yourHand, state.yourPairs);
         this.updateGameLog(state.gameLog);
         this.updateActionButtons(state);
-        
+        this.updateTurnFrame(state);
+
         const me = state.players.find(p => p.isYou);
         if (me) {
             const myAvatar = document.getElementById('my-avatar');
@@ -1471,7 +1496,8 @@ class GameClient {
             cardEl.style.transform = transformStyle;
             const imageFailed = cardEl.dataset.imageFailed === 'true';
             const hasCardImage = useImageDeck && card.image && !imageFailed;
-            cardEl.className = `card ${cardStyleClass}${hasCardImage ? ' card-deck-image' : ' pair-fallback'}`;
+            const isSelectedAsk = cardEl.dataset.cardId === this.selectedAskCardId;
+            cardEl.className = `card ${cardStyleClass}${hasCardImage ? ' card-deck-image' : ' pair-fallback'}${isSelectedAsk ? ' selected-ask-card' : ''}`;
             cardEl.dataset.deckTheme = deckTheme;
             cardEl.dataset.pairId = card.pairId;
 
@@ -1623,32 +1649,17 @@ class GameClient {
             mobilePairsDisplay.innerHTML = `🏆 <strong>${myPairs}</strong> par`;
         }
         
-        // Dölj Fråga-knappen och FAB om det finns en pending ask (väntar på svar)
+        // Fråga-knappen och FAB används inte längre; frågor sker via direktval
+        askBtn.classList.add('hidden');
+        if (mobileFab) mobileFab.classList.add('hidden');
+
         const hasPendingAsk = this.pendingCardRequest !== null || document.getElementById('ask-pending-banner')?.classList.contains('hidden') === false;
         const canAsk = state.state === 'playing' && currentPlayer?.isYou && myHand.length > 0 && !iSurrendered && !hasPendingAsk;
-        
-        if (canAsk) {
-            askBtn.classList.remove('hidden');
-            waitingMsg.classList.add('hidden');
-            if (mobileFab) {
-                const wasHidden = mobileFab.classList.contains('hidden');
-                mobileFab.classList.remove('hidden');
-                if (wasHidden && this.wasMobileFabHidden && window.audioManager) {
-                    audioManager.playAlert();
-                }
-                this.wasMobileFabHidden = false;
-            }
 
-            if (window.animationManager) {
-                animationManager.pulse(askBtn, 2000);
-            }
+        if (canAsk) {
+            waitingMsg.classList.add('hidden');
         } else {
-            askBtn.classList.add('hidden');
             waitingMsg.classList.remove('hidden');
-            if (mobileFab) {
-                mobileFab.classList.add('hidden');
-                this.wasMobileFabHidden = true;
-            }
         }
     }
 
@@ -1862,6 +1873,110 @@ class GameClient {
         });
 
         this.hideCardRequest();
+    }
+
+    handleHandCardClick(cardEl) {
+        if (this.isSpectator) return;
+        if (!this.gameState || this.gameState.state !== 'playing') return;
+
+        const currentPlayer = this.gameState.players.find(p => p.isCurrentPlayer);
+        if (!currentPlayer?.isYou) {
+            this.showToast('Det är inte din tur', 'info');
+            return;
+        }
+
+        const cardId = cardEl.dataset.cardId;
+        const pairId = cardEl.dataset.pairId;
+
+        // Avmarkera om samma kort klickas igen
+        if (this.selectedAskCardId === cardId) {
+            this.clearAskSelection();
+            return;
+        }
+
+        this.selectedAskCardId = cardId;
+        this.selectedAskPairId = pairId;
+        this.updateAskSelectionUI();
+
+        // Om en motståndare redan är vald, skicka frågan direkt
+        if (this.selectedAskTargetId) {
+            this.sendAskRequest();
+        }
+    }
+
+    handleOpponentClick(opponentEl) {
+        if (this.isSpectator) return;
+        if (!this.gameState || this.gameState.state !== 'playing') return;
+
+        const currentPlayer = this.gameState.players.find(p => p.isCurrentPlayer);
+        if (!currentPlayer?.isYou) {
+            this.showToast('Det är inte din tur', 'info');
+            return;
+        }
+
+        const playerId = opponentEl.dataset.playerId;
+        const player = this.gameState.players.find(p => p.id === playerId);
+
+        if (!player || player.isYou || player.surrendered || !player.connected) return;
+
+        // Avmarkera om samma motståndare klickas igen
+        if (this.selectedAskTargetId === playerId) {
+            this.selectedAskTargetId = null;
+            this.updateAskSelectionUI();
+            return;
+        }
+
+        this.selectedAskTargetId = playerId;
+        this.updateAskSelectionUI();
+
+        // Om ett kort redan är valt, skicka frågan direkt
+        if (this.selectedAskCardId && this.selectedAskPairId) {
+            this.sendAskRequest();
+        }
+    }
+
+    sendAskRequest() {
+        if (!this.selectedAskTargetId || !this.selectedAskPairId) return;
+
+        gameSocket.emit('ask_cards', {
+            targetId: this.selectedAskTargetId,
+            pairId: this.selectedAskPairId
+        });
+
+        this.clearAskSelection();
+    }
+
+    clearAskSelection() {
+        this.selectedAskCardId = null;
+        this.selectedAskPairId = null;
+        this.selectedAskTargetId = null;
+        this.updateAskSelectionUI();
+    }
+
+    updateAskSelectionUI() {
+        const handContainer = document.getElementById('my-hand');
+        if (handContainer) {
+            handContainer.querySelectorAll('.card').forEach(el => {
+                el.classList.toggle('selected-ask-card', el.dataset.cardId === this.selectedAskCardId);
+            });
+        }
+
+        const opponentsContainer = document.getElementById('opponents-area');
+        if (opponentsContainer) {
+            opponentsContainer.querySelectorAll('.opponent').forEach(el => {
+                el.classList.toggle('selected-ask-target', el.dataset.playerId === this.selectedAskTargetId);
+            });
+        }
+    }
+
+    updateTurnFrame(state) {
+        const isYourTurn = state.state === 'playing' && state.players.find(p => p.isCurrentPlayer)?.isYou;
+        document.body.classList.toggle('my-turn-active', !!isYourTurn);
+
+        // Rensa pågående ask-val om det inte längre är spelarens tur
+        if (!isYourTurn && (this.selectedAskCardId || this.selectedAskTargetId)) {
+            this.clearAskSelection();
+        }
     }
 
     sendChat() {

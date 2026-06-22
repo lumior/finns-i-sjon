@@ -791,6 +791,17 @@ class GameEngine {
             }
         }
 
+        // Vid auto-resolve hoppas valideringen av klickat kort över
+        if (!isAutoResolve && hasCard) {
+            if (String(givenPairId) !== String(pairId)) {
+                return { success: false, error: 'Fel kort — du måste klicka på det efterfrågade kortet' };
+            }
+            const matchingCards = target.hand.filter(c => c.pairId === pairId);
+            if (matchingCards.length === 0) {
+                return { success: false, error: 'Du har inte det kortet' };
+            }
+        }
+
         this.totalTurns++;
 
         const matchingCards = target.hand.filter(c => c.pairId === pairId);

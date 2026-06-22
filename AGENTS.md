@@ -53,14 +53,16 @@ finns-i-sjon-pro/
 │   ├── models/
 │   │   ├── User.js            # CRUD för användare, statistik, achievements
 │   │   ├── Game.js            # Spelhistorik, event-loggning (inaktiv persistens)
-│   │   └── Friendship.js      # Vänförfrågningar och vännerlista
+│   │   ├── Friendship.js      # Vänförfrågningar och vännerlista
+│   │   └── Theme.js           # Kortleksteman och par
 │   ├── routes/
 │   │   ├── auth.js            # Auth-endpoints
 │   │   ├── users.js           # Leaderboard, online, sök, profiler
 │   │   ├── games.js           # Spelhistorik
 │   │   ├── rooms.js           # Factory: createRoomRouter(roomManager)
 │   │   ├── stats.js           # Totala spel
-│   │   ├── admin.js           # Admin-API för kortleksteman
+│   │   ├── admin.js           # Admin-API för kortleksteman (kräver admin-roll)
+│   │   ├── themes.js          # Publika tema-endpoints
 │   │   └── friends.js         # Vännerlista-API
 │   ├── game/
 │   │   ├── GameEngine.js      # Spelregler, turhantering, par, AI-anslutning
@@ -89,8 +91,10 @@ finns-i-sjon-pro/
 │   ├── verify-email.html      # Landningssida för e-postverifiering
 │   ├── reset-password.html    # Formulär för lösenordsåterställning
 │   ├── admin/                 # Admin-panel för temahantering
-│   │   ├── index.html
+│   │   ├── index.html         # Huvudpanel (legacy suit/rank-designer)
+│   │   ├── pairs.html         # Primär par-baserad temaeditor
 │   │   ├── admin.js
+│   │   ├── pairs.js
 │   │   ├── admin.css
 │   │   ├── FileSaver.min.js
 │   │   └── jszip.min.js
@@ -99,7 +103,8 @@ finns-i-sjon-pro/
 │   │   ├── game.css           # Spelbräde, kort, timer
 │   │   ├── animations.css     # Keyframes, partiklar, utility-klasser
 │   │   ├── voice-chat.css     # Röstchatt-UI
-│   │   └── video-chat.css     # Videochatt-UI
+│   │   ├── video-chat.css     # Videochatt-UI
+│   │   └── pull-to-refresh.css # Pull-to-refresh-indikator
 │   ├── js/
 │   │   ├── app.js             # Lobby: auth, rum-lista, AI-setup
 │   │   ├── game.js            # Spelklient: rendering, interaktion
@@ -107,6 +112,7 @@ finns-i-sjon-pro/
 │   │   ├── audio.js           # Web Audio API (syntetiska ljudeffekter)
 │   │   ├── animations.js      # Partikeleffekter, kortanimationer
 │   │   ├── leaderboard.js     # Topplista-hantering
+│   │   ├── pull-to-refresh.js # Mobile pull-to-refresh-polyfill
 │   │   ├── voice-chat.js      # WebRTC-röstklient (basklass)
 │   │   ├── voice-ui.js        # Röstchatt-UI-kontroller
 │   │   ├── video-chat.js      # WebRTC-videoklient (extends voice)
@@ -129,18 +135,24 @@ finns-i-sjon-pro/
 │   │   ├── GameEngine.test.js
 │   │   ├── CardDeck.test.js
 │   │   ├── AIPlayer.test.js
-│   │   └── RoomManager.test.js
+│   │   ├── RoomManager.test.js
+│   │   └── test-theme-helper.js
 │   ├── models/
 │   │   ├── Friendship.test.js
 │   │   └── User.test.js
-│   └── utils/
-│       ├── elo.test.js
-│       └── socket-rate-limit.test.js
+│   ├── utils/
+│   │   ├── elo.test.js
+│   │   └── socket-rate-limit.test.js
+│   ├── global-setup.js
+│   └── setup.js
 │
 ├── scripts/
-│   └── update-user-avatars.js # One-off migration: uppdaterar default-avatarer
+│   ├── generate-example-theme.py
+│   ├── seed-example-theme.js
+│   └── update-user-avatars.js
 ├── database/
-│   └── game.db                # SQLite-fil (skapas vid init-db, gitignored)
+│   ├── game.db                # SQLite-fil (skapas vid init-db, gitignored)
+│   └── test-game.db           # SQLite-fil för tester
 ├── .github/workflows/ci.yml   # GitHub Actions: lint + format-check + test
 ├── package.json               # NPM-scripts och beroenden (v2.0.0)
 ├── jest.config.js             # Jest-konfiguration
@@ -183,6 +195,7 @@ npm run format:check  # Prettier --check (används i CI)
 **Noteringar:**
 - `npm run init-db` initierar tabeller genom att ladda `database.js` som side-effect (skapar tabeller vid första anrop).
 - `npm test` inkluderar redan `--forceExit`; CI-kommandot `npm test -- --forceExit` dubblerar därför flaggan (ofarligt).
+- Tester tvingar alltid SQLite via `tests/global-setup.js` och `tests/setup.js` (`DB_PATH=./database/test-game.db`).
 - CI kör Node.js 20 och använder `npm ci` för rena installationer.
 
 ---
@@ -222,6 +235,8 @@ npm run format:check  # Prettier --check (används i CI)
 
 - **Ramverk:** Jest med Node-miljö (`testEnvironment: 'node'`)
 - **Testmönster:** `**/tests/**/*.test.js`
+- **Global setup:** `tests/global-setup.js` sätter SQLite-testdatabasen före alla tester.
+- **Setup files:** `tests/setup.js` samma SQLite-override plus rensning av `require.cache` för `database.js`.
 - **Coverage:** Samlas från `server/**/*.js`, exkluderar `server/server.js` och `server/config/database.js`
 - **Coverage-thresholds:** `branches: 25`, `functions: 30`, `lines: 30`, `statements: 30` (se `jest.config.js`).
 - **Viktigt:** Jest körs alltid med `--forceExit` eftersom Socket.IO kan hålla event-loopen vid liv.
@@ -231,16 +246,16 @@ npm run format:check  # Prettier --check (används i CI)
 ### Existerande testfiler
 | Fil | Antal tester | Innehåll |
 |-----|--------------|----------|
-| `tests/game/GameEngine.test.js` | 16 | Spelregler, turhantering, utdelning, par, återanslutning, ask/fish/surrender |
+| `tests/game/GameEngine.test.js` | 17 | Spelregler, turhantering, utdelning, par, återanslutning, ask/fish/surrender |
 | `tests/game/CardDeck.test.js` | 6 | Kortleksinitiering (52 kort), blanda, dra, `isEmpty`, `remaining` |
-| `tests/game/RoomManager.test.js` | 18 | Rums-CRUD, join/leave (force/soft), kick, **ban**, reconnect, lösenord, spectator, bannade spelare |
+| `tests/game/RoomManager.test.js` | 19 | Rums-CRUD, join/leave (force/soft), kick, **ban**, reconnect, lösenord, spectator, bannade spelare |
 | `tests/game/AIPlayer.test.js` | 9 | AI-initiering, minne, beslutsfattning, pruning, konsekutiva frågor, svårighetsgrader |
 | `tests/models/Friendship.test.js` | 15 | Vänförfrågningar: skicka, acceptera, avböja, ta bort, lista, kontrollera om vänner |
 | `tests/models/User.test.js` | 9 | User-modell: skapa, hitta, validera, tokens, verifiering, lösenordsåterställning |
 | `tests/utils/elo.test.js` | 4 | ELO-beräkning: vinnare/förlorare, upset-win, 3+ spelare, konstant summa |
 | `tests/utils/socket-rate-limit.test.js` | 9 | Rate limiting: gränser, återställning, separata buckets, shorthand-anrop |
 
-**Totalt:** 86 tester fördelade på 8 testfiler.
+**Totalt:** 88 tester fördelade på 8 testfiler.
 
 ---
 
@@ -252,7 +267,12 @@ npm run format:check  # Prettier --check (används i CI)
 - Token skickas i `Authorization: Bearer <token>`-header för REST, och i `socket.handshake.auth.token` för Socket.IO.
 - Auth-middleware sätter `req.user` / `socket.user` till `null` vid saknad/ogiltig token (aldrig hårda fel).
 - Middleware läser även token från `req.query.token` som fallback. Observera att `req.cookies?.token` finns i koden men är ej funktionellt eftersom `cookie-parser` inte är installerat.
-- Token-payload: `{ userId, username, displayName }`.
+- Token-payload: `{ userId, username, displayName, isAdmin }`.
+- `req.user` / `socket.user` innehåller: `{ id, username, displayName, avatarUrl, elo, isAdmin }`.
+
+### Admin-rättigheter
+- Admin-API:t (`/api/admin/*`) är **inte** öppet för alla. Det är skyddat av `requireAdmin`-middleware i `server/routes/admin.js` som kontrollerar `req.user.isAdmin`.
+- En användare blir admin genom att `is_admin = 1` sätts i databasen (finns ingen registreringsendpoint för detta).
 
 ### Databas
 - SQL-injektionsskydd: alla queries använder parametriserade uttryck (`?` / `$1`).
@@ -302,7 +322,7 @@ Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 - `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` — valfria anpassade TURN-servrar
 
 ### Tabeller
-- `users` — användarkonton, ELO, statistik, `email_verified`
+- `users` — användarkonton, ELO, statistik, `email_verified`, `is_admin`
 - `user_tokens` — engångstokens för e-postverifiering (`email_verify`) och lösenordsåterställning (`password_reset`)
 - `games` — spelmetadata (vinnare, duration, antal turer)
 - `game_participants` — deltagare per spel med slutlig rank och ELO-förändring
@@ -385,20 +405,26 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 | POST | `/reject/:requestId` | Avböj förfrågan |
 | DELETE | `/:friendId` | Ta bort vän |
 
-### Admin (`/api/admin`) — ingen extra auth-roll, endpointarna är öppna för alla som når dem
+### Admin (`/api/admin`) — kräver **admin-roll** (`req.user.isAdmin`)
 | Metod | Endpoint | Beskrivning |
 |-------|----------|-------------|
-| GET | `/themes` | Lista alla kortleksteman på disk |
+| GET | `/themes` | Lista alla kortleksteman |
 | GET | `/themes/:theme` | Detaljer för ett tema (suit-status, bildsökvägar) |
 | GET | `/themes/:theme/config` | Hämta `config.json` för redigering |
 | POST | `/themes` | Skapa nytt tema (base64-bilder + config) |
 | PUT | `/themes/:theme` | Uppdatera befintligt tema |
+| PUT | `/themes/:theme/pairs` | Uppdatera par-namn/sortering |
 | POST | `/themes/:theme/upload` | Ladda upp tema i dataURL-format (bakåtkompatibel) |
+
+### Publika teman (`/api/themes`)
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| GET | `/` | Lista aktiva teman med par |
+| GET | `/:folder` | Detaljer för ett specifikt tema |
 
 ### Övriga publika endpoints
 | Metod | Endpoint | Beskrivning |
 |-------|----------|-------------|
-| GET | `/api/themes` | Lista tillgängliga kortleksteman (inkl. "standard") |
 | GET | `/health` | Hälsokontroll (`{ status: 'ok', timestamp }`) |
 
 ---
@@ -456,7 +482,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 - **`requestAsk()` + `respond_to_ask()`** för mänskliga spelare (asynkront pending-ask-mönster)
 
 ### Timeout och återanslutning
-- **Tur-timer:** 3 minuter (`TURN_TIMEOUT`). Om en spelare inte svarar på en `card_request` i tid auto-löser servern förfrågan som "Fisk!" via `autoResolvePendingAsk()`.
+- **Tur-timer:** 3 minuter (`TURN_TIMEOUT = 180000` i `constants.js`). Om en spelare inte svarar på en `card_request` i tid auto-löser servern förfrågan som "Fisk!" via `autoResolvePendingAsk()`.
 - **AI-drag-fördröjning:** 1500 ms för normala AI-drag; 2000 ms för spelets första AI-drag. `AIPlayer.js` internt använder 1000–3000 ms för sitt beslutsfattande.
 - **Disconnect-grace:** Vid `disconnect` väntar servern **60 sekunder** innan `forceRemove` körs, vilket ger utrymme för återanslutning.
 - **Rumsrensning:** Om inga mänskliga spelare återstår eller spelet är avslutat schemaläggs rummet för borttagning efter **5 minuter**.
@@ -505,11 +531,12 @@ Vid serverstart seedas `themes`/`theme_pairs` från befintliga filsystemstemat v
 ### Admin-API
 
 - `GET /api/themes` — publik lista över teman och par.
-- `GET /api/admin/themes` — admin-lista.
-- `GET /api/admin/themes/:theme` — tema med par.
-- `PUT /api/admin/themes/:theme/pairs` — uppdatera par-namn/sortering.
-- `POST /api/admin/themes/:theme/upload` — ladda upp par-bilder.
-- `POST /api/admin/themes`, `PUT /api/admin/themes/:theme` — skapa/uppdatera tema med par.
+- `GET /api/admin/themes` — admin-lista (kräver admin).
+- `GET /api/admin/themes/:theme` — tema med par (kräver admin).
+- `GET /api/admin/themes/:theme/config` — hämta `config.json` (kräver admin).
+- `PUT /api/admin/themes/:theme/pairs` — uppdatera par-namn/sortering (kräver admin).
+- `POST /api/admin/themes/:theme/upload` — ladda upp par-bilder (kräver admin).
+- `POST /api/admin/themes`, `PUT /api/admin/themes/:theme` — skapa/uppdatera tema med par (kräver admin).
 
 ### Admin-panel
 
@@ -561,6 +588,7 @@ npm run dev
 1. Skapa route-fil under `server/routes/` (eller utöka befintlig)
 2. Registrera i `server/server.js` med `app.use('/api/xxx', ...)`
 3. Auth-middleware körs globalt och sätter `req.user` till `null` för gäster
+4. För admin-endpoints, använd `requireAdmin`-mönstret från `server/routes/admin.js`
 
 ### Att lägga till ett Socket.IO-event
 1. Lägg till handler i `server/sockets/handlers.js`
@@ -574,7 +602,7 @@ npm run dev
    );
    ```
 3. Vid speländringar: använd `roomManager.getRoomBySocket(socket.id)` för att hämta aktuellt rum
-4. Använd `io.to(roomId).emit(...)` för broadcast och `socket.emit(...)` för direktsvar
+4. Använd `broadcastToRoom(game, event, payload, true)` för rum-broadcast med individuell gameState
 
 ### Att broadcasta till rum med individuell gameState
 Använd den interna helper-funktionen `broadcastToRoom(game, event, basePayload, includeGameState = false)` inuti `createSocketHandlers`. Den fångar `io` från det yttre scopet och skickar individuell `gameState` per spelare via `game.getPublicState()` och spectator-state via `game.getSpectatorState()`. Undvik att manuellt loopa över `game.players` och `game.spectators` — detta mönster upprepades på 5+ ställen och är nu centraliserat.
@@ -613,65 +641,6 @@ container.querySelectorAll('.card').forEach(el => {
 - Lägg alltid till `@media (prefers-reduced-motion: reduce)` när du skapar nya animationer eller transitions. Använd den generiska regeln i `animations.css` som mall, eller lägg till specifika overrides per komponent.
 - Använd aldrig `user-scalable=no` eller `maximum-scale=1.0` i viewport-meta — det bryter WCAG 1.4.4.
 
-### HTML — tillgänglighet
-- **Modaler** måste ha `role="dialog"`, `aria-modal="true"`, och `aria-labelledby` (pekar på rubrikens ID).
-- **Stäng-knappar** med `&times;` måste ha `aria-label="Stäng"` (skärmläsare läser annars bara "times").
-- **Ikon-knappar** utan text måste ha `aria-label` (inte bara `title`, även om `title` är bra för tooltips).
-
-### Projektroten — dokumentationskonventioner
-Projektet har en uppsättning markdown-filer i roten som komplement till denna fil:
-- **`ANALYS.md`** — djupanalys av arkitektur, säkerhet, prestanda och UX
-- **`DEPLOY_RAILWAY.md`** — detaljerad deploy-guide för Railway
-- **`PROJEKTPLAN.md`** — originalplan med achievements, färgpalett, ljudsystem och animationer
-- **`DEBUGGING_LOG.md`** — historisk debugg- och bugfix-logg
-- **`CHANGELOG.md`** — sammanfattning av sprint-ändringar
-- **`CHANGELOG_SESSION_YYYY-MM-DD.md`** / **`CHAT_SESSION_YYYY-MM-DD.md`** — loggar från tidigare utvecklingssessioner
-- **`BUGFIX_*.md`** — dokumentation av specifika buggfixar (t.ex. mobil spectator-buggen)
-
-### Vanliga fallgropar
-- **`README.md` refererar ibland till `public/`** — projektets faktiska statiska mapp är `public_html/`.
-- **`scripts/`** innehåller one-off migrationer (t.ex. `update-user-avatars.js`). De körs manuellt vid behov, inte som en del av byggprocessen.
-- **Kortleksstrukturen** är par-baserad. Nya teman skapas via par-editorn (`admin/pairs.html`) med 26 par. Kod som läser teman (t.ex. admin-routes) hanterar både nya flat-strukturen (`{tema}/{pairId}.png` / `{pairId}-b.png`) och legacy suit/rank-mappar.
-- **`filterChat()` använder word boundaries med svenskt teckenstöd** (`[^a-zåäöA-ZÅÄÖ]`). `\b` fungerar inte korrekt med åäö i JavaScript.
-
----
-
-## 15. Kända begränsningar
-
-- ~~`friendships`-tabellen finns men används inte i frontend eller backend.~~ ✅ Åtgärdat — vännerlista finns nu i lobby.
-- ~~`banPlayer` finns i `RoomManager` men saknar en Socket.IO-handler.~~ ✅ Åtgärdat — `ban_player` är exponerad.
-- WebRTC-video fungerar inte på Safari `localhost` — använd `127.0.0.1`.
-- Standings-arrayen i `game_over`-eventet innehåller inte `eloChange` per spelare; varje mottagare får istället ett separat `eloChange`-objekt direkt i event-payloaden.
-- `README.md` anger ibland fel statisk mapp (`public/` istället för `public_html/`).
-- `game_snapshots` skrivs till databasen men läses **inte** automatiskt tillbaka vid serveromstart (inget automatiskt crash-recovery på rum-nivå).
-- `game_events`-tabellen fylls **inte** med persistensdata. `Game.logEvent()` finns men anropas inte från spelmotorn; händelser lagras endast i minnet och i snapshots.
-- E-postutskick kräver miljövariabler (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`). I dev-läge loggas mail till konsolen istället.
-- Cookie-parser är inte installerat, så `req.cookies?.token`-fallbacken i auth-middleware är ej funktionell.
-
----
-
-## 16. Snabbreferens: Viktiga filer att läsa
-
-| Om du ska… | Läs dessa filer |
-|------------|-----------------|
-| Ändra spelregler | `server/game/GameEngine.js`, `server/game/utils.js` |
-| Ändra AI-beteende | `server/game/AIPlayer.js` |
-| Ändra rumshantering | `server/game/RoomManager.js` |
-| Ändra databas/schema | `server/config/database.js`, `server/models/*.js` |
-| Ändra frontend-lobby | `public_html/js/app.js`, `public_html/index.html` |
-| Ändra spelbräde | `public_html/js/game.js`, `public_html/game.html` |
-| Ändra socket-återanslutning | `public_html/js/socket-client.js` |
-| Ändra ljud/animationer | `public_html/js/audio.js`, `public_html/js/animations.js` |
-| Ändra auth | `server/auth/auth.js`, `server/routes/auth.js`, `server/utils/email.js` |
-| Ändra vännerlista | `server/models/Friendship.js`, `server/routes/friends.js`, `public_html/js/app.js` |
-| Ändra WebRTC | `server/webrtc/signaling.js`, `public_html/js/voice-chat.js`, `public_html/js/video-chat.js` |
-| Ändra CI/CD | `.github/workflows/ci.yml` |
-| Ändra linting/format/test-konfig | `eslint.config.js`, `.prettierrc`, `jest.config.js` |
-| Kör one-off migrationer | `scripts/update-user-avatars.js` |
-| Förstå avatar-generering | `generate-avatars.py` |
-| Hantera kortleksteman | `server/routes/admin.js`, `public_html/assets/cards/README.md` |
-| Felsöka serverloggar | `server/utils/logger.js` |
-
----
-
-**🎣 Finns i Sjön PRO — Ett svenskt kortspel för hela världen**
+### HTML
+- Använd semantisk HTML där det är möjligt.
+- Se till att alla interaktiva element har tillräcklig kontrast och tydliga fokus-stilar.
