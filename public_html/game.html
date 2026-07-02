@@ -196,12 +196,16 @@
             <div id="mobile-action-bar" class="mobile-action-bar mobile-only">
                 <button class="action-bar-btn" id="mobile-chat-toggle" title="Chatt">💬</button>
                 <button class="action-bar-btn" id="mobile-sound-toggle" title="Ljud">🔊</button>
+                <button class="action-bar-btn" id="mobile-tutorial-toggle" title="Hjälp på/av">👆</button>
                 <div class="action-bar-center">
                     <span id="mobile-pairs-display">🏆 <strong>0</strong> par</span>
                 </div>
                 <button class="action-bar-btn" id="mobile-settings-toggle" title="Inställningar">⚙️</button>
                 <button class="action-bar-btn" id="mobile-rules" title="Spelregler">ℹ️</button>
             </div>
+            
+            <!-- Badge som visas när det är spelarens tur -->
+            <div id="my-turn-badge" class="my-turn-badge mobile-only hidden">Din tur!</div>
         </section>
     </main>
 
@@ -401,6 +405,13 @@
         </div>
         <span class="thinking-text">AI tänker...</span>
     </div>
+    
+    <!-- Handled som pekar på vad man ska göra (tutorial/hjälp) -->
+    <div id="tutorial-hand" class="tutorial-hand hidden" aria-hidden="true">👆</div>
+    <div id="tutorial-hint" class="tutorial-hint hidden">
+        <span id="tutorial-hint-text"></span>
+        <button id="tutorial-close" class="tutorial-close" aria-label="Stäng hjälp">✕</button>
+    </div>
 
     <script src="/js/socket.io.min.js" defer></script>
     <script src="/js/audio.js?v=14" defer></script>
@@ -410,6 +421,6 @@
     <script src="/js/voice-ui.js?v=13" defer></script>
     <script src="/js/video-chat.js?v=16" defer></script>
     <script src="/js/video-ui.js?v=13" defer></script>
-    <script src="/js/game.js?v=31" defer></script>
+    <script src="/js/game.js?v=32" defer></script>
 </body>
 </html>

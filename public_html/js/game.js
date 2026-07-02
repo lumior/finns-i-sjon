@@ -17,6 +17,7 @@ class GameClient {
             animationsEnabled: localStorage.getItem('animationsEnabled') !== 'false',
             autoSort: localStorage.getItem('autoSort') !== 'false',
             cardStyle: localStorage.getItem('cardStyle') || 'classic',
+            tutorialEnabled: localStorage.getItem('tutorialEnabled') !== 'false',
             deckTheme: (() => {
                 const stored = localStorage.getItem('deckTheme');
                 // Migrera gamla separata tema-värden till det nya enhetliga temat
@@ -37,6 +38,9 @@ class GameClient {
         this.selectedAskTargetId = null;
         this.cardRequestCountdown = null;
         this.wasMobileFabHidden = true;
+        this.lastInteractionTime = Date.now();
+        this.tutorialTimer = null;
+        this.currentHint = null;
         this.availableThemes = [{ id: 'standard', name: 'Standard' }];
 
         this.init();
@@ -689,6 +693,9 @@ class GameClient {
         
         // ── Mobil UI: bottom sheet, FAB, expandable log, action-bar ──
         this.setupMobileUI();
+        
+        // ── Tutorial/hjälp-hand och "Din tur"-badge ──
+        this.setupTutorial();
     }
     
     setupMobileUI() {
@@ -848,6 +855,261 @@ class GameClient {
             gameSocket.emit('chat_message', { message });
             input.value = '';
         }
+    }
+
+    setupTutorial() {
+        const toggleBtn = document.getElementById('mobile-tutorial-toggle');
+        if (toggleBtn) {
+            toggleBtn.classList.toggle('tutorial-off', !this.settings.tutorialEnabled);
+            toggleBtn.title = this.settings.tutorialEnabled ? 'Hjälp på' : 'Hjälp av';
+            toggleBtn.addEventListener('click', () => this.toggleTutorial());
+        }
+        
+        const closeBtn = document.getElementById('tutorial-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                this.hideTutorialHint();
+                this.settings.tutorialEnabled = false;
+                localStorage.setItem('tutorialEnabled', 'false');
+                this.updateTutorialToggle();
+            });
+        }
+        
+        // Nollställ timer vid användarinteraktion
+        const resetEvents = ['pointerdown', 'touchstart', 'mousedown', 'keydown'];
+        resetEvents.forEach(event => {
+            document.addEventListener(event, () => this.resetTutorialTimer(), { passive: true });
+        });
+        
+        // Dölj hint när spelaren agerar i spelet
+        document.getElementById('my-hand')?.addEventListener('click', () => this.hideTutorialHint());
+        document.getElementById('opponents-area')?.addEventListener('click', () => this.hideTutorialHint());
+        document.getElementById('ask-btn')?.addEventListener('click', () => this.hideTutorialHint());
+        document.getElementById('mobile-fab')?.addEventListener('click', () => this.hideTutorialHint());
+    }
+    
+    toggleTutorial() {
+        this.settings.tutorialEnabled = !this.settings.tutorialEnabled;
+        localStorage.setItem('tutorialEnabled', this.settings.tutorialEnabled);
+        this.updateTutorialToggle();
+        if (this.settings.tutorialEnabled) {
+            this.resetTutorialTimer();
+        } else {
+            this.hideTutorialHint();
+        }
+    }
+    
+    updateTutorialToggle() {
+        const toggleBtn = document.getElementById('mobile-tutorial-toggle');
+        if (toggleBtn) {
+            toggleBtn.classList.toggle('tutorial-off', !this.settings.tutorialEnabled);
+            toggleBtn.title = this.settings.tutorialEnabled ? 'Hjälp på' : 'Hjälp av';
+        }
+    }
+    
+    resetTutorialTimer() {
+        this.lastInteractionTime = Date.now();
+        if (this.tutorialTimer) {
+            clearTimeout(this.tutorialTimer);
+            this.tutorialTimer = null;
+        }
+        if (this.settings.tutorialEnabled) {
+            this.tutorialTimer = setTimeout(() => this.updateTutorialState(), 4000);
+        }
+    }
+    
+    updateTutorialState() {
+        if (!this.settings.tutorialEnabled || !this.gameState) {
+            this.hideTutorialHint();
+            return;
+        }
+        
+        // Dölj om användaren nyligen interagerat
+        if (Date.now() - this.lastInteractionTime < 4000) {
+            return;
+        }
+        
+        const state = this.gameState;
+        const me = state.players?.find(p => p.isYou);
+        if (!me || me.surrendered || this.isSpectator) {
+            this.hideTutorialHint();
+            return;
+        }
+        
+        // Vänteläge
+        if (state.state === 'waiting') {
+            if (this.isHost) {
+                const mobileStartBtn = document.getElementById('mobile-start-btn');
+                const desktopStartBtn = document.getElementById('start-game-btn');
+                const startBtn = mobileStartBtn && !mobileStartBtn.classList.contains('hidden')
+                    ? mobileStartBtn
+                    : desktopStartBtn && !desktopStartBtn.classList.contains('hidden')
+                        ? desktopStartBtn
+                        : null;
+                if (startBtn) {
+                    this.showTutorialHint(startBtn, 'Klicka här för att starta spelet!', 'up');
+                    return;
+                }
+            }
+            if (!me.ready) {
+                const mobileReadyBtn = document.getElementById('mobile-ready-btn');
+                const desktopReadyBtn = document.getElementById('ready-btn');
+                const readyBtn = mobileReadyBtn && !mobileReadyBtn.classList.contains('hidden')
+                    ? mobileReadyBtn
+                    : desktopReadyBtn && !desktopReadyBtn.classList.contains('hidden')
+                        ? desktopReadyBtn
+                        : null;
+                if (readyBtn) {
+                    this.showTutorialHint(readyBtn, 'Klicka här för att visa att du är redo!', 'up');
+                    return;
+                }
+            }
+            this.hideTutorialHint();
+            return;
+        }
+        
+        // Pågående spel
+        if (state.state !== 'playing' && state.state !== 'active') {
+            this.hideTutorialHint();
+            return;
+        }
+        
+        // Om någon frågar efter ett kort
+        if (this.pendingCardRequest) {
+            const matchingCard = document.querySelector(`#my-hand .card[data-pair-id="${this.pendingCardRequest.pairId}"]`);
+            if (matchingCard) {
+                this.showTutorialHint(matchingCard, 'Du blev tillfrågad! Klicka på detta kort om du har det.', 'down');
+                return;
+            }
+            const fiskBtn = document.getElementById('card-request-fisk');
+            if (fiskBtn && !fiskBtn.classList.contains('hidden')) {
+                this.showTutorialHint(fiskBtn, 'Du har inte kortet. Klicka på Fisk!', 'up');
+                return;
+            }
+            this.hideTutorialHint();
+            return;
+        }
+        
+        // Är det min tur?
+        if (!me.isCurrentPlayer) {
+            this.hideTutorialHint();
+            return;
+        }
+        
+        // Frågedialog öppen
+        const askDialog = document.getElementById('ask-dialog');
+        if (askDialog && !askDialog.classList.contains('hidden')) {
+            if (!this.selectedAskTargetId) {
+                const firstTarget = document.querySelector('.target-player-btn');
+                if (firstTarget) {
+                    this.showTutorialHint(firstTarget, 'Välj en motståndare att fråga!', 'up');
+                    return;
+                }
+            }
+            if (!this.selectedAskPairId) {
+                const firstRank = document.querySelector('.rank-btn');
+                if (firstRank) {
+                    this.showTutorialHint(firstRank, 'Välj vilket kort du vill fråga efter!', 'up');
+                    return;
+                }
+            }
+            const confirmBtn = document.getElementById('confirm-ask');
+            if (confirmBtn && !confirmBtn.disabled) {
+                this.showTutorialHint(confirmBtn, 'Klicka för att fråga!', 'up');
+                return;
+            }
+            this.hideTutorialHint();
+            return;
+        }
+        
+        // Inget kort valt än – peka på handen
+        const firstCard = document.querySelector('#my-hand .card');
+        if (firstCard) {
+            this.showTutorialHint(firstCard, 'Det är din tur! Välj ett kort i din hand.', 'down');
+            return;
+        }
+        
+        this.hideTutorialHint();
+    }
+    
+    showTutorialHint(target, message, direction = 'up') {
+        const hand = document.getElementById('tutorial-hand');
+        const hint = document.getElementById('tutorial-hint');
+        const hintText = document.getElementById('tutorial-hint-text');
+        if (!hand || !hint || !hintText || !target) return;
+        
+        const rect = target.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        
+        const handSize = 44;
+        let top, left, rotation;
+        
+        switch (direction) {
+            case 'up':
+                top = rect.bottom + 10;
+                left = rect.left + rect.width / 2 - handSize / 2;
+                rotation = '-135deg';
+                break;
+            case 'down':
+                top = rect.top - handSize - 10;
+                left = rect.left + rect.width / 2 - handSize / 2;
+                rotation = '45deg';
+                break;
+            case 'left':
+                top = rect.top + rect.height / 2 - handSize / 2;
+                left = rect.right + 10;
+                rotation = '-45deg';
+                break;
+            case 'right':
+                top = rect.top + rect.height / 2 - handSize / 2;
+                left = rect.left - handSize - 10;
+                rotation = '135deg';
+                break;
+            default:
+                top = rect.bottom + 10;
+                left = rect.left + rect.width / 2 - handSize / 2;
+                rotation = '-135deg';
+        }
+        
+        // Håll inom viewport
+        const maxLeft = window.innerWidth - handSize - 8;
+        const maxTop = window.innerHeight - handSize - 8;
+        left = Math.max(8, Math.min(maxLeft, left));
+        top = Math.max(8, Math.min(maxTop, top));
+        
+        hand.style.top = `${top}px`;
+        hand.style.left = `${left}px`;
+        hand.style.setProperty('--hand-rotation', rotation);
+        hand.classList.remove('hidden');
+        
+        hintText.textContent = message;
+        const hintWidth = Math.min(260, window.innerWidth - 32);
+        let hintLeft = left + handSize / 2 - hintWidth / 2;
+        hintLeft = Math.max(8, Math.min(window.innerWidth - hintWidth - 8, hintLeft));
+        hint.style.top = `${top + handSize + 6}px`;
+        hint.style.left = `${hintLeft}px`;
+        hint.style.maxWidth = `${hintWidth}px`;
+        hint.classList.remove('hidden');
+    }
+    
+    hideTutorialHint() {
+        const hand = document.getElementById('tutorial-hand');
+        const hint = document.getElementById('tutorial-hint');
+        if (hand) hand.classList.add('hidden');
+        if (hint) hint.classList.add('hidden');
+        if (this.tutorialTimer) {
+            clearTimeout(this.tutorialTimer);
+            this.tutorialTimer = null;
+        }
+    }
+    
+    updateMyTurnBadge(state) {
+        const badge = document.getElementById('my-turn-badge');
+        if (!badge) return;
+        
+        const me = state.players?.find(p => p.isYou);
+        const isMyTurn = me && me.isCurrentPlayer && (state.state === 'playing' || state.state === 'active');
+        badge.classList.toggle('hidden', !isMyTurn);
     }
 
     handleRoomJoined(data) {
@@ -1155,6 +1417,8 @@ class GameClient {
         this.updateGameLog(state.gameLog);
         this.updateActionButtons(state);
         this.updateTurnFrame(state);
+        this.updateMyTurnBadge(state);
+        this.updateTutorialState();
 
         const me = state.players.find(p => p.isYou);
         if (me) {

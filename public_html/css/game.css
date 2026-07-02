@@ -2059,6 +2059,110 @@ input:checked + .toggle::after {
     font-weight: 700;
 }
 
+.action-bar-btn.tutorial-off {
+    opacity: 0.4;
+}
+
+/* ── "Din tur"-badge ovanför handen ── */
+.my-turn-badge {
+    position: fixed;
+    bottom: calc(64px + env(safe-area-inset-bottom) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 90;
+    background: linear-gradient(135deg, var(--accent), #d97706);
+    color: white;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 6px 16px;
+    border-radius: var(--radius-full);
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4), 0 0 0 2px rgba(255, 255, 255, 0.1);
+    animation: turnBadgePulse 1.5s ease-in-out infinite;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.my-turn-badge.hidden {
+    display: none !important;
+}
+
+@keyframes turnBadgePulse {
+    0%, 100% { box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4), 0 0 0 2px rgba(255, 255, 255, 0.1); transform: translateX(-50%) scale(1); }
+    50% { box-shadow: 0 6px 22px rgba(245, 158, 11, 0.6), 0 0 0 3px rgba(255, 255, 255, 0.15); transform: translateX(-50%) scale(1.05); }
+}
+
+/* ── Tutorial-hand och hint ── */
+.tutorial-hand {
+    position: fixed;
+    z-index: 200;
+    font-size: 2.5rem;
+    pointer-events: none;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+    transition: top 0.4s ease, left 0.4s ease, opacity 0.3s ease;
+    transform-origin: bottom left;
+}
+
+.tutorial-hand.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tutorial-hand:not(.hidden) {
+    animation: handPoint 1.2s ease-in-out infinite;
+}
+
+@keyframes handPoint {
+    0%, 100% { transform: translateY(0) rotate(var(--hand-rotation, -45deg)); }
+    50% { transform: translateY(-10px) rotate(var(--hand-rotation, -45deg)); }
+}
+
+.tutorial-hint {
+    position: fixed;
+    z-index: 201;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 10px 14px;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    max-width: 260px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: top 0.4s ease, left 0.4s ease, opacity 0.3s ease;
+}
+
+.tutorial-hint.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tutorial-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-secondary);
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.tutorial-close:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 /* ── Expandable game-log ── */
 .log-expand-btn {
     position: absolute;
@@ -3108,6 +3212,21 @@ input:checked + .toggle::after {
     .action-bar-center {
         font-size: 0.8rem;
         padding: 6px 12px;
+    }
+    
+    .my-turn-badge {
+        font-size: 0.75rem;
+        padding: 4px 12px;
+        bottom: calc(58px + env(safe-area-inset-bottom) + 8px);
+    }
+    
+    .tutorial-hand {
+        font-size: 2rem;
+    }
+    
+    .tutorial-hint {
+        font-size: 0.8rem;
+        padding: 8px 12px;
     }
     
     .mobile-fab {
