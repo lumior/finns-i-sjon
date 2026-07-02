@@ -2353,7 +2353,7 @@ input:checked + .toggle::after {
         border: 1px solid rgba(255, 255, 255, 0.08);
     }
     
-    /* ── Motspelare: horisontell rad med modern styling ── */
+    /* ── Motspelare: tydliga spelarkort i stående mobil ── */
     .opponents-area {
         display: flex;
         flex-direction: row;
@@ -2361,11 +2361,13 @@ input:checked + .toggle::after {
         overflow-x: auto;
         overflow-y: hidden;
         min-height: auto;
-        padding: 6px 12px;
+        padding: 8px 12px;
         gap: 10px;
-        align-items: center;
+        align-items: stretch;
         scrollbar-width: none;
         -ms-overflow-style: none;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
         background: rgba(0, 0, 0, 0.15);
         border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     }
@@ -2375,24 +2377,32 @@ input:checked + .toggle::after {
     }
     
     .opponent {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        padding: 6px 10px;
-        border-radius: var(--radius-md);
-        min-width: auto;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 10px 8px;
+        border-radius: var(--radius-lg);
+        min-width: 100px;
+        max-width: 110px;
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
         align-items: center;
-        gap: 8px;
+        justify-content: flex-start;
+        gap: 6px;
         flex-shrink: 0;
-        text-align: left;
+        text-align: center;
+        scroll-snap-align: start;
         transition: all 0.2s ease;
     }
     
+    .opponent:only-child {
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
     .opponent.current-turn {
-        border-color: rgba(245, 158, 11, 0.4);
-        box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
-        background: rgba(245, 158, 11, 0.06);
+        border-color: rgba(245, 158, 11, 0.55);
+        box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
+        background: rgba(245, 158, 11, 0.08);
     }
     
     .opponent.current-turn .opponent-name {
@@ -2401,51 +2411,80 @@ input:checked + .toggle::after {
     }
     
     .opponent-avatar {
-        width: 24px;
-        height: 24px;
+        width: 46px;
+        height: 46px;
         margin: 0;
         border-width: 2px;
         border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
     
     .opponent-name {
-        font-size: 0.75rem;
+        font-size: 0.85rem;
         margin: 0;
-        gap: 4px;
+        gap: 3px;
+        white-space: normal;
+        line-height: 1.2;
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 100%;
+    }
+    
+    .opponent-name .ai-badge,
+    .opponent-name .surrender-badge,
+    .opponent-name .ready-badge {
+        font-size: 0.6rem;
+        padding: 2px 6px;
+        border-radius: 4px;
         white-space: nowrap;
-        font-weight: 500;
     }
     
-    .ai-badge {
-        font-size: 0.6rem;
-        padding: 2px 6px;
-        border-radius: 4px;
+    /* Kompakt kortstapel mellan namn och statistik */
+    .opponent-cards {
+        display: flex;
+        justify-content: center;
+        margin: 2px 0;
+        height: 28px;
+        position: relative;
+        width: 100%;
     }
     
-    .surrender-badge {
-        font-size: 0.6rem;
-        padding: 2px 6px;
-        border-radius: 4px;
+    .opponent-cards .card-back {
+        width: 20px !important;
+        height: 28px !important;
+        border-radius: 4px !important;
+        position: absolute !important;
+        box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4) !important;
     }
     
-    .ready-badge {
-        font-size: 0.6rem;
-    }
-    
-    /* Dölj kort-baksidor och video på mobil */
-    .opponent-cards,
-    .opponent-video,
-    .turn-badge {
+    .opponent-video {
         display: none;
+    }
+    
+    .turn-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        margin-top: 2px;
+        animation: pulse 1.5s ease-in-out infinite;
     }
     
     .opponent-stats {
         display: flex;
-        flex-direction: row;
-        gap: 6px;
-        font-size: 0.65rem;
-        white-space: nowrap;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        font-size: 0.7rem;
         color: var(--text-muted);
+        line-height: 1.2;
+    }
+    
+    .opponent-pairs {
+        color: var(--accent);
+        font-weight: 600;
     }
     
     /* ── Center-area ── */
@@ -2985,26 +3024,37 @@ input:checked + .toggle::after {
     }
     
     .opponents-area {
-        padding: 4px 8px;
+        padding: 6px 8px;
         gap: 8px;
     }
     
     .opponent {
-        gap: 6px;
-        padding: 4px 8px;
+        min-width: 88px;
+        max-width: 96px;
+        padding: 8px 6px;
+        gap: 5px;
     }
     
     .opponent-avatar {
-        width: 20px;
-        height: 20px;
+        width: 40px;
+        height: 40px;
     }
     
     .opponent-name {
-        font-size: 0.7rem;
+        font-size: 0.8rem;
+    }
+    
+    .opponent-cards {
+        height: 24px;
+    }
+    
+    .opponent-cards .card-back {
+        width: 18px !important;
+        height: 24px !important;
     }
     
     .opponent-stats {
-        font-size: 0.6rem;
+        font-size: 0.65rem;
     }
     
     .card {
@@ -3121,15 +3171,41 @@ input:checked + .toggle::after {
         min-height: 34px;
         padding: 3px 8px;
         gap: 8px;
+        align-items: center;
+        scroll-snap-type: none;
+    }
+    
+    .opponent {
+        flex-direction: row;
+        min-width: auto;
+        max-width: none;
+        padding: 4px 8px;
+        gap: 6px;
+        text-align: left;
+        scroll-snap-align: none;
     }
     
     .opponent-avatar {
         width: 18px;
         height: 18px;
+        box-shadow: none;
     }
     
     .opponent-name {
+        flex-direction: row;
         font-size: 0.65rem;
+        white-space: nowrap;
+    }
+    
+    .opponent-cards,
+    .turn-badge {
+        display: none;
+    }
+    
+    .opponent-stats {
+        flex-direction: row;
+        font-size: 0.6rem;
+        white-space: nowrap;
     }
     
     .mobile-video-grid .video-peer-wrapper {
