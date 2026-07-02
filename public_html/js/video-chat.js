@@ -79,14 +79,15 @@ class VideoChatManager extends VoiceChatManager {
         `;
         document.body.appendChild(this.videoContainer);
         
-        // Placera egen video i player-area (nere till höger på bordet)
-        const playerVideoSelf = document.getElementById('player-video-self');
-        const preview = document.getElementById('local-video-preview');
-        if (preview && this.localVideoStream) {
-            preview.srcObject = this.localVideoStream;
+        // Placera egen video i den egna spelarboxen
+        const selfVideo = document.getElementById('self-video');
+        if (selfVideo && this.localVideoStream) {
+            selfVideo.srcObject = this.localVideoStream;
+            selfVideo.classList.add('active');
         }
-        if (playerVideoSelf) {
-            playerVideoSelf.classList.add('active');
+        const selfAvatarWrap = document.querySelector('.self-avatar-wrap');
+        if (selfAvatarWrap) {
+            selfAvatarWrap.classList.add('has-video');
         }
         
         // Sätt upp en MutationObserver som flyttar videor till opponent så snart de dyker upp
@@ -101,7 +102,7 @@ class VideoChatManager extends VoiceChatManager {
      * Hantera resize – flytta videor mellan mobil-grid och opponent containers
      */
     _handleResize() {
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        // Säkerställ att varje video ligger i rätt opponent-box
         const wrappers = document.querySelectorAll('.video-peer-wrapper');
         
         wrappers.forEach(wrapper => {
@@ -113,12 +114,6 @@ class VideoChatManager extends VoiceChatManager {
                 targetContainer.appendChild(wrapper);
             }
         });
-        
-        // Uppdatera synlighet på mobile-video-grid
-        const mobileGrid = document.getElementById('mobile-video-grid');
-        if (mobileGrid) {
-            mobileGrid.classList.toggle('has-videos', mobileGrid.children.length > 0);
-        }
     }
     
     /**
@@ -193,6 +188,7 @@ class VideoChatManager extends VoiceChatManager {
             const opponentContainer = this.findOpponentVideoContainer(peerId);
             if (opponentContainer) {
                 opponentContainer.appendChild(wrapper);
+                opponentContainer.classList.add('active');
                 moved++;
             }
         });
@@ -202,12 +198,6 @@ class VideoChatManager extends VoiceChatManager {
             if (grid.children.length === 0) {
                 this.videoContainer.classList.remove('has-videos');
             }
-        }
-        
-        // Uppdatera mobile-video-grid synlighet
-        const mobileGrid = document.getElementById('mobile-video-grid');
-        if (mobileGrid) {
-            mobileGrid.classList.toggle('has-videos', mobileGrid.children.length > 0);
         }
     }
 
@@ -346,31 +336,6 @@ class VideoChatManager extends VoiceChatManager {
     findOpponentVideoContainer(peerId, userName = null) {
         console.log(`🔍 findOpponentVideoContainer: söker efter peerId=${peerId}, userName=${userName}`);
         
-        // På mobil: placera alla videor i mobile-video-grid
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
-        if (isMobile) {
-            let mobileGrid = document.getElementById('mobile-video-grid');
-            if (!mobileGrid) {
-                // Skapa dynamiskt om den inte finns (cachad HTML)
-                mobileGrid = document.createElement('div');
-                mobileGrid.id = 'mobile-video-grid';
-                mobileGrid.className = 'mobile-video-grid';
-                const centerArea = document.querySelector('.center-area');
-                if (centerArea) {
-                    const gameLog = centerArea.querySelector('.game-log');
-                    if (gameLog && gameLog.nextElementSibling) {
-                        centerArea.insertBefore(mobileGrid, gameLog.nextElementSibling);
-                    } else {
-                        centerArea.appendChild(mobileGrid);
-                    }
-                } else {
-                    document.body.appendChild(mobileGrid);
-                }
-            }
-            console.log(`🔍 På mobil – returnerar mobile-video-grid`);
-            return mobileGrid;
-        }
-        
         // Försök hitta via data-opponent-video direkt
         let container = document.querySelector(`[data-opponent-video="${peerId}"]`);
         if (container) {
@@ -447,11 +412,12 @@ class VideoChatManager extends VoiceChatManager {
             video = wrapper.querySelector('video');
             this.videoElements.set(peerId, video);
             
-            // Försök placera videon vid rätt spelare på bordet
+            // Försök placera videon i motståndarens spelarbox
             const opponentContainer = this.findOpponentVideoContainer(peerId);
             if (opponentContainer) {
                 console.log(`📹 Placerar video för ${peerId} i opponent-container`);
                 opponentContainer.appendChild(wrapper);
+                opponentContainer.classList.add('active');
             } else {
                 // Fallback: lägg i fallback-grid så vi kan se den för debugging
                 console.log(`📹 Placerar video för ${peerId} i fallback-grid (spelare ej hittad)`);
@@ -491,12 +457,7 @@ class VideoChatManager extends VoiceChatManager {
         if (opponentContainer && wrapper.parentElement !== opponentContainer) {
             console.log(`📹 Flyttar video för ${peerId} från fallback till opponent`);
             opponentContainer.appendChild(wrapper);
-        }
-        
-        // Uppdatera mobile-video-grid synlighet
-        const mobileGrid = document.getElementById('mobile-video-grid');
-        if (mobileGrid) {
-            mobileGrid.classList.toggle('has-videos', mobileGrid.children.length > 0);
+            opponentContainer.classList.add('active');
         }
     }
 
@@ -597,12 +558,15 @@ class VideoChatManager extends VoiceChatManager {
             this.videoContainer = null;
         }
         
-        // Dölj egen video i player-area
-        const playerVideoSelf = document.getElementById('player-video-self');
-        if (playerVideoSelf) {
-            playerVideoSelf.classList.remove('active');
-            const preview = playerVideoSelf.querySelector('video');
-            if (preview) preview.srcObject = null;
+        // Dölj egen video i spelarboxen
+        const selfVideo = document.getElementById('self-video');
+        if (selfVideo) {
+            selfVideo.classList.remove('active');
+            selfVideo.srcObject = null;
+        }
+        const selfAvatarWrap = document.querySelector('.self-avatar-wrap');
+        if (selfAvatarWrap) {
+            selfAvatarWrap.classList.remove('has-video');
         }
         
         super.disconnect();

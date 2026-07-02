@@ -1609,8 +1609,10 @@ class GameClient {
                 
                 el.classList.toggle('ready', !!p.ready);
                 el.innerHTML = `
-                    <div class="opponent-video" data-opponent-video="${p.socketId || p.id}"></div>
-                    <img src="${p.avatar || '/assets/images/default-avatar.png'}" class="opponent-avatar" alt="${p.name}">
+                    <div class="opponent-avatar-wrap">
+                        <img src="${p.avatar || '/assets/images/default-avatar.png'}" class="opponent-avatar" alt="${p.name}">
+                        <div class="opponent-video" data-opponent-video="${p.socketId || p.id}"></div>
+                    </div>
                     <div class="opponent-name">
                         ${p.name}
                         ${p.isAI ? `<span class="ai-badge">AI ${p.aiDifficulty}</span>` : ''}
@@ -1694,6 +1696,7 @@ class GameClient {
                     const opponentContainer = gameClient.voiceChat.findOpponentVideoContainer(peerId);
                     if (opponentContainer && wrapper.parentElement !== opponentContainer) {
                         opponentContainer.appendChild(wrapper);
+                        opponentContainer.classList.add('active');
                     }
                 });
                 if (grid.children.length === 0) {
