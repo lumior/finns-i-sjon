@@ -355,14 +355,45 @@ class VideoChatManager extends VoiceChatManager {
         
         // Försök hitta via gameClient gameState mapping (socketId eller namn)
         if (window.gameClient && gameClient.gameState) {
+            const knownName = userName || this.peerNames.get(peerId);
             const player = gameClient.gameState.players.find(p => 
-                p.socketId === peerId || (userName && p.name === userName)
+                p.socketId === peerId || (knownName && p.name === knownName)
             );
             if (player) {
+                const bySocketId = document.querySelector(`[data-opponent-video="${player.socketId}"]`);
+                if (bySocketId) {
+                    console.log(`🔍 Hittade opponent-video via player.socketId mapping (${player.name})`);
+                    return bySocketId;
+                }
                 const byId = document.querySelector(`[data-opponent-video="${player.id}"]`);
                 if (byId) {
                     console.log(`🔍 Hittade opponent-video via player.id mapping (${player.name})`);
                     return byId;
+                }
+            }
+        }
+        
+        // Sista fallback: sök efter namn direkt i DOM
+        const knownName = userName || this.peerNames.get(peerId);
+        if (knownName) {
+            const opponentByName = document.querySelector(`.opponent[data-player-name="${knownName}"]`);
+            if (opponentByName) {
+                container = opponentByName.querySelector('.opponent-video');
+                if (container) {
+                    console.log(`🔍 Hittade opponent-video via data-player-name (${knownName})`);
+                    return container;
+                }
+            }
+            // Fallback utan attribut: sök på text-innehåll
+            const opponents = document.querySelectorAll('.opponent');
+            for (const opp of opponents) {
+                const nameEl = opp.querySelector('.opponent-name');
+                if (nameEl && nameEl.textContent.trim().startsWith(knownName)) {
+                    container = opp.querySelector('.opponent-video');
+                    if (container) {
+                        console.log(`🔍 Hittade opponent-video via textContent (${knownName})`);
+                        return container;
+                    }
                 }
             }
         }
@@ -427,6 +458,12 @@ class VideoChatManager extends VoiceChatManager {
                     this.videoContainer.classList.add('has-videos');
                 }
             }
+        }
+        
+        // Säkerställ att opponent-video containern är synlig även om wrappern redan fanns
+        const currentContainer = wrapper.parentElement;
+        if (currentContainer && currentContainer.classList.contains('opponent-video')) {
+            currentContainer.classList.add('active');
         }
         
         video.srcObject = stream;
@@ -494,6 +531,10 @@ class VideoChatManager extends VoiceChatManager {
         const self = document.getElementById('video-self');
         if (self) {
             self.classList.toggle('talking', isTalking);
+        }
+        const selfVideo = document.getElementById('self-video');
+        if (selfVideo) {
+            selfVideo.classList.toggle('talking', isTalking);
         }
     }
 

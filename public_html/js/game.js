@@ -1601,6 +1601,7 @@ class GameClient {
                 el.className = 'opponent';
                 el.dataset.playerId = p.id;
                 el.dataset.socketId = p.socketId || '';
+                el.dataset.playerName = p.name || '';
                 el.dataset.animated = '1';
                 
                 const cardBacks = Array(p.cardCount).fill(0).map((_, i) =>
@@ -1638,6 +1639,16 @@ class GameClient {
             el.classList.toggle('surrendered', !!p.surrendered);
             el.classList.toggle('ready', !!p.ready);
             el.dataset.socketId = p.socketId || '';
+            el.dataset.playerName = p.name || '';
+            
+            // Håll opponent-video attributet synkat så WebRTC kan hitta containern
+            const videoContainer = el.querySelector('.opponent-video');
+            if (videoContainer) {
+                videoContainer.dataset.opponentVideo = p.socketId || p.id;
+                if (videoContainer.children.length > 0) {
+                    videoContainer.classList.add('active');
+                }
+            }
             
             // Avatar
             const avatarEl = el.querySelector('.opponent-avatar');
