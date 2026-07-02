@@ -1762,6 +1762,13 @@ class GameClient {
                     nameEl.className = 'pair-name';
                     nameEl.textContent = card.name || card.pairId;
                     cardEl.appendChild(nameEl);
+                } else if (deckTheme === 'standard' && card.suit && card.suitSymbol) {
+                    cardEl.classList.add(card.suitColor || 'black');
+                    cardEl.innerHTML = `
+                        <span class="rank-top">${card.name || ''}</span>
+                        <span class="suit">${card.suitSymbol}</span>
+                        <span class="rank-bottom">${card.name || ''}</span>
+                    `;
                 } else {
                     cardEl.classList.add('pair-fallback');
                     cardEl.innerHTML = `<span class="pair-name">${card.name || card.pairId}</span>`;
@@ -1773,7 +1780,10 @@ class GameClient {
             const imageFailed = cardEl.dataset.imageFailed === 'true';
             const hasCardImage = useImageDeck && card.image && !imageFailed;
             const isSelectedAsk = cardEl.dataset.cardId === this.selectedAskCardId;
-            cardEl.className = `card ${cardStyleClass}${hasCardImage ? ' card-deck-image' : ' pair-fallback'}${isSelectedAsk ? ' selected-ask-card' : ''}`;
+            const isStandardCard = deckTheme === 'standard' && card.suit && card.suitSymbol;
+            const suitColorClass = isStandardCard ? ` ${card.suitColor || 'black'}` : '';
+            const cardTypeClass = hasCardImage ? ' card-deck-image' : isStandardCard ? '' : ' pair-fallback';
+            cardEl.className = `card ${cardStyleClass}${cardTypeClass}${suitColorClass}${isSelectedAsk ? ' selected-ask-card' : ''}`;
             cardEl.dataset.deckTheme = deckTheme;
             cardEl.dataset.pairId = card.pairId;
 
