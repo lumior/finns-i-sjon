@@ -866,7 +866,7 @@ body.my-turn-active .game-board {
     align-items: center;
     gap: var(--space-sm);
     text-align: center;
-    margin: 0 auto var(--space-md);
+    margin: 4px auto var(--space-md);
     transition: all 0.2s ease;
 }
 
@@ -1039,7 +1039,7 @@ body.my-turn-active .game-board {
     /* gap kan inte vara negativt; använder margin-left på korten istället */
     flex-wrap: wrap;
     min-height: 120px;
-    margin: var(--space-md) 0;
+    margin: var(--space-md) 0 4px;
     perspective: 1000px;
 }
 
@@ -2718,7 +2718,7 @@ input:checked + .toggle::after {
         max-width: 140px;
         padding: 10px 8px;
         gap: 6px;
-        margin: 0 auto 10px;
+        margin: 2px auto 10px;
     }
     
     .self-player-avatar {
@@ -2746,7 +2746,7 @@ input:checked + .toggle::after {
         overflow-x: auto;
         overflow-y: hidden;
         min-height: auto;
-        margin: 6px 0;
+        margin: 6px 0 2px;
         gap: 0;
         justify-content: flex-start;
         padding: 4px;
@@ -3304,7 +3304,7 @@ input:checked + .toggle::after {
     .my-turn-badge {
         font-size: 0.75rem;
         padding: 4px 12px;
-        bottom: calc(58px + env(safe-area-inset-bottom) + 8px);
+        bottom: calc(58px + env(safe-area-inset-bottom) + 150px);
     }
     
     .self-player {
@@ -3312,7 +3312,7 @@ input:checked + .toggle::after {
         max-width: 130px;
         padding: 8px 6px;
         gap: 5px;
-        margin: 0 auto 8px;
+        margin: 2px auto 8px;
     }
     
     .self-player-avatar {

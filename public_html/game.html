@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#1a1208">
     <title>FISK – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/game.css?v=40">
+    <link rel="stylesheet" href="/css/game.css?v=41">
     <link rel="stylesheet" href="/css/animations.css?v=1">
     <link rel="stylesheet" href="/css/voice-chat.css?v=14">
     <link rel="stylesheet" href="/css/video-chat.css?v=14">
@@ -144,6 +144,8 @@
                 <video id="local-video-preview" autoplay muted playsinline></video>
                 <div class="video-label" id="local-video-label">Du</div>
             </div>
+            <div id="my-hand" class="hand"></div>
+            
             <!-- Egen spelarbox i samma stil som motståndarna -->
             <div id="self-player" class="self-player">
                 <img id="my-avatar" src="/assets/images/default-avatar.png" class="self-player-avatar" alt="Du">
@@ -157,8 +159,6 @@
                     <span class="self-success-rate">🎯 <span id="my-success-rate">0</span>%</span>
                 </div>
             </div>
-            
-            <div id="my-hand" class="hand"></div>
             
             <!-- Banner som visas när man väntar på svar från en motståndare -->
             <div id="ask-pending-banner" class="ask-pending-banner hidden">
