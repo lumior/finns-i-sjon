@@ -865,16 +865,6 @@ class GameClient {
             toggleBtn.addEventListener('click', () => this.toggleTutorial());
         }
         
-        const closeBtn = document.getElementById('tutorial-close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                this.hideTutorialHint();
-                this.settings.tutorialEnabled = false;
-                localStorage.setItem('tutorialEnabled', 'false');
-                this.updateTutorialToggle();
-            });
-        }
-        
         // Nollställ timer vid användarinteraktion
         const resetEvents = ['pointerdown', 'touchstart', 'mousedown', 'keydown'];
         resetEvents.forEach(event => {
@@ -1091,11 +1081,25 @@ class GameClient {
         hand.style.setProperty('--hand-rotation', rotation);
         hand.classList.remove('hidden');
         
+        // Placera hint på motsatt sida av handen så den inte täcker målet
         hintText.textContent = message;
-        const hintWidth = Math.min(260, window.innerWidth - 32);
+        const hintWidth = Math.min(220, window.innerWidth - 32);
         let hintLeft = left + handSize / 2 - hintWidth / 2;
         hintLeft = Math.max(8, Math.min(window.innerWidth - hintWidth - 8, hintLeft));
-        hint.style.top = `${top + handSize + 6}px`;
+        
+        let hintTop;
+        if (direction === 'down') {
+            // Hand ovanför målet -> hint ovanför handen
+            hintTop = top - 44;
+        } else if (direction === 'up') {
+            // Hand under målet -> hint under handen
+            hintTop = top + handSize + 6;
+        } else {
+            hintTop = top + handSize + 6;
+        }
+        hintTop = Math.max(8, Math.min(window.innerHeight - 60, hintTop));
+        
+        hint.style.top = `${hintTop}px`;
         hint.style.left = `${hintLeft}px`;
         hint.style.maxWidth = `${hintWidth}px`;
         hint.classList.remove('hidden');
