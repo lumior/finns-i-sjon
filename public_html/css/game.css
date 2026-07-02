@@ -2732,10 +2732,12 @@ input:checked + .toggle::after {
     /* ── Player-area: fokusera på korten ── */
     .player-area {
         padding: 8px;
+        padding-bottom: calc(64px + env(safe-area-inset-bottom));
         border-radius: 0;
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
+        min-height: 100%;
     }
     
     .player-info-bar,
@@ -2749,7 +2751,7 @@ input:checked + .toggle::after {
         max-width: 140px;
         padding: 10px 8px;
         gap: 6px;
-        margin: 32px auto 10px;
+        margin: auto auto 10px;
     }
     
     .self-avatar-wrap {
@@ -3290,7 +3292,7 @@ input:checked + .toggle::after {
         max-width: 130px;
         padding: 8px 6px;
         gap: 5px;
-        margin: 24px auto 8px;
+        margin: auto auto 8px;
     }
     
     .self-avatar-wrap {
