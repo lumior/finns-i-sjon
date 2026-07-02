@@ -947,7 +947,7 @@ body.my-turn-active .game-board {
     align-items: center;
     gap: var(--space-sm);
     text-align: center;
-    margin: 4px auto var(--space-md);
+    margin: auto auto var(--space-md);
     transition: all 0.2s ease;
 }
 
@@ -2749,7 +2749,7 @@ input:checked + .toggle::after {
         max-width: 140px;
         padding: 10px 8px;
         gap: 6px;
-        margin: 2px auto 10px;
+        margin: auto auto 10px;
     }
     
     .self-avatar-wrap {
@@ -3290,7 +3290,7 @@ input:checked + .toggle::after {
         max-width: 130px;
         padding: 8px 6px;
         gap: 5px;
-        margin: 2px auto 8px;
+        margin: auto auto 8px;
     }
     
     .self-avatar-wrap {
