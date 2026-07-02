@@ -2750,7 +2750,7 @@ input:checked + .toggle::after {
         max-width: 140px;
         padding: 10px 8px;
         gap: 6px;
-        margin: auto auto 10px;
+        margin: 32px auto 32px;
     }
     
     .self-avatar-wrap {
@@ -3291,7 +3291,7 @@ input:checked + .toggle::after {
         max-width: 130px;
         padding: 8px 6px;
         gap: 5px;
-        margin: auto auto 8px;
+        margin: 24px auto 24px;
     }
     
     .self-avatar-wrap {
