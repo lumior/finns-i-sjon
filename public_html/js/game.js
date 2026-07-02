@@ -1430,11 +1430,36 @@ class GameClient {
         this.updateTurnFrame(state);
         this.updateMyTurnBadge(state);
         this.updateTutorialState();
+        this.renderSelfPlayer(state);
+    }
 
-        const me = state.players.find(p => p.isYou);
-        if (me) {
-            const myAvatar = document.getElementById('my-avatar');
-            if (myAvatar) myAvatar.src = me.avatar || '/assets/images/default-avatar.png';
+    renderSelfPlayer(state) {
+        const selfEl = document.getElementById('self-player');
+        const avatarEl = document.getElementById('my-avatar');
+        const nameEl = document.getElementById('my-name');
+        const pairsEl = document.getElementById('my-pairs');
+        const cardsEl = document.getElementById('my-card-count');
+        const rateEl = document.getElementById('my-success-rate');
+        if (!selfEl) return;
+        
+        const me = state.players?.find(p => p.isYou);
+        if (!me) return;
+        
+        const isMyTurn = me.isCurrentPlayer && (state.state === 'playing' || state.state === 'active');
+        selfEl.classList.toggle('current-turn', !!isMyTurn);
+        
+        if (avatarEl) {
+            avatarEl.src = me.avatar || '/assets/images/default-avatar.png';
+            avatarEl.alt = me.name;
+        }
+        if (nameEl) nameEl.textContent = me.name;
+        if (pairsEl) pairsEl.textContent = state.yourPairs?.length || 0;
+        if (cardsEl) cardsEl.textContent = state.yourHand?.length || 0;
+        
+        if (rateEl) {
+            const totalAsks = me.successfulAsks + me.failedAsks;
+            const rate = totalAsks > 0 ? Math.round((me.successfulAsks / totalAsks) * 100) : 0;
+            rateEl.textContent = rate;
         }
     }
 
@@ -1814,16 +1839,10 @@ class GameClient {
             container.classList.toggle('scrollable', container.scrollWidth > container.clientWidth);
         });
 
-        document.getElementById('my-pairs').textContent = pairs.length;
+        const myCardCount = document.getElementById('my-card-count');
+        if (myCardCount) myCardCount.textContent = hand.length;
         const mobilePairsCount = document.getElementById('mobile-pairs-count');
         if (mobilePairsCount) mobilePairsCount.textContent = pairs.length;
-
-        const me = this.gameState?.players.find(p => p.isYou);
-        if (me) {
-            const totalAsks = me.successfulAsks + me.failedAsks;
-            const rate = totalAsks > 0 ? Math.round((me.successfulAsks / totalAsks) * 100) : 0;
-            document.getElementById('my-success-rate').textContent = `${rate}%`;
-        }
 
         if (window.animationManager) {
             const newCards = container.querySelectorAll('.card:not([data-animated])');

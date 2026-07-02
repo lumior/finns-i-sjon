@@ -174,7 +174,7 @@ html, body {
 
 .game-board {
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto 1fr;
     height: 100vh;
     padding-top: 60px;
     padding-bottom: 0;
@@ -364,7 +364,11 @@ html, body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 200px;
+    min-height: 80px;
+}
+
+.game-log {
+    display: none;
 }
 
 .game-log {
@@ -843,6 +847,81 @@ body.my-turn-active .game-board {
     padding: var(--space-md) var(--space-lg);
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    min-height: 0;
+}
+
+/* Egen spelarbox – samma stil som motståndare men med grön accent */
+.self-player {
+    background: rgba(16, 185, 129, 0.08);
+    border: 2px solid rgba(16, 185, 129, 0.4);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    min-width: 140px;
+    max-width: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    text-align: center;
+    margin: 0 auto var(--space-md);
+    transition: all 0.2s ease;
+}
+
+.self-player.current-turn {
+    border-color: rgba(16, 185, 129, 0.8);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    animation: currentTurnPulse 2s ease-in-out infinite;
+}
+
+.self-player-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-full);
+    object-fit: cover;
+    border: 2px solid rgba(16, 185, 129, 0.5);
+}
+
+.self-player-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    color: var(--text-primary);
+}
+
+.self-badge {
+    font-size: 0.65rem;
+    background: rgba(16, 185, 129, 0.25);
+    color: #34d399;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.self-player-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.2;
+}
+
+.self-player-stats span strong,
+.self-player-stats span.stat-value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.self-success-rate {
+    font-size: 0.7rem;
 }
 
 .player-video-self {
@@ -892,10 +971,7 @@ body.my-turn-active .game-board {
 }
 
 .player-info-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--space-md);
+    display: none;
 }
 
 .player-identity {
@@ -2577,6 +2653,10 @@ input:checked + .toggle::after {
         padding: 0;
     }
     
+    .game-log {
+        display: none;
+    }
+    
     /* ── Game-log: expandable med modern styling ── */
     .game-log {
         position: relative;
@@ -2624,12 +2704,39 @@ input:checked + .toggle::after {
         border-radius: 0;
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
+        justify-content: flex-start;
     }
     
     .player-info-bar,
     .player-video-self {
         display: none;
+    }
+    
+    /* ── Egen spelarbox på mobil ── */
+    .self-player {
+        min-width: 110px;
+        max-width: 140px;
+        padding: 10px 8px;
+        gap: 6px;
+        margin: 0 auto 10px;
+    }
+    
+    .self-player-avatar {
+        width: 44px;
+        height: 44px;
+    }
+    
+    .self-player-name {
+        font-size: 0.85rem;
+    }
+    
+    .self-badge {
+        font-size: 0.6rem;
+        padding: 1px 6px;
+    }
+    
+    .self-player-stats {
+        font-size: 0.7rem;
     }
     
     /* ── Hand: moderna kort med bättre touch ── */
@@ -3198,6 +3305,27 @@ input:checked + .toggle::after {
         font-size: 0.75rem;
         padding: 4px 12px;
         bottom: calc(58px + env(safe-area-inset-bottom) + 8px);
+    }
+    
+    .self-player {
+        min-width: 100px;
+        max-width: 130px;
+        padding: 8px 6px;
+        gap: 5px;
+        margin: 0 auto 8px;
+    }
+    
+    .self-player-avatar {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .self-player-name {
+        font-size: 0.8rem;
+    }
+    
+    .self-player-stats {
+        font-size: 0.65rem;
     }
     
     .tutorial-hand {

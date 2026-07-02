@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#1a1208">
     <title>FISK – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/game.css?v=39">
+    <link rel="stylesheet" href="/css/game.css?v=40">
     <link rel="stylesheet" href="/css/animations.css?v=1">
     <link rel="stylesheet" href="/css/voice-chat.css?v=14">
     <link rel="stylesheet" href="/css/video-chat.css?v=14">
@@ -92,7 +92,8 @@
         <section id="opponents-area" class="opponents-area"></section>
 
         <section class="center-area">
-            <div id="game-log" class="game-log">
+            <!-- Spelloggen finns kvar i DOM men visas inte längre mitt på skärmen -->
+            <div id="game-log" class="game-log hidden">
                 <button id="expand-log-btn" class="log-expand-btn mobile-only" title="Visa spellogg">📜</button>
                 <div class="log-entry system">Välkommen till FISK! 🎣</div>
             </div>
@@ -143,25 +144,17 @@
                 <video id="local-video-preview" autoplay muted playsinline></video>
                 <div class="video-label" id="local-video-label">Du</div>
             </div>
-            <div class="player-info-bar">
-                <div class="player-identity">
-                    <img id="my-avatar" src="/assets/images/default-avatar.png" class="player-avatar" alt="Du">
-                    <div class="player-details">
-                        <span id="my-name" class="player-name">Du</span>
-                        <span id="my-elo" class="player-elo"></span>
-                    </div>
+            <!-- Egen spelarbox i samma stil som motståndarna -->
+            <div id="self-player" class="self-player">
+                <img id="my-avatar" src="/assets/images/default-avatar.png" class="self-player-avatar" alt="Du">
+                <div class="self-player-name">
+                    <span id="my-name">Du</span>
+                    <span class="self-badge">Du</span>
                 </div>
-                <div class="player-stats">
-                    <div class="stat-badge">
-                        <span class="stat-icon">🏆</span>
-                        <span id="my-pairs" class="stat-value">0</span>
-                        <span class="stat-label">par</span>
-                    </div>
-                    <div class="stat-badge">
-                        <span class="stat-icon">🎯</span>
-                        <span id="my-success-rate" class="stat-value">0%</span>
-                        <span class="stat-label">träffsäkerhet</span>
-                    </div>
+                <div class="self-player-stats">
+                    <span>🏆 <span id="my-pairs">0</span> par</span>
+                    <span>🎴 <span id="my-card-count">0</span> kort</span>
+                    <span class="self-success-rate">🎯 <span id="my-success-rate">0</span>%</span>
                 </div>
             </div>
             
@@ -420,6 +413,6 @@
     <script src="/js/voice-ui.js?v=13" defer></script>
     <script src="/js/video-chat.js?v=16" defer></script>
     <script src="/js/video-ui.js?v=13" defer></script>
-    <script src="/js/game.js?v=35" defer></script>
+    <script src="/js/game.js?v=36" defer></script>
 </body>
 </html>
