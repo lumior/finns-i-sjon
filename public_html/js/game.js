@@ -996,6 +996,15 @@ class GameClient {
             return;
         }
         
+        // Ett kort är valt men ingen motståndare än
+        if (this.selectedAskCardId && !this.selectedAskTargetId) {
+            const firstOpponent = document.querySelector('#opponents-area .opponent');
+            if (firstOpponent) {
+                this.showTutorialHint(firstOpponent, 'Bra! Klicka nu på en motståndare att fråga.', 'down');
+                return;
+            }
+        }
+        
         // Frågedialog öppen
         const askDialog = document.getElementById('ask-dialog');
         if (askDialog && !askDialog.classList.contains('hidden')) {
@@ -1097,10 +1106,8 @@ class GameClient {
         const hint = document.getElementById('tutorial-hint');
         if (hand) hand.classList.add('hidden');
         if (hint) hint.classList.add('hidden');
-        if (this.tutorialTimer) {
-            clearTimeout(this.tutorialTimer);
-            this.tutorialTimer = null;
-        }
+        // Avbryt INTE timern här – användaren kan ha klickat på ett kort
+        // och ska sedan få nästa hint efter 4 sekunders inaktivitet.
     }
     
     updateMyTurnBadge(state) {
