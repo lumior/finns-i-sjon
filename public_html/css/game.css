@@ -374,8 +374,40 @@ html, body {
     object-fit: cover;
 }
 
+.video-peer-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.video-peer-wrapper video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .opponent-video .video-peer-name {
     display: none;
+}
+
+.video-talking-indicator {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    background: #22c55e;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.video-peer-wrapper.talking .video-talking-indicator {
+    opacity: 1;
 }
 
 .opponent-video .video-talking-indicator {
