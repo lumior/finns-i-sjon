@@ -652,11 +652,16 @@ class Database {
         if (this.isPostgres) {
             const pgSql = this._pgSql(sql);
             const result = await this.pool.query(pgSql, params);
-            // Hämta senaste INSERT-id via lastval()
+            // Hämta senaste INSERT-id via lastval() om tabellen använder en sekvens
             let lastId = 0;
             if (pgSql.trim().toLowerCase().startsWith('insert')) {
-                const idResult = await this.pool.query('SELECT lastval()');
-                lastId = parseInt(idResult.rows[0].lastval, 10) || 0;
+                try {
+                    const idResult = await this.pool.query('SELECT lastval()');
+                    lastId = parseInt(idResult.rows[0].lastval, 10) || 0;
+                } catch {
+                    // Tabellen har ingen sekvens (t.ex. explicit PK som VARCHAR)
+                    lastId = 0;
+                }
             }
             return {
                 id: lastId,
