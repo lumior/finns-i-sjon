@@ -227,24 +227,30 @@ class Database {
                 )
             `);
 
-            await this.run(`
-                CREATE TABLE IF NOT EXISTS persistent_rooms (
-                    room_id VARCHAR(20) PRIMARY KEY,
-                    owner_user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    room_name VARCHAR(100) NOT NULL,
-                    game_type VARCHAR(20) DEFAULT 'standard',
-                    max_players INT DEFAULT 6,
-                    allow_ai BOOLEAN DEFAULT true,
-                    turn_timer BOOLEAN DEFAULT true,
-                    spectator_mode BOOLEAN DEFAULT true,
-                    deck_theme VARCHAR(50) DEFAULT 'standard',
-                    password_hash VARCHAR(255),
-                    is_private BOOLEAN DEFAULT false,
-                    is_active BOOLEAN DEFAULT true,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
+            try {
+                await this.run(`
+                    CREATE TABLE IF NOT EXISTS persistent_rooms (
+                        room_id VARCHAR(20) PRIMARY KEY,
+                        owner_user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        room_name VARCHAR(100) NOT NULL,
+                        game_type VARCHAR(20) DEFAULT 'standard',
+                        max_players INT DEFAULT 6,
+                        allow_ai BOOLEAN DEFAULT true,
+                        turn_timer BOOLEAN DEFAULT true,
+                        spectator_mode BOOLEAN DEFAULT true,
+                        deck_theme VARCHAR(50) DEFAULT 'standard',
+                        password_hash VARCHAR(255),
+                        is_private BOOLEAN DEFAULT false,
+                        is_active BOOLEAN DEFAULT true,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+                console.log('✅ persistent_rooms table ready');
+            } catch (err) {
+                console.error('❌ Failed to create persistent_rooms table:', err.message);
+                throw err;
+            }
 
             // Index för prestanda
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);

@@ -16,24 +16,29 @@ class PersistentRoom {
             isPrivate = false
         } = roomData;
 
-        await db.run(
-            `INSERT INTO persistent_rooms
-             (room_id, owner_user_id, room_name, game_type, max_players, allow_ai, turn_timer, spectator_mode, deck_theme, password_hash, is_private)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                roomId,
-                ownerUserId,
-                roomName,
-                gameType,
-                maxPlayers,
-                allowAI ? 1 : 0,
-                turnTimer ? 1 : 0,
-                spectatorMode ? 1 : 0,
-                deckTheme,
-                passwordHash,
-                isPrivate ? 1 : 0
-            ]
-        );
+        try {
+            await db.run(
+                `INSERT INTO persistent_rooms
+                 (room_id, owner_user_id, room_name, game_type, max_players, allow_ai, turn_timer, spectator_mode, deck_theme, password_hash, is_private)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    roomId,
+                    ownerUserId,
+                    roomName,
+                    gameType,
+                    maxPlayers,
+                    allowAI ? 1 : 0,
+                    turnTimer ? 1 : 0,
+                    spectatorMode ? 1 : 0,
+                    deckTheme,
+                    passwordHash,
+                    isPrivate ? 1 : 0
+                ]
+            );
+        } catch (err) {
+            console.error('❌ PersistentRoom.create failed:', err.message, { roomId, ownerUserId });
+            throw err;
+        }
 
         return this.getById(roomId);
     }

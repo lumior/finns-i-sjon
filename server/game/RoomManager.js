@@ -75,7 +75,7 @@ class RoomManager {
                 });
             } catch (err) {
                 console.error('❌ Failed to create persistent room:', err.message);
-                return { success: false, error: 'Kunde inte spara återkommande bord' };
+                return { success: false, error: `Kunde inte spara återkommande bord: ${err.message}` };
             }
         }
 
