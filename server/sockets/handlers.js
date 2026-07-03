@@ -67,55 +67,60 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
         socket.on(
             'create_room',
             rateLimit('create_room', 5, 60000, async data => {
-                console.log('🔍 SERVER create_room:', data?.playerName, 'socket:', socket.id);
-                const { playerName, roomName, password, gameType, settings, isPersistent } = data;
+                try {
+                    console.log('🔍 SERVER create_room:', data?.playerName, 'socket:', socket.id);
+                    const { playerName, roomName, password, gameType, settings, isPersistent } = data;
 
-                if (!playerName || playerName.trim().length < 2) {
-                    socket.emit('error', { message: 'Ange ett giltigt namn (minst 2 tecken)' });
-                    return;
+                    if (!playerName || playerName.trim().length < 2) {
+                        socket.emit('error', { message: 'Ange ett giltigt namn (minst 2 tecken)' });
+                        return;
+                    }
+
+                    if (isPersistent && !socket.user) {
+                        socket.emit('error', { message: 'Du måste vara inloggad för att skapa ett återkommande bord' });
+                        return;
+                    }
+
+                    const createOptions = {
+                        roomName: roomName?.trim(),
+                        password: password?.trim(),
+                        gameType: gameType || 'standard',
+                        ...settings
+                    };
+
+                    if (isPersistent && socket.user) {
+                        createOptions.isPersistent = true;
+                        createOptions.ownerUserId = socket.user.id;
+                    }
+
+                    const result = await roomManager.createRoom(playerName.trim(), socket.id, createOptions);
+
+                    if (!result.success) {
+                        socket.emit('error', { message: result.error });
+                        return;
+                    }
+
+                    socket.join(result.roomId);
+
+                    result.game.onStateChange = snapshot => {
+                        db.saveGameSnapshot(result.roomId, snapshot).catch(() => {});
+                    };
+
+                    const me = result.game.players.find(p => p.socketId === socket.id);
+                    socket.emit('room_created', {
+                        roomId: result.roomId,
+                        gameState: result.game.getPublicState(socket.id),
+                        isHost: true,
+                        isPersistent: !!isPersistent,
+                        settings: result.game.settings,
+                        reconnectToken: me?.reconnectToken
+                    });
+
+                    io.emit('lobby_update', roomManager.getPublicRoomList());
+                } catch (err) {
+                    console.error('❌ create_room error:', err.message);
+                    socket.emit('error', { message: 'Kunde inte skapa bordet' });
                 }
-
-                if (isPersistent && !socket.user) {
-                    socket.emit('error', { message: 'Du måste vara inloggad för att skapa ett återkommande bord' });
-                    return;
-                }
-
-                const createOptions = {
-                    roomName: roomName?.trim(),
-                    password: password?.trim(),
-                    gameType: gameType || 'standard',
-                    ...settings
-                };
-
-                if (isPersistent && socket.user) {
-                    createOptions.isPersistent = true;
-                    createOptions.ownerUserId = socket.user.id;
-                }
-
-                const result = await roomManager.createRoom(playerName.trim(), socket.id, createOptions);
-
-                if (!result.success) {
-                    socket.emit('error', { message: result.error });
-                    return;
-                }
-
-                socket.join(result.roomId);
-
-                result.game.onStateChange = snapshot => {
-                    db.saveGameSnapshot(result.roomId, snapshot).catch(() => {});
-                };
-
-                const me = result.game.players.find(p => p.socketId === socket.id);
-                socket.emit('room_created', {
-                    roomId: result.roomId,
-                    gameState: result.game.getPublicState(socket.id),
-                    isHost: true,
-                    isPersistent: !!isPersistent,
-                    settings: result.game.settings,
-                    reconnectToken: me?.reconnectToken
-                });
-
-                io.emit('lobby_update', roomManager.getPublicRoomList());
             })
         );
 

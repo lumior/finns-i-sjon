@@ -59,19 +59,24 @@ class RoomManager {
         if (isPersistent && ownerUserId) {
             room.isPersistent = true;
             room.ownerUserId = ownerUserId;
-            await PersistentRoom.create({
-                roomId,
-                ownerUserId,
-                roomName: room.name,
-                gameType,
-                maxPlayers,
-                allowAI,
-                turnTimer,
-                spectatorMode,
-                deckTheme,
-                passwordHash,
-                isPrivate: !!password
-            });
+            try {
+                await PersistentRoom.create({
+                    roomId,
+                    ownerUserId,
+                    roomName: room.name,
+                    gameType,
+                    maxPlayers,
+                    allowAI,
+                    turnTimer,
+                    spectatorMode,
+                    deckTheme,
+                    passwordHash,
+                    isPrivate: !!password
+                });
+            } catch (err) {
+                console.error('❌ Failed to create persistent room:', err.message);
+                return { success: false, error: 'Kunde inte spara återkommande bord' };
+            }
         }
 
         this.rooms.set(roomId, room);
@@ -198,6 +203,11 @@ class RoomManager {
         const result = game.addPlayer(socketId, playerName, userData);
         if (!result.success) {
             return { success: false, error: result.error };
+        }
+
+        // Om rummet är återskapat från persistent lagring finns ingen host än
+        if (!room.hostSocketId) {
+            room.hostSocketId = socketId;
         }
 
         this.playerRooms.set(socketId, roomId.toUpperCase());
