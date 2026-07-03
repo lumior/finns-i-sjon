@@ -23,6 +23,7 @@ const createRoomRouter = require('./routes/rooms');
 const statsRoutes = require('./routes/stats');
 const adminRoutes = require('./routes/admin');
 const friendsRoutes = require('./routes/friends');
+const persistentRoomsRoutes = require('./routes/persistent-rooms');
 const registerSocketHandlers = require('./sockets');
 
 // Bestäm tillåtna CORS-origins. I produktion används FRONTEND_URL/RAILWAY_PUBLIC_DOMAIN/BASE_URL.
@@ -133,6 +134,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/themes', require('./routes/themes'));
 app.use('/api/friends', friendsRoutes);
+app.use('/api/persistent-rooms', persistentRoomsRoutes);
 
 // Socket.IO
 registerSocketHandlers(io, roomManager, {

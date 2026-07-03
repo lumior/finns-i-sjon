@@ -542,6 +542,39 @@ body {
     padding-right: var(--space-sm);
 }
 
+.persistent-rooms-section {
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.persistent-rooms-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-md);
+}
+
+.persistent-rooms-list {
+    display: grid;
+    gap: var(--space-md);
+}
+
+.persistent-room-card .delete-persistent-room-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.25rem;
+    margin-left: 0.5rem;
+    transition: color var(--transition-fast);
+}
+
+.persistent-room-card .delete-persistent-room-btn:hover {
+    color: var(--danger);
+}
+
 .room-filters {
     display: flex;
     gap: var(--space-md);
@@ -1154,7 +1187,11 @@ body {
         align-items: flex-start;
         gap: var(--space-sm);
     }
-    
+
+    .persistent-room-card .delete-persistent-room-btn {
+        margin-left: auto;
+    }
+
     .join-room-btn {
         width: 100%;
     }

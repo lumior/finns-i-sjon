@@ -227,6 +227,25 @@ class Database {
                 )
             `);
 
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS persistent_rooms (
+                    room_id VARCHAR(20) PRIMARY KEY,
+                    owner_user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    room_name VARCHAR(100) NOT NULL,
+                    game_type VARCHAR(20) DEFAULT 'standard',
+                    max_players INT DEFAULT 6,
+                    allow_ai BOOLEAN DEFAULT true,
+                    turn_timer BOOLEAN DEFAULT true,
+                    spectator_mode BOOLEAN DEFAULT true,
+                    deck_theme VARCHAR(50) DEFAULT 'standard',
+                    password_hash VARCHAR(255),
+                    is_private BOOLEAN DEFAULT false,
+                    is_active BOOLEAN DEFAULT true,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
             // Index för prestanda
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
@@ -235,6 +254,7 @@ class Database {
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_participants_user ON game_participants(user_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_theme_pairs_theme ON theme_pairs(theme_id)`);
+            await this.run(`CREATE INDEX IF NOT EXISTS idx_persistent_rooms_owner ON persistent_rooms(owner_user_id)`);
 
             // Migration: lägg till image_path_b och description för theme_pairs
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS image_path_b VARCHAR(200)`).catch(
@@ -410,12 +430,33 @@ class Database {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS persistent_rooms (
+                    room_id VARCHAR(20) PRIMARY KEY,
+                    owner_user_id INT NOT NULL,
+                    room_name VARCHAR(100) NOT NULL,
+                    game_type VARCHAR(20) DEFAULT 'standard',
+                    max_players INT DEFAULT 6,
+                    allow_ai TINYINT DEFAULT 1,
+                    turn_timer TINYINT DEFAULT 1,
+                    spectator_mode TINYINT DEFAULT 1,
+                    deck_theme VARCHAR(50) DEFAULT 'standard',
+                    password_hash VARCHAR(255),
+                    is_private TINYINT DEFAULT 0,
+                    is_active TINYINT DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_games_created ON games(created_at DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_participants_user ON game_participants(user_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
+            await this.run(`CREATE INDEX IF NOT EXISTS idx_persistent_rooms_owner ON persistent_rooms(owner_user_id)`);
 
             // Migration: lägg till image_path_b och description för theme_pairs
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS image_path_b VARCHAR(200)`).catch(
@@ -523,7 +564,11 @@ class Database {
             this.db.run(
                 `CREATE TABLE IF NOT EXISTS theme_pairs (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_id INTEGER NOT NULL, pair_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, sort_order INTEGER DEFAULT 0, image_path TEXT, image_path_b TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_id, pair_id), FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE CASCADE)`
             );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS persistent_rooms (room_id TEXT PRIMARY KEY, owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, room_name TEXT NOT NULL, game_type TEXT DEFAULT 'standard', max_players INTEGER DEFAULT 6, allow_ai INTEGER DEFAULT 1, turn_timer INTEGER DEFAULT 1, spectator_mode INTEGER DEFAULT 1, deck_theme TEXT DEFAULT 'standard', password_hash TEXT, is_private INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
+            );
             this.db.run(`CREATE INDEX IF NOT EXISTS idx_theme_pairs_theme ON theme_pairs(theme_id)`);
+            this.db.run(`CREATE INDEX IF NOT EXISTS idx_persistent_rooms_owner ON persistent_rooms(owner_user_id)`);
             // Migration: lägg till image_path_b och description för theme_pairs
             this.db.run(`ALTER TABLE theme_pairs ADD COLUMN image_path_b TEXT`, () => {});
             this.db.run(`ALTER TABLE theme_pairs ADD COLUMN description TEXT`, () => {});

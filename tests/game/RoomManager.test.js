@@ -1,3 +1,12 @@
+jest.mock('../../server/models/PersistentRoom', () => ({
+    create: jest.fn(),
+    getById: jest.fn(),
+    getByOwner: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn()
+}));
+
+const PersistentRoom = require('../../server/models/PersistentRoom');
 const RoomManager = require('../../server/game/RoomManager');
 
 describe('RoomManager', () => {
@@ -181,5 +190,76 @@ describe('RoomManager', () => {
         const list = rm.getPublicRoomList();
         expect(list.length).toBe(1);
         expect(list[0].hostName).toBe('Alice');
+    });
+
+    test('should save persistent room on create', async () => {
+        PersistentRoom.create.mockResolvedValue({ roomId: 'PERSIST1' });
+
+        const result = await rm.createRoom('Alice', 'socket1', {
+            roomId: 'PERSIST1',
+            isPersistent: true,
+            ownerUserId: 42,
+            roomName: 'Återkommande'
+        });
+
+        expect(result.success).toBe(true);
+        expect(PersistentRoom.create).toHaveBeenCalled();
+        const room = rm.rooms.get('PERSIST1');
+        expect(room.isPersistent).toBe(true);
+        expect(room.ownerUserId).toBe(42);
+    });
+
+    test('should restore persistent room on join when not in memory', async () => {
+        PersistentRoom.getById.mockResolvedValue({
+            roomId: 'PERSIST1',
+            ownerUserId: 42,
+            roomName: 'Återkommande',
+            gameType: 'standard',
+            maxPlayers: 4,
+            allowAI: true,
+            turnTimer: true,
+            spectatorMode: true,
+            deckTheme: 'standard',
+            passwordHash: null,
+            isPrivate: false,
+            isActive: true
+        });
+
+        const result = await rm.joinRoom('PERSIST1', 'Bob', 'socket2');
+
+        expect(result.success).toBe(true);
+        expect(PersistentRoom.getById).toHaveBeenCalledWith('PERSIST1');
+        expect(rm.rooms.has('PERSIST1')).toBe(true);
+    });
+
+    test('should reject join to inactive persistent room', async () => {
+        PersistentRoom.getById.mockResolvedValue({
+            roomId: 'PERSIST1',
+            isActive: false
+        });
+
+        const result = await rm.joinRoom('PERSIST1', 'Bob', 'socket2');
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('Rummet finns inte');
+    });
+
+    test('should remove persistent room from memory but keep in DB when last human leaves', async () => {
+        PersistentRoom.create.mockResolvedValue({});
+        PersistentRoom.update.mockResolvedValue({});
+
+        await rm.createRoom('Alice', 'socket1', {
+            roomId: 'PERSIST1',
+            isPersistent: true,
+            ownerUserId: 42
+        });
+
+        expect(rm.rooms.has('PERSIST1')).toBe(true);
+
+        const result = rm.leaveRoom('socket1', true);
+
+        expect(result).not.toBeNull();
+        expect(PersistentRoom.update).toHaveBeenCalledWith('PERSIST1', expect.any(Object));
+        expect(rm.rooms.has('PERSIST1')).toBe(false);
     });
 });

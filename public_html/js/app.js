@@ -74,6 +74,8 @@ async function checkAuth() {
 function showAuthButtons() {
     elements.authSection.classList.remove('hidden');
     elements.userSection.classList.add('hidden');
+    document.getElementById('create-persistent-wrap')?.classList.add('hidden');
+    document.getElementById('persistent-rooms-section')?.classList.add('hidden');
 }
 
 function showUserSection(user) {
@@ -82,9 +84,11 @@ function showUserSection(user) {
     elements.userAvatar.src = user.avatar_url || '/assets/images/default-avatar.png';
     elements.userName.textContent = user.display_name || user.username;
     elements.userElo.textContent = `${user.elo_rating} ELO`;
-    
+
     document.getElementById('create-name').value = user.display_name || user.username;
     document.getElementById('ai-player-name').value = user.display_name || user.username;
+    document.getElementById('create-persistent-wrap')?.classList.remove('hidden');
+    loadPersistentRooms();
 }
 
 function setupEventListeners() {
@@ -537,6 +541,7 @@ async function createRoom() {
     const spectatorMode = document.getElementById('create-spectator').checked;
     const deckThemeEl = document.getElementById('create-deck-theme');
     const deckTheme = deckThemeEl ? deckThemeEl.value : 'standard';
+    const isPersistent = document.getElementById('create-persistent')?.checked && !!AppState.user;
     
     if (!playerName) {
         showError('Ange ditt namn');
@@ -554,6 +559,7 @@ async function createRoom() {
             roomName,
             password,
             gameType,
+            isPersistent,
             settings: { maxPlayers, allowAI, turnTimer, spectatorMode, deckTheme }
         });
     });
@@ -569,6 +575,84 @@ async function createRoom() {
         setButtonLoading('create-room-form', false);
         showError(data.message);
     });
+}
+
+async function loadPersistentRooms() {
+    const section = document.getElementById('persistent-rooms-section');
+    if (!AppState.token || !section) return;
+
+    try {
+        const response = await fetch('/api/persistent-rooms', {
+            headers: { 'Authorization': `Bearer ${AppState.token}` }
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        renderPersistentRooms(data.rooms || []);
+    } catch (error) {
+        console.warn('Kunde inte ladda återkommande bord:', error.message);
+    }
+}
+
+function renderPersistentRooms(rooms) {
+    const section = document.getElementById('persistent-rooms-section');
+    const list = document.getElementById('persistent-rooms-list');
+    if (!section || !list) return;
+
+    if (rooms.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    section.classList.remove('hidden');
+    list.innerHTML = rooms.map(room => `
+        <div class="room-card persistent-room-card" data-room-id="${room.roomId}" data-has-password="${room.isPrivate}">
+            <div class="room-info">
+                <div class="room-name">${room.roomName}</div>
+                <div class="room-meta">
+                    <span class="room-players">🆔 ${room.roomId}</span>
+                    <span>${room.maxPlayers} spelare · ${room.deckTheme}</span>
+                </div>
+            </div>
+            <div class="room-badges">
+                ${room.isPrivate ? '<span class="badge badge-private">🔒</span>' : ''}
+                ${room.allowAI ? '<span class="badge badge-ai">🤖</span>' : ''}
+            </div>
+            <button class="join-room-btn">Öppna</button>
+            <button class="delete-persistent-room-btn" title="Ta bort">🗑️</button>
+        </div>
+    `).join('');
+
+    list.querySelectorAll('.persistent-room-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            if (e.target.classList.contains('join-room-btn')) {
+                e.stopPropagation();
+                showJoinModal(card.dataset.roomId, card.dataset.hasPassword === 'true');
+            } else if (e.target.classList.contains('delete-persistent-room-btn')) {
+                e.stopPropagation();
+                deletePersistentRoom(card.dataset.roomId);
+            }
+        });
+    });
+}
+
+async function deletePersistentRoom(roomId) {
+    if (!confirm('Är du säker på att du vill ta bort detta återkommande bord?')) return;
+
+    try {
+        const response = await fetch(`/api/persistent-rooms/${roomId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${AppState.token}` }
+        });
+        if (response.ok) {
+            loadPersistentRooms();
+        } else {
+            const data = await response.json();
+            showError(data.error || 'Kunde inte ta bort bordet');
+        }
+    } catch (error) {
+        console.error('Delete persistent room failed:', error);
+        showError('Kunde inte ta bort bordet');
+    }
 }
 
 async function startAIGame() {

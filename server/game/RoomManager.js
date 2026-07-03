@@ -1,4 +1,5 @@
 const GameEngine = require('./GameEngine');
+const PersistentRoom = require('../models/PersistentRoom');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 
@@ -11,6 +12,7 @@ class RoomManager {
 
     async createRoom(hostName, hostSocketId, options = {}) {
         const {
+            roomId: requestedRoomId = null,
             roomName = null,
             password = null,
             gameType = 'standard',
@@ -18,10 +20,12 @@ class RoomManager {
             allowAI = true,
             turnTimer = true,
             spectatorMode = true,
-            deckTheme = 'standard'
+            deckTheme = 'standard',
+            isPersistent = false,
+            ownerUserId = null
         } = options;
 
-        const roomId = uuidv4().substr(0, 8).toUpperCase();
+        const roomId = requestedRoomId ? requestedRoomId.toUpperCase() : uuidv4().substr(0, 8).toUpperCase();
         const game = new GameEngine(roomId, gameType);
 
         game.settings.maxPlayers = maxPlayers;
@@ -39,7 +43,7 @@ class RoomManager {
 
         const passwordHash = password ? await bcrypt.hash(password, 10) : null;
 
-        this.rooms.set(roomId, {
+        const room = {
             game,
             name: roomName || `Bord ${roomId}`,
             createdAt: new Date(),
@@ -47,17 +51,74 @@ class RoomManager {
             passwordHash,
             isPrivate: !!password,
             bannedPlayers: new Set(),
-            bannedUserIds: new Set()
-        });
+            bannedUserIds: new Set(),
+            isPersistent: false,
+            ownerUserId: null
+        };
 
+        if (isPersistent && ownerUserId) {
+            room.isPersistent = true;
+            room.ownerUserId = ownerUserId;
+            await PersistentRoom.create({
+                roomId,
+                ownerUserId,
+                roomName: room.name,
+                gameType,
+                maxPlayers,
+                allowAI,
+                turnTimer,
+                spectatorMode,
+                deckTheme,
+                passwordHash,
+                isPrivate: !!password
+            });
+        }
+
+        this.rooms.set(roomId, room);
         this.playerRooms.set(hostSocketId, roomId);
 
         return { success: true, roomId, game };
     }
 
+    async createRoomFromPersistent(persistentRoom) {
+        const game = new GameEngine(persistentRoom.roomId, persistentRoom.gameType);
+
+        game.settings.maxPlayers = persistentRoom.maxPlayers;
+        game.settings.allowAI = persistentRoom.allowAI;
+        game.settings.turnTimer = persistentRoom.turnTimer;
+        game.settings.spectatorMode = persistentRoom.spectatorMode;
+        game.settings.deckTheme = persistentRoom.deckTheme;
+
+        this.rooms.set(persistentRoom.roomId, {
+            game,
+            name: persistentRoom.roomName,
+            createdAt: persistentRoom.createdAt || new Date(),
+            hostSocketId: null,
+            passwordHash: persistentRoom.passwordHash,
+            isPrivate: persistentRoom.isPrivate,
+            bannedPlayers: new Set(),
+            bannedUserIds: new Set(),
+            isPersistent: true,
+            ownerUserId: persistentRoom.ownerUserId
+        });
+
+        return { success: true, roomId: persistentRoom.roomId, game };
+    }
+
     async joinRoom(roomId, playerName, socketId, password = null, userData = null) {
         console.log(`🔍 [JOIN] ${playerName} → ${roomId}, socket=${socketId}, rooms=${this.rooms.size}`);
-        const room = this.rooms.get(roomId.toUpperCase());
+        let room = this.rooms.get(roomId.toUpperCase());
+
+        if (!room) {
+            const persistentRoom = await PersistentRoom.getById(roomId.toUpperCase());
+            if (persistentRoom && persistentRoom.isActive) {
+                const restored = await this.createRoomFromPersistent(persistentRoom);
+                if (restored.success) {
+                    room = this.rooms.get(roomId.toUpperCase());
+                }
+            }
+        }
+
         if (!room) {
             return { success: false, error: 'Rummet finns inte' };
         }
@@ -210,16 +271,34 @@ class RoomManager {
 
         const connectedHumans = game.players.filter(p => p.connected && !p.isAI).length;
         if (connectedHumans === 0 || game.state === 'finished') {
-            setTimeout(() => {
-                const currentRoom = this.rooms.get(roomId);
-                if (currentRoom) {
-                    const currentHumans = currentRoom.game.players.filter(p => p.connected && !p.isAI).length;
-                    if (currentHumans === 0 || currentRoom.game.state === 'finished') {
-                        this.rooms.delete(roomId);
-                        console.log(`🗑️ Rum ${roomId} borttaget`);
+            if (room.isPersistent) {
+                // Återställ persistent rum till waiting-läge och spara aktuella inställningar
+                game.resetGame();
+                PersistentRoom.update(roomId, {
+                    room_name: room.name,
+                    game_type: game.gameType,
+                    max_players: game.settings.maxPlayers,
+                    allow_ai: game.settings.allowAI,
+                    turn_timer: game.settings.turnTimer,
+                    spectator_mode: game.settings.spectatorMode,
+                    deck_theme: game.settings.deckTheme,
+                    is_private: room.isPrivate,
+                    is_active: true
+                }).catch(err => console.error('Failed to update persistent room:', err.message));
+                this.rooms.delete(roomId);
+                console.log(`💾 Persistent rum ${roomId} sparat och taget ur minnet`);
+            } else {
+                setTimeout(() => {
+                    const currentRoom = this.rooms.get(roomId);
+                    if (currentRoom) {
+                        const currentHumans = currentRoom.game.players.filter(p => p.connected && !p.isAI).length;
+                        if (currentHumans === 0 || currentRoom.game.state === 'finished') {
+                            this.rooms.delete(roomId);
+                            console.log(`🗑️ Rum ${roomId} borttaget`);
+                        }
                     }
-                }
-            }, 300000);
+                }, 300000);
+            }
         }
 
         return { room, player: result?.player, roomId, disconnected: result?.disconnected };

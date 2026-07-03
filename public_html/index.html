@@ -9,7 +9,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>FISK - Finns i sjön</title>
-    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/main.css?v=1">
     <link rel="stylesheet" href="/css/animations.css">
     <link rel="stylesheet" href="/css/pull-to-refresh.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -93,6 +93,10 @@
                 </div>
 
                 <div id="tab-join" class="tab-content active">
+                    <div id="persistent-rooms-section" class="persistent-rooms-section hidden">
+                        <h3 class="persistent-rooms-title">🔄 Återkommande bord</h3>
+                        <div id="persistent-rooms-list" class="persistent-rooms-list"></div>
+                    </div>
                     <div class="room-filters">
                         <input type="text" id="room-search" placeholder="Sök bord..." class="search-input">
                         <select id="room-filter" class="filter-select">
@@ -160,6 +164,10 @@
                             <label class="checkbox-label">
                                 <input type="checkbox" id="create-spectator" checked>
                                 <span>Tillåt åskådare</span>
+                            </label>
+                            <label class="checkbox-label hidden" id="create-persistent-wrap">
+                                <input type="checkbox" id="create-persistent">
+                                <span>Återkommande bord</span>
                             </label>
                         </div>
                         <button id="create-room-submit" class="btn btn-primary btn-large">
@@ -409,6 +417,6 @@
 
     <script src="/js/socket.io.min.js"></script>
     <script src="/js/pull-to-refresh.js"></script>
-    <script src="/js/app.js?v=5"></script>
+    <script src="/js/app.js?v=6"></script>
 </body>
 </html>
