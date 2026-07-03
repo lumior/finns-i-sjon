@@ -491,14 +491,18 @@ class AnimationManager {
                 const zIndex = cardIdx === 1 ? '2' : '1';
 
                 let cardInner;
+                let colorClass = 'black';
                 if (useImageDeck && card.image) {
                     cardInner = `<img class="pc-card-img" src="${card.image}" alt="${displayName}" data-fallback="${displayName}">`;
+                } else if (deckTheme === 'standard' && card.suitSymbol) {
+                    cardInner = `<span class="pc-rank-top">${displayName}</span><span class="pc-suit">${card.suitSymbol}</span><span class="pc-rank-bottom">${displayName}</span>`;
+                    colorClass = card.suitColor === 'red' ? 'red' : 'black';
                 } else {
                     cardInner = `<span class="pc-rank-top">${displayName}</span><span class="pc-suit">🃏</span><span class="pc-rank-bottom">${displayName}</span>`;
                 }
 
                 cardsHtml += `
-                    <div class="pair-card-mini ${useImageDeck && card.image ? '' : 'black'}" style="margin-left:${marginLeft};z-index:${zIndex};transform:scale(${scaleDown});">
+                    <div class="pair-card-mini ${colorClass}" style="margin-left:${marginLeft};z-index:${zIndex};transform:scale(${scaleDown});">
                         ${cardInner}
                     </div>
                 `;
