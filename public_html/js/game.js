@@ -1741,18 +1741,34 @@ class GameClient {
         });
         const container = document.getElementById('my-hand');
 
+        const deckTheme = this.settings.deckTheme;
+
         let sortedHand = [...hand];
 
         if (this.settings.autoSort) {
-            sortedHand.sort((a, b) => {
-                const byPairId = String(a.pairId).localeCompare(String(b.pairId));
-                if (byPairId !== 0) return byPairId;
-                return String(a.name || '').localeCompare(String(b.name || ''));
-            });
+            if (deckTheme === 'standard') {
+                // Standard-tema: sortera efter valör och sedan färg
+                const RANK_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+                const SUIT_ORDER = ['hearts', 'diamonds', 'clubs', 'spades'];
+                sortedHand.sort((a, b) => {
+                    const rankA = RANK_ORDER.indexOf(a.name);
+                    const rankB = RANK_ORDER.indexOf(b.name);
+                    if (rankA !== rankB) return rankA - rankB;
+                    const suitA = SUIT_ORDER.indexOf(a.suit);
+                    const suitB = SUIT_ORDER.indexOf(b.suit);
+                    return suitA - suitB;
+                });
+            } else {
+                // Bild-teman: sortera efter par och sedan namn
+                sortedHand.sort((a, b) => {
+                    const byPairId = String(a.pairId).localeCompare(String(b.pairId));
+                    if (byPairId !== 0) return byPairId;
+                    return String(a.name || '').localeCompare(String(b.name || ''));
+                });
+            }
         }
 
         const cardStyleClass = `card-style-${this.settings.cardStyle}`;
-        const deckTheme = this.settings.deckTheme;
         const useImageDeck = deckTheme !== 'standard';
 
         // Anpassa handens kompakthet efter antal kort på små skärmar
