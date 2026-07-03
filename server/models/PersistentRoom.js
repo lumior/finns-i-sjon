@@ -40,7 +40,9 @@ class PersistentRoom {
 
     static async getById(roomId) {
         const row = await db.get('SELECT * FROM persistent_rooms WHERE room_id = ?', [roomId]);
-        if (!row) {return null;}
+        if (!row) {
+            return null;
+        }
         return this._normalize(row);
     }
 
@@ -74,7 +76,9 @@ class PersistentRoom {
             }
         }
 
-        if (fields.length === 0) {return this.getById(roomId);}
+        if (fields.length === 0) {
+            return this.getById(roomId);
+        }
 
         values.push(roomId);
         await db.run(`UPDATE persistent_rooms SET ${fields.join(', ')} WHERE room_id = ?`, values);
@@ -83,8 +87,12 @@ class PersistentRoom {
 
     static async delete(roomId, userId) {
         const room = await this.getById(roomId);
-        if (!room) {return { success: false, error: 'Rummet hittades inte' };}
-        if (room.ownerUserId !== userId) {return { success: false, error: 'Du äger inte detta rum' };}
+        if (!room) {
+            return { success: false, error: 'Rummet hittades inte' };
+        }
+        if (room.ownerUserId !== userId) {
+            return { success: false, error: 'Du äger inte detta rum' };
+        }
 
         await db.run('DELETE FROM persistent_rooms WHERE room_id = ?', [roomId]);
         return { success: true };
