@@ -111,7 +111,7 @@ class User {
         return db.query(
             `SELECT id, username, display_name, avatar_url, elo_rating 
              FROM users 
-             WHERE username LIKE ? OR display_name LIKE ?
+             WHERE LOWER(username) LIKE LOWER(?) OR LOWER(display_name) LIKE LOWER(?)
              LIMIT ?`,
             [`%${query}%`, `%${query}%`, limit]
         );
