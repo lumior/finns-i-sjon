@@ -918,15 +918,21 @@ const friendAutocompleteState = {
 };
 
 async function fetchUserSuggestions(query) {
+    console.log('[AUTOCOMPLETE] fetchUserSuggestions:', query, 'token:', !!AppState.token, 'user:', AppState.user?.id);
     if (!AppState.token || query.length < 2) {
         hideFriendAutocomplete();
         return;
     }
 
+    const url = `/api/users/search?q=${encodeURIComponent(query)}`;
+    console.log('[AUTOCOMPLETE] URL:', url);
+
     try {
-        const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
+        const response = await fetch(url, {
             headers: { Authorization: `Bearer ${AppState.token}` }
         });
+
+        console.log('[AUTOCOMPLETE] response status:', response.status);
 
         if (!response.ok) {
             hideFriendAutocomplete();
@@ -934,6 +940,7 @@ async function fetchUserSuggestions(query) {
         }
 
         const users = await response.json();
+        console.log('[AUTOCOMPLETE] users:', users);
         // Filtrera bort den inloggade användaren
         const filtered = users.filter(u => String(u.id) !== String(AppState.user?.id));
         renderFriendAutocomplete(filtered);
