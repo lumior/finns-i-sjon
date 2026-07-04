@@ -1442,3 +1442,72 @@ body {
         }
     }
 }
+
+/* ── Autocomplete för vänförfrågan ── */
+.friend-autocomplete-group {
+    position: relative;
+}
+
+.friend-autocomplete-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--bg-primary, #1a1208);
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    border-radius: var(--radius-md, 12px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    z-index: 100;
+}
+
+.friend-autocomplete-list.hidden {
+    display: none;
+}
+
+.friend-autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm, 8px);
+    padding: var(--space-sm, 8px) var(--space-md, 16px);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.friend-autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.friend-autocomplete-item:hover,
+.friend-autocomplete-item.active {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.friend-autocomplete-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--bg-secondary, #2a2318);
+}
+
+.friend-autocomplete-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.friend-autocomplete-name {
+    font-weight: 600;
+    color: var(--text-primary, #fff);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.friend-autocomplete-username {
+    font-size: 0.8rem;
+    color: var(--text-muted, rgba(255, 255, 255, 0.6));
+}

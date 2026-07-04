@@ -902,6 +902,107 @@ function closeError() {
 
 // Event listener for error modal close button is set up in setupEventListeners
 
+function debounce(fn, delay) {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), delay);
+    };
+}
+
+// ── Autocomplete för vänförfrågan ──
+
+const friendAutocompleteState = {
+    activeIndex: -1,
+    users: []
+};
+
+async function fetchUserSuggestions(query) {
+    if (!AppState.token || query.length < 2) {
+        hideFriendAutocomplete();
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
+            headers: { Authorization: `Bearer ${AppState.token}` }
+        });
+
+        if (!response.ok) {
+            hideFriendAutocomplete();
+            return;
+        }
+
+        const users = await response.json();
+        // Filtrera bort den inloggade användaren
+        const filtered = users.filter(u => String(u.id) !== String(AppState.user?.id));
+        renderFriendAutocomplete(filtered);
+    } catch (err) {
+        console.error('Fel vid användarsökning:', err);
+        hideFriendAutocomplete();
+    }
+}
+
+function renderFriendAutocomplete(users) {
+    const list = document.getElementById('friend-autocomplete-list');
+    const input = document.getElementById('friend-username');
+    if (!list || !input) return;
+
+    friendAutocompleteState.users = users;
+    friendAutocompleteState.activeIndex = -1;
+
+    if (users.length === 0) {
+        hideFriendAutocomplete();
+        return;
+    }
+
+    list.innerHTML = users
+        .map(
+            (user, index) => `
+        <div class="friend-autocomplete-item" data-index="${index}" data-username="${escapeHtml(user.username)}">
+            <img src="${user.avatar_url || '/assets/images/default-avatar.png'}" alt="" class="friend-autocomplete-avatar">
+            <div class="friend-autocomplete-info">
+                <span class="friend-autocomplete-name">${escapeHtml(user.display_name || user.username)}</span>
+                <span class="friend-autocomplete-username">@${escapeHtml(user.username)}</span>
+            </div>
+        </div>
+    `
+        )
+        .join('');
+
+    list.classList.remove('hidden');
+}
+
+function hideFriendAutocomplete() {
+    const list = document.getElementById('friend-autocomplete-list');
+    if (list) {
+        list.classList.add('hidden');
+        list.innerHTML = '';
+    }
+    friendAutocompleteState.users = [];
+    friendAutocompleteState.activeIndex = -1;
+}
+
+function selectAutocompleteUser(username) {
+    const input = document.getElementById('friend-username');
+    if (input) {
+        input.value = username;
+        input.focus();
+    }
+    hideFriendAutocomplete();
+}
+
+function updateActiveAutocompleteItem() {
+    const list = document.getElementById('friend-autocomplete-list');
+    if (!list) return;
+
+    list.querySelectorAll('.friend-autocomplete-item').forEach((item, index) => {
+        item.classList.toggle('active', index === friendAutocompleteState.activeIndex);
+    });
+}
+
+const debouncedFetchUserSuggestions = debounce(fetchUserSuggestions, 250);
+
 // ── Vännerlista ──
 
 document.addEventListener('click', e => {
@@ -934,6 +1035,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const addFriendForm = document.getElementById('add-friend-form');
     if (addFriendForm) {
         addFriendForm.addEventListener('submit', handleAddFriend);
+    }
+
+    const friendUsernameInput = document.getElementById('friend-username');
+    if (friendUsernameInput) {
+        friendUsernameInput.addEventListener('input', e => {
+            debouncedFetchUserSuggestions(e.target.value.trim());
+        });
+
+        friendUsernameInput.addEventListener('keydown', e => {
+            const users = friendAutocompleteState.users;
+            if (users.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                friendAutocompleteState.activeIndex = (friendAutocompleteState.activeIndex + 1) % users.length;
+                updateActiveAutocompleteItem();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                friendAutocompleteState.activeIndex =
+                    (friendAutocompleteState.activeIndex - 1 + users.length) % users.length;
+                updateActiveAutocompleteItem();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (friendAutocompleteState.activeIndex >= 0) {
+                    selectAutocompleteUser(users[friendAutocompleteState.activeIndex].username);
+                }
+            } else if (e.key === 'Escape') {
+                hideFriendAutocomplete();
+            }
+        });
+
+        friendUsernameInput.addEventListener('blur', () => {
+            // Vänta lite så att klick på ett förslag hinner registreras
+            setTimeout(hideFriendAutocomplete, 150);
+        });
+    }
+
+    const autocompleteList = document.getElementById('friend-autocomplete-list');
+    if (autocompleteList) {
+        autocompleteList.addEventListener('mousedown', e => {
+            const item = e.target.closest('.friend-autocomplete-item');
+            if (item) {
+                selectAutocompleteUser(item.dataset.username);
+            }
+        });
     }
 
     // Event delegation för vänner-listan

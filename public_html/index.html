@@ -9,7 +9,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>FISK - Finns i sjön</title>
-    <link rel="stylesheet" href="/css/main.css?v=1">
+    <link rel="stylesheet" href="/css/main.css?v=2">
     <link rel="stylesheet" href="/css/animations.css">
     <link rel="stylesheet" href="/css/pull-to-refresh.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -383,9 +383,10 @@
 
             <div id="friends-add" class="friend-tab-content">
                 <form id="add-friend-form" class="add-friend-form">
-                    <div class="form-group">
+                    <div class="form-group friend-autocomplete-group">
                         <label for="friend-username">Användarnamn</label>
-                        <input type="text" id="friend-username" maxlength="30" placeholder="Ange användarnamn..." autocomplete="off">
+                        <input type="text" id="friend-username" maxlength="30" placeholder="Börja skriva ett användarnamn..." autocomplete="off">
+                        <div id="friend-autocomplete-list" class="friend-autocomplete-list hidden"></div>
                     </div>
                     <button type="submit" class="btn btn-primary">Skicka vänförfrågan</button>
                 </form>
@@ -419,6 +420,6 @@
 
     <script src="/js/socket.io.min.js"></script>
     <script src="/js/pull-to-refresh.js"></script>
-    <script src="/js/app.js?v=7"></script>
+    <script src="/js/app.js?v=8"></script>
 </body>
 </html>
