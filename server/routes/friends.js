@@ -27,6 +27,17 @@ router.get('/', requireAuth, async (req, res) => {
     }
 });
 
+router.get('/online', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const friends = await Friendship.getOnlineFriends(userId);
+        res.json({ friends });
+    } catch (err) {
+        console.error('Fel vid hämtning av online-vänner:', err);
+        res.status(500).json({ error: 'Kunde inte hämta online-vänner' });
+    }
+});
+
 router.post('/request', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;

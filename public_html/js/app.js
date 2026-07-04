@@ -363,6 +363,11 @@ function connectLobbySocket() {
     lobbySocket.on('disconnect', reason => {
         console.log('🔴 Lobby Socket.IO frånkopplad:', reason);
     });
+
+    lobbySocket.on('room_invite', data => {
+        console.log('📩 Mottagen ruminbjudan:', data);
+        showInviteToast(data);
+    });
 }
 
 function disconnectLobbySocket() {
@@ -370,6 +375,46 @@ function disconnectLobbySocket() {
         lobbySocket.disconnect();
         lobbySocket = null;
     }
+}
+
+function showInviteToast(invite) {
+    const container = document.getElementById('invite-toast-container');
+    if (!container) return;
+
+    // Ta bort eventuell tidigare inbjudan för samma rum
+    const existing = container.querySelector(`[data-invite-room="${invite.roomId}"]`);
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'invite-toast';
+    toast.dataset.inviteRoom = invite.roomId;
+    toast.innerHTML = `
+        <div class="invite-toast-content">
+            <div class="invite-toast-title">📩 Inbjudan till bord</div>
+            <div class="invite-toast-body">
+                <strong>${escapeHtml(invite.hostName)}</strong> bjöd in dig till
+                <strong>${escapeHtml(invite.roomName)}</strong>
+            </div>
+            <div class="invite-toast-actions">
+                <button class="btn btn-small btn-primary invite-accept-btn">Gå med</button>
+                <button class="btn btn-small btn-outline invite-decline-btn">Stäng</button>
+            </div>
+        </div>
+    `;
+
+    toast.querySelector('.invite-accept-btn').addEventListener('click', () => {
+        const name = AppState.user?.display_name || AppState.user?.username || document.getElementById('create-name')?.value || '';
+        window.location.href = `/game.html?room=${encodeURIComponent(invite.roomId)}&name=${encodeURIComponent(name)}`;
+    });
+
+    toast.querySelector('.invite-decline-btn').addEventListener('click', () => {
+        toast.remove();
+    });
+
+    // Auto-ta-bort efter 30 sekunder
+    setTimeout(() => toast.remove(), 30000);
+
+    container.appendChild(toast);
 }
 
 async function loadDeckThemes() {

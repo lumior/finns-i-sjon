@@ -1,7 +1,11 @@
 const { GAME_STATES } = require('../utils/constants');
 const { createSocketRateLimiter } = require('../utils/socket-rate-limit');
+const Friendship = require('../models/Friendship');
 
 function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handleGameEnd) {
+    // Mappning från inloggad användares ID till aktuell socket-id (för väninbjudningar)
+    const userSockets = new Map();
+
     function broadcastToRoom(game, event, basePayload, includeGameState = false) {
         game.players.forEach(player => {
             if (player.connected) {
@@ -24,6 +28,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
         if (socket.user) {
             User.setOnlineStatus(socket.user.id, true);
+            userSockets.set(socket.user.id, socket.id);
         }
 
         const rateLimit = createSocketRateLimiter(socket);
@@ -120,6 +125,71 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 } catch (err) {
                     console.error('❌ create_room error:', err.message);
                     socket.emit('error', { message: 'Kunde inte skapa bordet' });
+                }
+            })
+        );
+
+        socket.on(
+            'invite_friend',
+            rateLimit('invite_friend', 10, 60000, async data => {
+                try {
+                    const { friendId } = data;
+
+                    if (!socket.user) {
+                        socket.emit('error', { message: 'Du måste vara inloggad för att bjuda in vänner' });
+                        return;
+                    }
+
+                    if (!friendId) {
+                        socket.emit('error', { message: 'Välj en vän att bjuda in' });
+                        return;
+                    }
+
+                    const room = roomManager.getRoomBySocket(socket.id);
+                    if (!room) {
+                        socket.emit('error', { message: 'Du är inte i ett rum' });
+                        return;
+                    }
+
+                    if (room.hostSocketId !== socket.id) {
+                        socket.emit('error', { message: 'Endast värden kan bjuda in vänner' });
+                        return;
+                    }
+
+                    const game = room.game;
+                    const humanCount = game.players.filter(p => !p.isAI).length;
+                    if (game.settings.maxPlayers && humanCount >= game.settings.maxPlayers) {
+                        socket.emit('error', { message: 'Bordet är fullt' });
+                        return;
+                    }
+
+                    const areFriends = await Friendship.areFriends(socket.user.id, parseInt(friendId, 10));
+                    if (!areFriends) {
+                        socket.emit('error', { message: 'Du kan bara bjuda in vänner' });
+                        return;
+                    }
+
+                    const friendSocketId = userSockets.get(parseInt(friendId, 10));
+                    if (!friendSocketId) {
+                        socket.emit('error', { message: 'Vännen är inte online just nu' });
+                        return;
+                    }
+
+                    const hostPlayer = game.players.find(p => p.socketId === socket.id);
+                    io.to(friendSocketId).emit('room_invite', {
+                        roomId: room.game.roomId,
+                        roomName: room.game.roomName || room.game.roomId,
+                        hostName: hostPlayer?.name || socket.user.displayName || socket.user.username,
+                        fromUserId: socket.user.id
+                    });
+
+                    socket.emit('invite_sent', { friendId });
+                    console.log(
+                        `📨 Inbjudan skickad från ${socket.user.username} till vän ${friendId} för rum ${room.game.roomId}`
+                    );
+                } catch (err) {
+                    console.error('❌ invite_friend error:', err.message);
+                    socket.emit('error', { message: 'Kunde inte skicka inbjudan' });
                 }
             })
         );
@@ -612,6 +682,9 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
             if (socket.user) {
                 await User.setOnlineStatus(socket.user.id, false);
+                if (userSockets.get(socket.user.id) === socket.id) {
+                    userSockets.delete(socket.user.id);
+                }
             }
 
             const result = roomManager.leaveRoom(socket.id);

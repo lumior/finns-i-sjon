@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#1a1208">
     <title>FISK – Spel</title>
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/game.css?v=53">
+    <link rel="stylesheet" href="/css/game.css?v=54">
     <link rel="stylesheet" href="/css/animations.css?v=1">
     <link rel="stylesheet" href="/css/voice-chat.css?v=14">
     <link rel="stylesheet" href="/css/video-chat.css?v=14">
@@ -60,6 +60,7 @@
                         <button id="add-ai-btn" class="menu-item">🤖 Lägg till AI</button>
                         <button id="add-ai-dev-btn" class="menu-item" style="color: #fbbf24;">⚙️ Dev: Lägg till AI</button>
                         <button id="ai-vs-ai-dev-btn" class="menu-item" style="color: #fbbf24;">🤖🆚🤖 Dev: Kör AI vs AI</button>
+                        <button id="invite-friends-btn" class="menu-item">📩 Bjud in vänner</button>
                         <button id="kick-player-btn" class="menu-item">👢 Kicka spelare</button>
                         <button id="start-game-host" class="menu-item">🎴 Starta spelet</button>
                     </div>
@@ -294,6 +295,18 @@
         </div>
     </div>
 
+    <div id="invite-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-small">
+            <button class="modal-close" aria-label="Stäng">&times;</button>
+            <h2 id="invite-modal-title">📩 Bjud in vänner</h2>
+            <p id="invite-modal-message">Välj en online-vän att bjuda in till bordet:</p>
+            <div id="invite-friends-list" class="invite-friends-list">
+                <p class="loading-state">Laddar vänner...</p>
+            </div>
+        </div>
+    </div>
+
     <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
         <div class="modal-overlay"></div>
         <div class="modal-content">
@@ -412,6 +425,6 @@
     <script src="/js/voice-ui.js?v=13" defer></script>
     <script src="/js/video-chat.js?v=17" defer></script>
     <script src="/js/video-ui.js?v=13" defer></script>
-    <script src="/js/game.js?v=41" defer></script>
+    <script src="/js/game.js?v=42" defer></script>
 </body>
 </html>

@@ -139,6 +139,26 @@ class Friendship {
         );
         return !!row;
     }
+
+    static async getOnlineFriends(userId) {
+        return db.query(
+            `
+            SELECT u.id, u.username, u.display_name, u.avatar_url, u.is_online, f.created_at as friends_since
+            FROM friendships f
+            JOIN users u ON u.id = f.friend_id
+            WHERE f.user_id = ? AND f.status = 'accepted' AND u.is_online = 1
+
+            UNION
+
+            SELECT u.id, u.username, u.display_name, u.avatar_url, u.is_online, f.created_at as friends_since
+            FROM friendships f
+            JOIN users u ON u.id = f.user_id
+            WHERE f.friend_id = ? AND f.status = 'accepted' AND u.is_online = 1
+            ORDER BY username
+            `,
+            [userId, userId]
+        );
+    }
 }
 
 module.exports = Friendship;

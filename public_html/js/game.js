@@ -340,6 +340,12 @@ class GameClient {
         gameSocket.on('server_error', (data) => {
             this.showError(data.message);
         });
+
+        gameSocket.on('invite_sent', (data) => {
+            this.showToast('Inbjudan skickad!', 'success');
+            const modal = document.getElementById('invite-modal');
+            if (modal) this.closeModal(modal);
+        });
         
         gameSocket.on('disconnected', () => {
             this.addLogEntry('⚠️ Anslutning förlorad - försker återansluta...', 'system');
@@ -515,12 +521,25 @@ class GameClient {
             this.showKickModal();
         });
 
+        document.getElementById('invite-friends-btn').addEventListener('click', () => {
+            document.getElementById('host-menu').classList.add('hidden');
+            this.showInviteModal();
+        });
+
         const kickModal = document.getElementById('kick-modal');
         document.querySelector('#kick-modal .modal-close')?.addEventListener('click', () => {
             this.closeModal(kickModal);
         });
         document.querySelector('#kick-modal .modal-overlay')?.addEventListener('click', () => {
             this.closeModal(kickModal);
+        });
+
+        const inviteModal = document.getElementById('invite-modal');
+        document.querySelector('#invite-modal .modal-close')?.addEventListener('click', () => {
+            this.closeModal(inviteModal);
+        });
+        document.querySelector('#invite-modal .modal-overlay')?.addEventListener('click', () => {
+            this.closeModal(inviteModal);
         });
         
         // Event delegation för kort-klick: antingen välja kort att fråga efter
@@ -2580,6 +2599,73 @@ class GameClient {
         }
 
         this.openModal(modal);
+    }
+
+    async showInviteModal() {
+        const modal = document.getElementById('invite-modal');
+        const list = document.getElementById('invite-friends-list');
+        list.innerHTML = '<p class="loading-state">Laddar vänner...</p>';
+        this.openModal(modal);
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            list.innerHTML = '<p class="text-muted">Du måste vara inloggad för att bjuda in vänner.</p>';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/friends/online', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error('Kunde inte hämta vänner');
+            }
+
+            const data = await response.json();
+            const friends = data.friends || [];
+
+            // Filtrera bort vänner som redan är med i rummet
+            const currentPlayerIds = new Set(
+                (this.gameState?.players || [])
+                    .filter(p => p.userId)
+                    .map(p => String(p.userId))
+            );
+            const availableFriends = friends.filter(f => !currentPlayerIds.has(String(f.id)));
+
+            if (availableFriends.length === 0) {
+                list.innerHTML = '<p class="text-muted">Inga online-vänner tillgängliga just nu.</p>';
+                return;
+            }
+
+            list.innerHTML = '';
+            availableFriends.forEach(friend => {
+                const item = document.createElement('div');
+                item.className = 'invite-friend-item';
+                item.innerHTML = `
+                    <img src="${friend.avatar_url || '/assets/images/default-avatar.png'}" alt="" class="invite-friend-avatar">
+                    <div class="invite-friend-info">
+                        <span class="invite-friend-name">${this.escapeHtml(friend.display_name || friend.username)}</span>
+                        <span class="invite-friend-status online">🟢 Online</span>
+                    </div>
+                    <button class="btn btn-small btn-primary invite-friend-send-btn" data-id="${friend.id}">Bjud in</button>
+                `;
+
+                const inviteBtn = item.querySelector('.invite-friend-send-btn');
+                inviteBtn.addEventListener('click', () => {
+                    gameSocket.emit('invite_friend', { friendId: friend.id });
+                    inviteBtn.textContent = 'Skickat';
+                    inviteBtn.disabled = true;
+                    inviteBtn.classList.remove('btn-primary');
+                    inviteBtn.classList.add('btn-secondary');
+                });
+
+                list.appendChild(item);
+            });
+        } catch (err) {
+            console.error('Fel vid hämtning av online-vänner:', err);
+            list.innerHTML = '<p class="text-muted">Kunde inte ladda vänner.</p>';
+        }
     }
 
     getFocusableElements(modal) {

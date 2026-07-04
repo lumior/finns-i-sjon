@@ -172,4 +172,19 @@ describe('Friendship', () => {
             );
         });
     });
+
+    describe('getOnlineFriends', () => {
+        test('should query accepted online friends in both directions', async () => {
+            db.query.mockResolvedValue([
+                { id: 2, username: 'Bob', display_name: 'Bob', is_online: 1 },
+                { id: 3, username: 'Carol', display_name: 'Carol', is_online: 1 }
+            ]);
+
+            const result = await Friendship.getOnlineFriends(1);
+
+            expect(result).toHaveLength(2);
+            expect(result[0].username).toBe('Bob');
+            expect(db.query).toHaveBeenCalledWith(expect.stringContaining('AND u.is_online = 1'), [1, 1]);
+        });
+    });
 });

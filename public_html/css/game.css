@@ -3728,3 +3728,139 @@ input:checked + .toggle::after {
     background: var(--danger, #ef4444);
     color: #fff;
 }
+
+/* ── Bjud in vänner-modal ── */
+.invite-friends-list {
+    max-height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm, 8px);
+    margin-top: var(--space-md, 16px);
+}
+
+.invite-friend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm, 8px);
+    padding: var(--space-sm, 8px) var(--space-md, 16px);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-md, 12px);
+}
+
+.invite-friend-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--bg-secondary, #2a2318);
+}
+
+.invite-friend-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.invite-friend-name {
+    font-weight: 600;
+    color: var(--text-primary, #fff);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.invite-friend-status {
+    font-size: 0.8rem;
+    color: var(--text-muted, rgba(255, 255, 255, 0.6));
+}
+
+.invite-friend-status.online {
+    color: var(--success, #22c55e);
+}
+
+.invite-friend-item .btn {
+    white-space: nowrap;
+}
+
+/* ── Toast för mottagen inbjudan ── */
+.invite-toast-container {
+    position: fixed;
+    top: 80px;
+    right: var(--space-md, 16px);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm, 8px);
+    max-width: 320px;
+    width: calc(100% - var(--space-md, 16px) * 2);
+    pointer-events: none;
+}
+
+.invite-toast {
+    pointer-events: auto;
+    background: var(--bg-primary, #1a1208);
+    border: 1px solid var(--accent, #6366f1);
+    border-radius: var(--radius-md, 12px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    padding: var(--space-md, 16px);
+    animation: slideInRight 0.3s ease;
+}
+
+.invite-toast-title {
+    font-weight: 700;
+    color: var(--accent, #6366f1);
+    margin-bottom: var(--space-xs, 4px);
+}
+
+.invite-toast-body {
+    font-size: 0.95rem;
+    color: var(--text-primary, #fff);
+    margin-bottom: var(--space-sm, 8px);
+    line-height: 1.4;
+}
+
+.invite-toast-actions {
+    display: flex;
+    gap: var(--space-sm, 8px);
+    justify-content: flex-end;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .invite-toast-container {
+        top: auto;
+        bottom: 90px;
+        right: var(--space-sm, 8px);
+        left: var(--space-sm, 8px);
+        max-width: none;
+        width: auto;
+    }
+
+    .invite-toast {
+        animation: slideInUp 0.3s ease;
+    }
+
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
