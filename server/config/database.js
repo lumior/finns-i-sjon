@@ -261,6 +261,9 @@ class Database {
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_theme_pairs_theme ON theme_pairs(theme_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_persistent_rooms_owner ON persistent_rooms(owner_user_id)`);
+            await this.run(
+                `CREATE INDEX IF NOT EXISTS idx_room_invites_friend ON room_invites(friend_user_id, delivered)`
+            );
 
             // Migration: lägg till image_path_b och description för theme_pairs
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS image_path_b VARCHAR(200)`).catch(
@@ -456,6 +459,21 @@ class Database {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             `);
 
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS room_invites (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    room_id VARCHAR(20) NOT NULL,
+                    room_name VARCHAR(100) NOT NULL,
+                    host_user_id INT NOT NULL,
+                    friend_user_id INT NOT NULL,
+                    delivered TINYINT DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(room_id, friend_user_id),
+                    FOREIGN KEY (host_user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (friend_user_id) REFERENCES users(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            `);
+
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id)`);
@@ -463,6 +481,9 @@ class Database {
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_participants_user ON game_participants(user_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_game_events_game ON game_events(game_id)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_persistent_rooms_owner ON persistent_rooms(owner_user_id)`);
+            await this.run(
+                `CREATE INDEX IF NOT EXISTS idx_room_invites_friend ON room_invites(friend_user_id, delivered)`
+            );
 
             // Migration: lägg till image_path_b och description för theme_pairs
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS image_path_b VARCHAR(200)`).catch(
@@ -572,6 +593,9 @@ class Database {
             );
             this.db.run(
                 `CREATE TABLE IF NOT EXISTS persistent_rooms (room_id TEXT PRIMARY KEY, owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, room_name TEXT NOT NULL, game_type TEXT DEFAULT 'standard', max_players INTEGER DEFAULT 6, allow_ai INTEGER DEFAULT 1, turn_timer INTEGER DEFAULT 1, spectator_mode INTEGER DEFAULT 1, deck_theme TEXT DEFAULT 'standard', password_hash TEXT, is_private INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
+            );
+            this.db.run(
+                `CREATE TABLE IF NOT EXISTS room_invites (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id TEXT NOT NULL, room_name TEXT NOT NULL, host_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, friend_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, delivered INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(room_id, friend_user_id))`
             );
             this.db.run(`CREATE INDEX IF NOT EXISTS idx_theme_pairs_theme ON theme_pairs(theme_id)`);
             this.db.run(`CREATE INDEX IF NOT EXISTS idx_persistent_rooms_owner ON persistent_rooms(owner_user_id)`);

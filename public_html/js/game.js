@@ -2614,7 +2614,7 @@ class GameClient {
         }
 
         try {
-            const response = await fetch('/api/friends/online', {
+            const response = await fetch('/api/friends', {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -2634,19 +2634,22 @@ class GameClient {
             const availableFriends = friends.filter(f => !currentPlayerIds.has(String(f.id)));
 
             if (availableFriends.length === 0) {
-                list.innerHTML = '<p class="text-muted">Inga online-vänner tillgängliga just nu.</p>';
+                list.innerHTML = '<p class="text-muted">Du har inga vänner att bjuda in just nu.</p>';
                 return;
             }
 
             list.innerHTML = '';
             availableFriends.forEach(friend => {
+                const isOnline = friend.is_online === 1 || friend.is_online === true;
                 const item = document.createElement('div');
                 item.className = 'invite-friend-item';
                 item.innerHTML = `
                     <img src="${friend.avatar_url || '/assets/images/default-avatar.png'}" alt="" class="invite-friend-avatar">
                     <div class="invite-friend-info">
                         <span class="invite-friend-name">${this.escapeHtml(friend.display_name || friend.username)}</span>
-                        <span class="invite-friend-status online">🟢 Online</span>
+                        <span class="invite-friend-status ${isOnline ? 'online' : 'offline'}">
+                            ${isOnline ? '🟢 Online' : '⚪ Offline'}
+                        </span>
                     </div>
                     <button class="btn btn-small btn-primary invite-friend-send-btn" data-id="${friend.id}">Bjud in</button>
                 `;
@@ -2663,7 +2666,7 @@ class GameClient {
                 list.appendChild(item);
             });
         } catch (err) {
-            console.error('Fel vid hämtning av online-vänner:', err);
+            console.error('Fel vid hämtning av vänner:', err);
             list.innerHTML = '<p class="text-muted">Kunde inte ladda vänner.</p>';
         }
     }

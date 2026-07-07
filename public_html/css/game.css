@@ -3864,3 +3864,12 @@ input:checked + .toggle::after {
         }
     }
 }
+
+/* ── Offline-vänner i invite-modal ── */
+.invite-friend-status.offline {
+    color: var(--text-muted, rgba(255, 255, 255, 0.5));
+}
+
+.invite-friend-item .invite-friend-status {
+    font-size: 0.8rem;
+}

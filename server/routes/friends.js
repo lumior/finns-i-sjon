@@ -1,6 +1,7 @@
 const express = require('express');
 const Friendship = require('../models/Friendship');
 const User = require('../models/User');
+const RoomInvite = require('../models/RoomInvite');
 
 const router = express.Router();
 
@@ -35,6 +36,39 @@ router.get('/online', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Fel vid hämtning av online-vänner:', err);
         res.status(500).json({ error: 'Kunde inte hämta online-vänner' });
+    }
+});
+
+router.get('/invites', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const invites = await RoomInvite.getPendingForUser(userId);
+        res.json({ invites });
+    } catch (err) {
+        console.error('Fel vid hämtning av ruminbjudningar:', err);
+        res.status(500).json({ error: 'Kunde inte hämta ruminbjudningar' });
+    }
+});
+
+router.post('/invites/:inviteId/delivered', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const inviteId = parseInt(req.params.inviteId, 10);
+
+        if (!inviteId) {
+            return res.status(400).json({ error: 'Ogiltig inbjudan' });
+        }
+
+        const invite = await RoomInvite.getById(inviteId);
+        if (!invite || invite.friend_user_id !== userId) {
+            return res.status(403).json({ error: 'Du har inte behörighet till denna inbjudan' });
+        }
+
+        await RoomInvite.markDelivered(inviteId);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Fel vid markering av inbjudan:', err);
+        res.status(500).json({ error: 'Kunde inte markera inbjudan' });
     }
 });
 

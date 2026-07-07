@@ -60,6 +60,7 @@ async function checkAuth() {
             const user = await response.json();
             AppState.user = user;
             showUserSection(user);
+            loadPendingRoomInvites();
         } else {
             localStorage.removeItem('token');
             AppState.token = null;
@@ -377,6 +378,42 @@ function disconnectLobbySocket() {
     }
 }
 
+async function loadPendingRoomInvites() {
+    if (!AppState.token) return;
+
+    try {
+        const response = await fetch('/api/friends/invites', {
+            headers: { Authorization: `Bearer ${AppState.token}` }
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const invites = data.invites || [];
+        invites.forEach(invite => {
+            showInviteToast({
+                inviteId: invite.id,
+                roomId: invite.room_id,
+                roomName: invite.room_name,
+                hostName: invite.host_display_name || invite.host_username
+            });
+        });
+    } catch (err) {
+        console.error('Fel vid hämtning av pending invites:', err);
+    }
+}
+
+function markInviteDelivered(inviteId) {
+    if (!AppState.token || !inviteId) return;
+
+    fetch(`/api/friends/invites/${inviteId}/delivered`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AppState.token}` }
+    }).catch(err => {
+        console.error('Fel vid markering av inbjudan:', err);
+    });
+}
+
 function showInviteToast(invite) {
     const container = document.getElementById('invite-toast-container');
     if (!container) return;
@@ -403,16 +440,21 @@ function showInviteToast(invite) {
     `;
 
     toast.querySelector('.invite-accept-btn').addEventListener('click', () => {
+        if (invite.inviteId) markInviteDelivered(invite.inviteId);
         const name = AppState.user?.display_name || AppState.user?.username || document.getElementById('create-name')?.value || '';
         window.location.href = `/game.html?room=${encodeURIComponent(invite.roomId)}&name=${encodeURIComponent(name)}`;
     });
 
     toast.querySelector('.invite-decline-btn').addEventListener('click', () => {
+        if (invite.inviteId) markInviteDelivered(invite.inviteId);
         toast.remove();
     });
 
     // Auto-ta-bort efter 30 sekunder
-    setTimeout(() => toast.remove(), 30000);
+    setTimeout(() => {
+        if (invite.inviteId) markInviteDelivered(invite.inviteId);
+        toast.remove();
+    }, 30000);
 
     container.appendChild(toast);
 }

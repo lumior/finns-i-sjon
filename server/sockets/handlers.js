@@ -1,6 +1,7 @@
 const { GAME_STATES } = require('../utils/constants');
 const { createSocketRateLimiter } = require('../utils/socket-rate-limit');
 const Friendship = require('../models/Friendship');
+const RoomInvite = require('../models/RoomInvite');
 
 function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handleGameEnd) {
     // Mappning från inloggad användares ID till aktuell socket-id (för väninbjudningar)
@@ -169,23 +170,37 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                         return;
                     }
 
-                    const friendSocketId = userSockets.get(parseInt(friendId, 10));
-                    if (!friendSocketId) {
-                        socket.emit('error', { message: 'Vännen är inte online just nu' });
-                        return;
-                    }
-
                     const hostPlayer = game.players.find(p => p.socketId === socket.id);
-                    io.to(friendSocketId).emit('room_invite', {
-                        roomId: room.game.roomId,
-                        roomName: room.game.roomName || room.game.roomId,
-                        hostName: hostPlayer?.name || socket.user.displayName || socket.user.username,
-                        fromUserId: socket.user.id
+                    const hostName = hostPlayer?.name || socket.user.displayName || socket.user.username;
+                    const roomId = room.game.roomId;
+                    const roomName = room.game.roomName || room.game.roomId;
+
+                    await RoomInvite.create({
+                        roomId,
+                        roomName,
+                        hostUserId: socket.user.id,
+                        friendUserId: parseInt(friendId, 10)
                     });
 
-                    socket.emit('invite_sent', { friendId });
+                    const friendSocketId = userSockets.get(parseInt(friendId, 10));
+                    const isOnline = !!friendSocketId;
+
+                    if (isOnline) {
+                        io.to(friendSocketId).emit('room_invite', {
+                            roomId,
+                            roomName,
+                            hostName,
+                            fromUserId: socket.user.id
+                        });
+                        const pending = await RoomInvite.getByRoomAndFriend(roomId, parseInt(friendId, 10));
+                        if (pending) {
+                            await RoomInvite.markDelivered(pending.id);
+                        }
+                    }
+
+                    socket.emit('invite_sent', { friendId, isOnline });
                     console.log(
-                        `📨 Inbjudan skickad från ${socket.user.username} till vän ${friendId} för rum ${room.game.roomId}`
+                        `📨 Inbjudan från ${socket.user.username} till vän ${friendId} för rum ${roomId} (${isOnline ? 'online' : 'offline'})`
                     );
                 } catch (err) {
                     console.error('❌ invite_friend error:', err.message);
