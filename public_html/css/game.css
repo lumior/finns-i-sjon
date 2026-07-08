@@ -253,7 +253,7 @@ html, body {
     height: 56px;
     aspect-ratio: 1 / 1;
     flex-shrink: 0;
-    margin-bottom: var(--space-xs);
+    margin: 0 auto var(--space-xs);
     border-radius: 50%;
     overflow: hidden;
 }
