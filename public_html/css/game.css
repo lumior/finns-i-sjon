@@ -183,6 +183,13 @@ html, body {
     padding-right: 320px;
 }
 
+/* När chat-panel är minimerad på desktop ska bara den synliga 40px-fliken reserveras */
+@media (min-width: 1025px) {
+    body.chat-minimized .game-board {
+        padding-right: 40px;
+    }
+}
+
 .opponents-area {
     display: flex;
     justify-content: center;
@@ -231,6 +238,12 @@ html, body {
 .opponent.ai-player.current-turn {
     border-color: var(--primary-light);
     box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+}
+
+/* Säkerställ att en ensam motståndare centreras även på desktop */
+.opponent:only-child {
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .opponent-avatar-wrap,

@@ -22,7 +22,8 @@
 - Spectator-läge (åskådare)
 - WebRTC-baserad röst- och videochatt (P2P)
 - Achievements, spelhistorik och topplista
-- Vännerlista med förfrågningar
+- Vännerlista med förfrågningar och inbjudningar till rum
+- Persistenta rum som sparas mellan sessioner
 - Admin-API och admin-panel för hantering av kortleksteman
 
 ---
@@ -52,6 +53,8 @@
 - `Procfile` — Railway-startkommando: `web: node server/server.js`
 - `.github/workflows/ci.yml` — GitHub Actions CI-pipeline
 
+**Notering:** `package.json` har ingen `engines`-sektion. CI använder explicit Node.js 20.
+
 ---
 
 ## 3. Projektstruktur
@@ -68,7 +71,9 @@ finns-i-sjon-pro/
 │   │   ├── User.js                 # CRUD för användare, statistik, achievements, tokens
 │   │   ├── Game.js                 # Spelhistorik, event-loggning (inaktiv persistens)
 │   │   ├── Friendship.js           # Vänförfrågningar och vännerlista
-│   │   └── Theme.js                # Kortleksteman och par
+│   │   ├── Theme.js                # Kortleksteman och par
+│   │   ├── PersistentRoom.js       # Sparade/persistenta rum
+│   │   └── RoomInvite.js           # Inbjudningar till rum för offline-vänner
 │   ├── routes/
 │   │   ├── auth.js                 # Auth-endpoints
 │   │   ├── users.js                # Leaderboard, online, sök, profiler
@@ -77,13 +82,14 @@ finns-i-sjon-pro/
 │   │   ├── stats.js                # Totalt antal spel
 │   │   ├── admin.js                # Admin-API för kortleksteman
 │   │   ├── themes.js               # Publika tema-endpoints
-│   │   └── friends.js              # Vännerlista-API
+│   │   ├── friends.js              # Vännerlista-API
+│   │   └── persistent-rooms.js     # Persistenta rum (sparade bord)
 │   ├── game/
 │   │   ├── GameEngine.js           # Spelregler, turhantering, par, AI-anslutning
 │   │   ├── RoomManager.js          # Rums-CRUD, join/leave/kick/ban/reconnect
 │   │   ├── CardDeck.js             # Kortlekslogik (skapa, blanda, dra)
 │   │   ├── AIPlayer.js             # AI med 4 svårighetsgrader
-│   │   └── utils.js                # extractPairs, getPlayerAvatar m.m.
+│   │   └── utils.js                # findPairs, extractPairs, getPlayerAvatar m.m.
 │   ├── sockets/
 │   │   ├── index.js                # Registrerar auth + handlers + game-end
 │   │   ├── handlers.js             # Huvudsakliga Socket.IO-event-handlers
@@ -150,7 +156,9 @@ finns-i-sjon-pro/
 │   │   └── test-theme-helper.js
 │   ├── models/
 │   │   ├── Friendship.test.js
-│   │   └── User.test.js
+│   │   ├── User.test.js
+│   │   ├── PersistentRoom.test.js
+│   │   └── RoomInvite.test.js
 │   ├── utils/
 │   │   ├── elo.test.js
 │   │   └── socket-rate-limit.test.js
@@ -269,16 +277,18 @@ ESLint ignorerar `node_modules/**`, `public_html/js/socket.io.js` och `coverage/
 
 | Fil | Antal tester | Innehåll |
 |-----|--------------|----------|
-| `tests/game/GameEngine.test.js` | 21 | Spelregler, turhantering, utdelning, par, återanslutning, ask/fisk/surrender |
+| `tests/game/GameEngine.test.js` | 21 | Spelregler, turhantering, utdelning, par, återanslutning, ask/fisk/surrender, pending-ask |
 | `tests/game/CardDeck.test.js` | 6 | Kortleksinitiering (52 kort), blanda, dra, `isEmpty`, `remaining` |
-| `tests/game/RoomManager.test.js` | 19 | Rums-CRUD, join/leave, kick, ban, reconnect, lösenord, spectator |
+| `tests/game/RoomManager.test.js` | 19 | Rums-CRUD, join/leave, kick, ban, reconnect, lösenord, spectator, persistenta rum |
 | `tests/game/AIPlayer.test.js` | 9 | AI-initiering, minne, beslutsfattning, svårighetsgrader |
 | `tests/models/Friendship.test.js` | 15 | Vänförfrågningar: skicka, acceptera, avböja, ta bort, lista |
 | `tests/models/User.test.js` | 9 | User-modell: tokens, verifiering, lösenordsåterställning |
+| `tests/models/PersistentRoom.test.js` | 5 | Persistenta rum: skapa, hämta, uppdatera, ta bort, ägarskap |
+| `tests/models/RoomInvite.test.js` | 4 | Ruminbjudningar: skapa, dublettskydd, pending-lista, markera delivered |
 | `tests/utils/elo.test.js` | 4 | ELO-beräkning: vinnare/förlorare, upset-win, 3+ spelare |
 | `tests/utils/socket-rate-limit.test.js` | 9 | Rate limiting: gränser, återställning, separata buckets, shorthand |
 
-**Totalt:** 92 tester fördelade på 8 testfiler.
+**Totalt:** 107 tester fördelade på 10 testfiler.
 
 ---
 
@@ -330,6 +340,7 @@ ESLint ignorerar `node_modules/**`, `public_html/js/socket.io.js` och `coverage/
 ### Övrigt
 
 - `friendships`-tabellen används av vännerlistan (modell: `server/models/Friendship.js`, routes: `server/routes/friends.js`).
+- `room_invites`-tabellen används för att bjuda in offline-vänner till rum (modell: `server/models/RoomInvite.js`, routes: `server/routes/friends.js`).
 - `banPlayer` finns i `RoomManager` och exponeras via Socket.IO-eventet `ban_player` (wrappad med rate limit). Bannade inloggade spelare spåras även via `userId` så att de inte kan återansluta med ny socket.
 
 ---
@@ -373,6 +384,8 @@ I `NODE_ENV=test` tvingas alltid SQLite oavsett övriga variabler.
 - `themes` — metadata för kortleksteman (`folder_name`, `display_name`, `description`, `is_active`)
 - `theme_pairs` — par per tema (`pair_id`, `name`, `description`, `sort_order`, `image_path`, `image_path_b`)
 - `theme_files` — base64-kodade kortleksbilder för persistens på ephemeral filesystem
+- `persistent_rooms` — sparade rum med inställningar (ägare, maxPlayers, allowAI, turnTimer, spectatorMode, deckTheme, isPrivate)
+- `room_invites` — inbjudningar till rum för offline-vänner (`room_id`, `friend_user_id`, `delivered`, `created_at`, `expires_at`)
 
 ### Index
 
@@ -450,10 +463,21 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 | Metod | Endpoint | Beskrivning |
 |-------|----------|-------------|
 | GET | `/` | Vänner, mottagna/skickade förfrågningar |
+| GET | `/online` | Online-vänner |
+| GET | `/invites` | Väntande ruminbjudningar för aktuell användare |
+| POST | `/invites/:inviteId/delivered` | Markera en ruminbjudan som levererad |
 | POST | `/request` | Skicka vänförfrågan (`username` eller `userId`) |
 | POST | `/accept/:requestId` | Acceptera förfrågan |
 | POST | `/reject/:requestId` | Avböj förfrågan |
 | DELETE | `/:friendId` | Ta bort vän |
+
+### Persistenta rum (`/api/persistent-rooms`) — kräver inloggning
+
+| Metod | Endpoint | Beskrivning |
+|-------|----------|-------------|
+| GET | `/` | Lista inloggad användares sparade rum |
+| POST | `/` | Spara/uppdatera ett persistent rum (skapar om det inte finns) |
+| DELETE | `/:roomId` | Ta bort ett persistent rum (endast ägare) |
 
 ### Admin (`/api/admin`) — kräver **admin-roll** (`req.user.isAdmin`)
 
@@ -508,6 +532,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 | `surrender` | Ge upp — avslutar spelarens deltagande |
 | `update_settings` | Uppdatera rum (`allowAI`, `turnTimer`, `spectatorMode`, `maxPlayers`, `deckTheme`) |
 | `leave_room` | Lämna rum |
+| `invite_friend` | Bjud in en vän till aktuellt rum (skapar `room_invites` om offline) |
 | `dev_ai_vs_ai` | Dev-only: starta AI vs AI med åskådare |
 
 ### Server → Klient (viktiga events)
@@ -529,6 +554,8 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 | `settings_updated` / `ready_status_update` | Rumstillstånd |
 | `achievement_unlocked` | Achievement upplåst |
 | `lobby_update` | Uppdatering av publik rumslista |
+| `room_invite` | Inbjudan till rum mottagen |
+| `invite_sent` | Bekräftelse att inbjudan skickats |
 | `left_room` | Bekräftelse att du lämnat rummet |
 | `error` | Felmeddelande |
 
@@ -693,6 +720,13 @@ Använd dessa för att säkerställa konsekvent beteende mellan direkta AI-drag 
 3. Se till att `game-end.js` sparar achievement via `User.addAchievement()` vid `game_end`-händelser.
 4. Klienten (`public_html/js/game.js`) visar achievements som får `achievement_unlocked`-eventet.
 
+### Att lägga till eller ändra ett kortlekstema
+
+1. Använd helst admin-panelen `public_html/admin/pairs.html` för par-baserade teman.
+2. Alternativt kör `scripts/generate-example-theme.py` (kräver Python 3 + PIL) för att skapa bilder + `config.json`.
+3. Seeda till databasen med `scripts/seed-example-theme.js`.
+4. Vid manuella ändringar: se till att både filsystem (`public_html/assets/cards/{tema}/`) och databas (`themes`/`theme_pairs`/`theme_files`) är synkade; använd `db.saveThemeFiles()` om du ändrar via kod.
+
 ---
 
 ## 15. Vanliga fällor och saker att tänka på
@@ -707,3 +741,5 @@ Använd dessa för att säkerställa konsekvent beteende mellan direkta AI-drag 
 - **Pull-to-refresh på mobil:** `public_html/js/pull-to-refresh.js` polyfillar pull-to-refresh för vissa mobila webbläsare.
 - **Frontend-sökvägar:** README anger ibland `public/`, men den faktiska mappen är `public_html/`.
 - **Safari + WebRTC:** WebRTC-video fungerar inte på `localhost` i Safari; använd `http://127.0.0.1:3000`.
+- **Persistenta rum:** Ett `persistent_rooms`-sparande lagrar endast inställningar och återställer rummet vid återanslutning; det pågående spelet lagras inte persistent (endast `game_snapshots` som inte läses vid uppstart).
+- **Room invites:** Inbjudningar har en utgångstid och markeras som `delivered` när mottagaren är online; använd `friends.js`-endpoints för att hämta och markera dem.

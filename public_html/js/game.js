@@ -493,8 +493,16 @@ class GameClient {
         });
         
         document.getElementById('toggle-chat').addEventListener('click', () => {
-            document.getElementById('chat-panel').classList.toggle('minimized');
+            const chatPanel = document.getElementById('chat-panel');
+            chatPanel.classList.toggle('minimized');
+            document.body.classList.toggle('chat-minimized', chatPanel.classList.contains('minimized'));
         });
+
+        // Synka body-klass med eventuellt initialt minimerat chattläge
+        const chatPanel = document.getElementById('chat-panel');
+        if (chatPanel && chatPanel.classList.contains('minimized')) {
+            document.body.classList.add('chat-minimized');
+        }
         
         document.getElementById('play-again-btn').addEventListener('click', () => {
             // Host kan starta om spelet direkt; andra väntar på hosten
