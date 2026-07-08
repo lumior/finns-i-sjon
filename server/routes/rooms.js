@@ -3,8 +3,8 @@ const express = require('express');
 function createRoomRouter(roomManager) {
     const router = express.Router();
 
-    router.get('/', (req, res) => {
-        res.json(roomManager.getPublicRoomList());
+    router.get('/', async (req, res) => {
+        res.json(await roomManager.getPublicRoomList());
     });
 
     router.get('/:id', (req, res) => {

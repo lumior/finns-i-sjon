@@ -122,7 +122,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                         reconnectToken: me?.reconnectToken
                     });
 
-                    io.emit('lobby_update', roomManager.getPublicRoomList());
+                    io.emit('lobby_update', await roomManager.getPublicRoomList());
                 } catch (err) {
                     console.error('❌ create_room error:', err.message);
                     socket.emit('error', { message: 'Kunde inte skapa bordet' });
@@ -270,13 +270,13 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 });
 
                 broadcastToRoom(result.game, 'game_state_update', {}, true);
-                io.emit('lobby_update', roomManager.getPublicRoomList());
+                io.emit('lobby_update', await roomManager.getPublicRoomList());
             })
         );
 
         socket.on(
             'add_ai',
-            rateLimit('add_ai', 10, 60000, data => {
+            rateLimit('add_ai', 10, 60000, async data => {
                 console.log('🔍 SERVER add_ai:', data?.difficulty, 'socket:', socket.id);
                 const { difficulty } = data;
                 const room = roomManager.getRoomBySocket(socket.id);
@@ -299,7 +299,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
                 broadcastToRoom(room.game, 'ai_added', { player: result.player }, true);
 
-                io.emit('lobby_update', roomManager.getPublicRoomList());
+                io.emit('lobby_update', await roomManager.getPublicRoomList());
             })
         );
 
@@ -752,7 +752,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                 }
 
                 console.log(`⏱️ [TIMEOUT-START] ${result.player?.name || socket.id}: force-remove schemalagt om 60s`);
-                setTimeout(() => {
+                setTimeout(async () => {
                     const forceResult = roomManager.leaveRoom(socket.id, true);
                     if (forceResult && forceResult.player) {
                         const game = forceResult.room?.game;
@@ -775,7 +775,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                             }
                         }
 
-                        io.emit('lobby_update', roomManager.getPublicRoomList());
+                        io.emit('lobby_update', await roomManager.getPublicRoomList());
                     } else {
                         console.log(`🗑️ [TIMEOUT-EXEC] ${socket.id}: Spelaren redan borttagen eller hittades ej`);
                     }
@@ -785,7 +785,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
 
         socket.on(
             'leave_room',
-            rateLimit('leave_room', 10, 60000, () => {
+            rateLimit('leave_room', 10, 60000, async () => {
                 const result = roomManager.leaveRoom(socket.id, true);
                 if (result) {
                     socket.leave(result.roomId);
@@ -799,7 +799,7 @@ function createSocketHandlers(io, roomManager, Game, User, db, escapeHtml, handl
                         });
                     }
 
-                    io.emit('lobby_update', roomManager.getPublicRoomList());
+                    io.emit('lobby_update', await roomManager.getPublicRoomList());
                 }
             })
         );

@@ -2,8 +2,10 @@ jest.mock('../../server/models/PersistentRoom', () => ({
     create: jest.fn(),
     getById: jest.fn(),
     getByOwner: jest.fn(),
+    getActivePublic: jest.fn().mockResolvedValue([]),
     update: jest.fn(),
-    delete: jest.fn()
+    delete: jest.fn(),
+    setActive: jest.fn()
 }));
 
 const PersistentRoom = require('../../server/models/PersistentRoom');
@@ -88,7 +90,7 @@ describe('RoomManager', () => {
 
     test('should leave a room with forceRemove', async () => {
         await rm.createRoom('Alice', 'socket1');
-        const roomId = rm.getPublicRoomList()[0].roomId;
+        const roomId = (await rm.getPublicRoomList())[0].roomId;
         await rm.joinRoom(roomId, 'Bob', 'socket2');
         const result = rm.leaveRoom('socket2', true);
         expect(result).not.toBeNull();
@@ -98,7 +100,7 @@ describe('RoomManager', () => {
 
     test('should mark player as disconnected on non-force leave', async () => {
         await rm.createRoom('Alice', 'socket1');
-        const roomId = rm.getPublicRoomList()[0].roomId;
+        const roomId = (await rm.getPublicRoomList())[0].roomId;
         await rm.joinRoom(roomId, 'Bob', 'socket2');
         const result = rm.leaveRoom('socket2', false);
         expect(result).not.toBeNull();
@@ -174,7 +176,7 @@ describe('RoomManager', () => {
 
     test('should reconnect a disconnected player', async () => {
         await rm.createRoom('Alice', 'socket1');
-        const roomId = rm.getPublicRoomList()[0].roomId;
+        const roomId = (await rm.getPublicRoomList())[0].roomId;
         await rm.joinRoom(roomId, 'Bob', 'socket2');
         rm.leaveRoom('socket2', false);
         const result = rm.reconnect('socket2', 'socket2-new');
@@ -187,7 +189,7 @@ describe('RoomManager', () => {
     test('should list public rooms', async () => {
         await rm.createRoom('Alice', 'socket1');
         await rm.createRoom('Bob', 'socket2', { password: 'secret' });
-        const list = rm.getPublicRoomList();
+        const list = await rm.getPublicRoomList();
         expect(list.length).toBe(1);
         expect(list[0].hostName).toBe('Alice');
     });
@@ -261,5 +263,34 @@ describe('RoomManager', () => {
         expect(result).not.toBeNull();
         expect(PersistentRoom.update).toHaveBeenCalledWith('PERSIST1', expect.any(Object));
         expect(rm.rooms.has('PERSIST1')).toBe(false);
+    });
+
+    test('should include active empty persistent rooms in public list', async () => {
+        PersistentRoom.getActivePublic.mockResolvedValue([
+            {
+                roomId: 'PERSIST1',
+                ownerUserId: 42,
+                ownerDisplayName: 'Alice',
+                ownerUsername: 'alice',
+                roomName: 'Återkommande',
+                gameType: 'standard',
+                maxPlayers: 4,
+                allowAI: true,
+                turnTimer: true,
+                spectatorMode: true,
+                deckTheme: 'standard',
+                passwordHash: null,
+                isPrivate: false,
+                isActive: true,
+                createdAt: new Date()
+            }
+        ]);
+
+        const list = await rm.getPublicRoomList();
+
+        expect(list.length).toBe(1);
+        expect(list[0].roomId).toBe('PERSIST1');
+        expect(list[0].playerCount).toBe(0);
+        expect(list[0].hostName).toBe('Alice');
     });
 });

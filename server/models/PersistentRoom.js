@@ -58,6 +58,17 @@ class PersistentRoom {
         return rows.map(r => this._normalize(r));
     }
 
+    static async getActivePublic() {
+        const rows = await db.query(
+            `SELECT pr.*, u.display_name AS owner_display_name, u.username AS owner_username
+             FROM persistent_rooms pr
+             JOIN users u ON pr.owner_user_id = u.id
+             WHERE pr.is_active = 1 AND pr.is_private = 0`,
+            []
+        );
+        return rows.map(r => this._normalize(r));
+    }
+
     static async update(roomId, updates) {
         const allowed = [
             'room_name',
@@ -112,6 +123,8 @@ class PersistentRoom {
         return {
             roomId: row.room_id,
             ownerUserId: row.owner_user_id,
+            ownerDisplayName: row.owner_display_name || null,
+            ownerUsername: row.owner_username || null,
             roomName: row.room_name,
             gameType: row.game_type,
             maxPlayers: row.max_players,

@@ -133,6 +133,44 @@ describe('PersistentRoom', () => {
         });
     });
 
+    describe('getActivePublic', () => {
+        test('should return active public rooms with owner names', async () => {
+            db.query.mockResolvedValue([
+                {
+                    room_id: 'PUBLIC1',
+                    owner_user_id: 1,
+                    owner_display_name: 'Alice',
+                    owner_username: 'alice',
+                    room_name: 'Publik bord',
+                    game_type: 'standard',
+                    max_players: 4,
+                    allow_ai: 1,
+                    turn_timer: 1,
+                    spectator_mode: 1,
+                    deck_theme: 'standard',
+                    password_hash: null,
+                    is_private: 0,
+                    is_active: 1,
+                    created_at: '2026-01-01',
+                    updated_at: '2026-01-01'
+                }
+            ]);
+
+            const result = await PersistentRoom.getActivePublic();
+
+            expect(result.length).toBe(1);
+            expect(result[0].roomId).toBe('PUBLIC1');
+            expect(result[0].ownerDisplayName).toBe('Alice');
+            expect(result[0].ownerUsername).toBe('alice');
+            expect(result[0].isPrivate).toBe(false);
+            expect(result[0].isActive).toBe(true);
+            expect(db.query).toHaveBeenCalledWith(
+                expect.stringContaining('WHERE pr.is_active = 1 AND pr.is_private = 0'),
+                []
+            );
+        });
+    });
+
     describe('delete', () => {
         test('should allow owner to delete', async () => {
             db.get.mockResolvedValue({ room_id: 'ABCD1234', owner_user_id: 1 });

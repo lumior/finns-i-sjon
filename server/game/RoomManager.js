@@ -340,7 +340,7 @@ class RoomManager {
         return this.playerRooms.get(socketId);
     }
 
-    getPublicRoomList() {
+    async getPublicRoomList() {
         const list = [];
         for (const [roomId, room] of this.rooms) {
             if (room.game.state === 'waiting' && !room.isPrivate) {
@@ -351,13 +351,37 @@ class RoomManager {
                     aiCount: room.game.aiPlayers.length,
                     maxPlayers: room.game.settings.maxPlayers,
                     hostName: room.game.players[0]?.name || 'Okänd',
-                    hasPassword: !!room.password,
+                    hasPassword: !!room.passwordHash,
                     gameType: room.game.gameType,
                     deckTheme: room.game.settings.deckTheme,
                     createdAt: room.createdAt
                 });
             }
         }
+
+        // Lägg även till aktiva, tomma återkommande rum från databasen
+        try {
+            const persistentRooms = await PersistentRoom.getActivePublic();
+            for (const pr of persistentRooms) {
+                if (!this.rooms.has(pr.roomId)) {
+                    list.push({
+                        roomId: pr.roomId,
+                        name: pr.roomName,
+                        playerCount: 0,
+                        aiCount: 0,
+                        maxPlayers: pr.maxPlayers,
+                        hostName: pr.ownerDisplayName || pr.ownerUsername || 'Okänd',
+                        hasPassword: !!pr.passwordHash,
+                        gameType: pr.gameType,
+                        deckTheme: pr.deckTheme,
+                        createdAt: pr.createdAt
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('❌ Kunde inte hämta återkommande rum för lobbyn:', err.message);
+        }
+
         return list.sort((a, b) => b.createdAt - a.createdAt);
     }
 

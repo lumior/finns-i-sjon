@@ -127,7 +127,7 @@ function createHandleGameEnd(io, roomManager, Game, User, ELO) {
             });
         }
 
-        io.emit('lobby_update', roomManager.getPublicRoomList());
+        io.emit('lobby_update', await roomManager.getPublicRoomList());
     };
 }
 
