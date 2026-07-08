@@ -63,8 +63,8 @@ class PersistentRoom {
             `SELECT pr.*, u.display_name AS owner_display_name, u.username AS owner_username
              FROM persistent_rooms pr
              JOIN users u ON pr.owner_user_id = u.id
-             WHERE pr.is_active = 1 AND pr.is_private = 0`,
-            []
+             WHERE pr.is_active = ? AND pr.is_private = ?`,
+            [true, false]
         );
         return rows.map(r => this._normalize(r));
     }

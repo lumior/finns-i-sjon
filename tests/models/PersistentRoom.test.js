@@ -165,8 +165,8 @@ describe('PersistentRoom', () => {
             expect(result[0].isPrivate).toBe(false);
             expect(result[0].isActive).toBe(true);
             expect(db.query).toHaveBeenCalledWith(
-                expect.stringContaining('WHERE pr.is_active = 1 AND pr.is_private = 0'),
-                []
+                expect.stringContaining('WHERE pr.is_active = ? AND pr.is_private = ?'),
+                [true, false]
             );
         });
     });
