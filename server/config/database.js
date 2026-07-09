@@ -252,6 +252,19 @@ class Database {
                 throw err;
             }
 
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS room_invites (
+                    id SERIAL PRIMARY KEY,
+                    room_id VARCHAR(20) NOT NULL,
+                    room_name VARCHAR(100) NOT NULL,
+                    host_user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    friend_user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    delivered SMALLINT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(room_id, friend_user_id)
+                )
+            `);
+
             // Index för prestanda
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_elo ON users(elo_rating DESC)`);
             await this.run(`CREATE INDEX IF NOT EXISTS idx_users_online ON users(is_online)`);
