@@ -369,8 +369,8 @@ html, body {
     top: var(--space-md);
     left: 50%;
     transform: translateX(-50%);
-    width: 56px;
-    height: 56px;
+    width: calc(100% - 2 * var(--space-md));
+    height: 70px;
     border-radius: var(--radius-lg);
     overflow: hidden;
     opacity: 0;
@@ -381,6 +381,17 @@ html, body {
 .opponent-video.active,
 .self-player-video.active {
     opacity: 1;
+}
+
+/* Flytta ner namn/kort så att den större videon inte täcker dem */
+.opponent:has(.opponent-video.active) .opponent-avatar-wrap,
+.self-player:has(.self-player-video.active) .self-avatar-wrap {
+    margin-bottom: 18px;
+}
+
+.opponent:has(.opponent-video.active) .opponent-name {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .opponent-video .video-peer-wrapper,
@@ -407,8 +418,11 @@ html, body {
     object-fit: cover;
 }
 
+/* Visa peer-namnet som en overlay i videorutan */
 .opponent-video .video-peer-name {
-    display: none;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
 }
 
 .video-talking-indicator {
@@ -2669,9 +2683,14 @@ input:checked + .toggle::after {
 
     .opponent-video,
     .self-player-video {
-        width: 46px;
-        height: 46px;
+        width: calc(100% - 20px);
+        height: 60px;
         top: 10px;
+    }
+
+    .opponent:has(.opponent-video.active) .opponent-avatar-wrap,
+    .self-player:has(.self-player-video.active) .self-avatar-wrap {
+        margin-bottom: 18px;
     }
     
     .turn-badge {
@@ -2782,9 +2801,14 @@ input:checked + .toggle::after {
 
     .opponent-video,
     .self-player-video {
-        width: 46px;
-        height: 46px;
+        width: calc(100% - 20px);
+        height: 60px;
         top: 10px;
+    }
+
+    .opponent:has(.opponent-video.active) .opponent-avatar-wrap,
+    .self-player:has(.self-player-video.active) .self-avatar-wrap {
+        margin-bottom: 18px;
     }
     
     .self-player-name {
@@ -3354,9 +3378,14 @@ input:checked + .toggle::after {
 
     .opponent-video,
     .self-player-video {
-        width: 40px;
-        height: 40px;
+        width: calc(100% - 16px);
+        height: 52px;
         top: 8px;
+    }
+
+    .opponent:has(.opponent-video.active) .opponent-avatar-wrap,
+    .self-player:has(.self-player-video.active) .self-avatar-wrap {
+        margin-bottom: 15px;
     }
     
     .self-player-name {
@@ -3460,9 +3489,13 @@ input:checked + .toggle::after {
     }
 
     .opponent-video {
-        width: 18px;
-        height: 18px;
+        width: calc(100% - 16px);
+        height: 30px;
         top: 4px;
+    }
+
+    .opponent:has(.opponent-video.active) .opponent-avatar-wrap {
+        margin-bottom: 12px;
     }
     
     .opponent-name {
