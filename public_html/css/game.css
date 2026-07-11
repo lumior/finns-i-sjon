@@ -2375,7 +2375,7 @@ input:checked + .toggle::after {
     /* ── Grundlayout ── */
     .game-board {
         padding-top: calc(48px + env(safe-area-inset-top));
-        padding-bottom: 64px; /* Utrymme för modern action-bar */
+        padding-bottom: calc(64px + env(safe-area-inset-bottom)); /* Utrymme för action-bar + safe area */
         gap: 0;
         grid-template-rows: auto auto 1fr;
     }
@@ -3213,7 +3213,7 @@ input:checked + .toggle::after {
 @media (max-width: 480px) {
     .game-board {
         padding-top: calc(42px + env(safe-area-inset-top));
-        padding-bottom: 58px;
+        padding-bottom: calc(58px + env(safe-area-inset-bottom));
     }
     
     .game-header {
