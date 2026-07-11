@@ -3,7 +3,7 @@
    ======================================== */
 
 const PAIR_COUNT = 26;
-const PAIR_ID_PATTERN = /^[a-z0-9-]+$/;
+const PAIR_ID_PATTERN = /^[a-zåäö0-9-_]+$/;
 
 function getAuthToken() {
     return localStorage.getItem('token');
@@ -521,7 +521,7 @@ async function saveChanges() {
         }
 
         if (!PAIR_ID_PATTERN.test(pairId)) {
-            showToast(`Ogiltigt par-ID: "${pairId}". Endast a-z, 0-9 och bindestreck.`, 'error');
+            showToast(`Ogiltigt par-ID: "${pairId}". Endast a-ö, 0-9, bindestreck och understreck.`, 'error');
             pairIdInput.focus();
             return;
         }
