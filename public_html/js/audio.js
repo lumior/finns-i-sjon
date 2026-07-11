@@ -8,6 +8,9 @@ class AudioManager {
         this.musicGain = null;
         this.sfxGain = null;
         this.currentMusic = null;
+        this.fishBuffer = null;
+        this.fishSoundLoading = false;
+        this.fishSoundUrl = '/assets/sounds/bubbles_02.wav';
     }
 
     async init() {
@@ -28,8 +31,30 @@ class AudioManager {
             this.musicGain.gain.value = 0.15;
             
             this.initialized = true;
+            this.loadFishSound();
         } catch (e) {
             console.warn('Web Audio API not supported');
+        }
+    }
+
+    async loadFishSound() {
+        if (this.fishBuffer || this.fishSoundLoading || !this.context) {
+            return;
+        }
+
+        this.fishSoundLoading = true;
+
+        try {
+            const response = await fetch(this.fishSoundUrl);
+            if (!response.ok) {
+                throw new Error(`Kunde inte ladda fiskljud: ${response.status}`);
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            this.fishBuffer = await this.context.decodeAudioData(arrayBuffer);
+        } catch (e) {
+            console.warn('Kunde inte ladda bubbelljud:', e);
+        } finally {
+            this.fishSoundLoading = false;
         }
     }
 
@@ -128,9 +153,24 @@ class AudioManager {
         osc.stop(this.context.currentTime + 0.3);
     }
 
-    playFish() {
+    async playFish() {
         if (!this.enabled || !this.initialized) return;
         this.resume();
+
+        await this.loadFishSound();
+
+        if (this.fishBuffer) {
+            const source = this.context.createBufferSource();
+            const gain = this.context.createGain();
+
+            source.buffer = this.fishBuffer;
+            gain.gain.value = 0.6;
+
+            source.connect(gain);
+            gain.connect(this.sfxGain);
+            source.start(0);
+            return;
+        }
         
         const bufferSize = this.context.sampleRate * 0.5;
         const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
