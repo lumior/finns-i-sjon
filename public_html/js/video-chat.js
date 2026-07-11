@@ -83,7 +83,10 @@ class VideoChatManager extends VoiceChatManager {
         const selfVideo = document.getElementById('self-video');
         if (selfVideo && this.localVideoStream) {
             selfVideo.srcObject = this.localVideoStream;
-            selfVideo.classList.add('active');
+            const selfVideoContainer = selfVideo.closest('.self-player-video');
+            if (selfVideoContainer) {
+                selfVideoContainer.classList.add('active');
+            }
         }
         const selfAvatarWrap = document.querySelector('.self-avatar-wrap');
         if (selfAvatarWrap) {
@@ -603,7 +606,10 @@ class VideoChatManager extends VoiceChatManager {
         // Dölj egen video i spelarboxen
         const selfVideo = document.getElementById('self-video');
         if (selfVideo) {
-            selfVideo.classList.remove('active');
+            const selfVideoContainer = selfVideo.closest('.self-player-video');
+            if (selfVideoContainer) {
+                selfVideoContainer.classList.remove('active');
+            }
             selfVideo.srcObject = null;
         }
         const selfAvatarWrap = document.querySelector('.self-avatar-wrap');
