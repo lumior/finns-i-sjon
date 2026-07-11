@@ -349,11 +349,12 @@ ESLint ignorerar `node_modules/**`, `public_html/js/socket.io.js` och `coverage/
 
 Databaslagret (`server/config/database.js`) har en **fallback-kedja**:
 
-1. **PostgreSQL** — om `DATABASE_URL` är satt (Railway-standard). SSL: `rejectUnauthorized: false` i produktion.
-2. **MariaDB/MySQL** — om `DB_HOST` etc. är satta.
-3. **SQLite3** — fallback för utveckling (`DB_PATH=./database/game.db`), såvida inte `DB_FALLBACK=false`.
+1. I `NODE_ENV=test` tvingas alltid SQLite oavsett övriga variabler.
+2. **PostgreSQL** — om `DATABASE_URL` är satt (Railway-standard). SSL: `rejectUnauthorized: false` i produktion.
+3. **MariaDB/MySQL** — om `DB_HOST` etc. är satta.
+4. **SQLite3** — fallback för utveckling (`DB_PATH=./database/game.db`), såvida inte `DB_FALLBACK=false`.
 
-I `NODE_ENV=test` tvingas alltid SQLite oavsett övriga variabler.
+I produktion krävs PostgreSQL eller MariaDB om inte `DB_FALLBACK=true` sätts medvetet.
 
 ### Viktiga miljövariabler
 
@@ -385,7 +386,7 @@ I `NODE_ENV=test` tvingas alltid SQLite oavsett övriga variabler.
 - `theme_pairs` — par per tema (`pair_id`, `name`, `description`, `sort_order`, `image_path`, `image_path_b`)
 - `theme_files` — base64-kodade kortleksbilder för persistens på ephemeral filesystem
 - `persistent_rooms` — sparade rum med inställningar (ägare, maxPlayers, allowAI, turnTimer, spectatorMode, deckTheme, isPrivate)
-- `room_invites` — inbjudningar till rum för offline-vänner (`room_id`, `friend_user_id`, `delivered`, `created_at`, `expires_at`)
+- `room_invites` — inbjudningar till rum för offline-vänner (`room_id`, `friend_user_id`, `delivered`, `created_at`)
 
 ### Index
 
@@ -398,8 +399,16 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 - `idx_game_participants_user` (`game_participants.user_id`)
 - `idx_game_events_game` (`game_events.game_id`)
 - `idx_theme_pairs_theme` (`theme_pairs.theme_id`)
+- `idx_persistent_rooms_owner` (`persistent_rooms.owner_user_id`)
+- `idx_room_invites_friend` (`room_invites.friend_user_id`, `delivered`)
 
-**Observera:** SQLite-fallback initierar endast `idx_theme_pairs_theme`; övriga index saknas.
+**SQLite-fallback** initierar `idx_theme_pairs_theme` och `idx_persistent_rooms_owner`; övriga index saknas.
+
+### Query-abstraktion
+
+- Databas-klassen exponerar `query`, `get`, `run`.
+- PostgreSQL-konvertering sker internt: `?`-placeholders ersätts med `$1,$2...` via `_pgSql()`.
+- `run()` returnerar `{ id, changes }` där `id` är senaste insert-id.
 
 ### Snapshots
 
@@ -511,7 +520,7 @@ Följande index skapas vid initiering av **PostgreSQL och MariaDB**:
 - **Namespace:** Default `/`
 - **Auth-middleware:** `Auth.socketAuth` körs före `connection`-event.
 - **Huvudmodul:** `server/sockets/index.js` sätter ihop `handlers.js` och `game-end.js`.
-- **Server-konfig:** `pingTimeout: 60000`, `pingInterval: 10000`.
+- **Server-konfig:** `pingTimeout: 60000`, `pingInterval: 10000`. CORS är konfigurerat med `methods: ['GET', 'POST']` och `credentials: true`.
 
 ### Klient → Server (utöver grundläggande rumshantering)
 
@@ -734,7 +743,7 @@ Använd dessa för att säkerställa konsekvent beteende mellan direkta AI-drag 
 - **SQLite-index:** SQLite-fallback skapar inte alla prestandaindex som PostgreSQL/MariaDB gör. I produktion ska du därför använda PostgreSQL eller MariaDB.
 - **game_events-tabellen:** Även om tabellen finns och `Game.logEvent()` är definierat, skrivs inga händelser dit under normalt spel. Händelser finns i `game.gameEvents` och snapshots.
 - **Cookie-parser:** Inte installerat — `req.cookies?.token` i `auth.js` är i praktiken inaktivt.
-- **JWT_SECRET i prod:** Om `JWT_SECRET` saknas i produktion kastar `auth.js` ett fel vid import och servern startar inte.
+- **JWT_SECRET i prod:** Om `JWT_SECRET` saknas i produktion kastar `server/auth/auth.js` ett fel vid import och servern startar inte.
 - **Theme seeding:** Vid uppstart seedas teman från filsystemet. Om du lägger till ett nytt tema manuellt i databasen, se till att filsystemsbilderna också finns, eller använd admin-API:t.
 - **Reconnection race conditions:** Reconnection matchar på `oldSocketId`, `reconnectToken` och till sist `userId`. Var försiktig med timing när du ändrar disconnect/forceRemove-logiken.
 - **AI vs mänsklig tur:** `askForCards` används för AI, `requestAsk` + `respond_to_ask` för människor. Blanda inte dessa flöden.

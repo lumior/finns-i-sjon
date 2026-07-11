@@ -3117,17 +3117,60 @@ input:checked + .toggle::after {
     }
     
     /* ── Game-over mobil ── */
+    #game-over-modal .modal-content.modal-large {
+        max-height: 90vh;
+        max-height: calc(100dvh - 2rem);
+        padding: var(--space-lg);
+        padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
+    }
+
+    .game-over-header {
+        margin-bottom: var(--space-lg);
+    }
+
+    .game-over-header h2 {
+        font-size: 1.8rem;
+    }
+
+    .game-over-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .final-standings {
+        margin-bottom: var(--space-lg);
+    }
+
     .standing-row {
         grid-template-columns: 40px 1fr 60px;
+        padding: var(--space-sm) var(--space-md);
     }
-    
+
     .standing-elo {
         display: none;
     }
-    
+
+    .elo-change {
+        margin-bottom: var(--space-md);
+        padding: var(--space-sm);
+        font-size: 0.9rem;
+    }
+
+    .new-achievements {
+        margin-bottom: var(--space-md);
+    }
+
+    .new-achievements h3 {
+        font-size: 1rem;
+    }
+
     .game-over-actions {
         flex-direction: column;
         gap: var(--space-sm);
+    }
+
+    .game-over-actions .btn-large {
+        padding: 0.85rem 1.5rem;
+        font-size: 1rem;
     }
     
     /* ── Animation-area på mobil ── */
