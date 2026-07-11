@@ -2786,71 +2786,52 @@ input:checked + .toggle::after {
         font-size: 0.7rem;
     }
     
-    /* ── Hand: moderna kort med bättre touch ── */
+    /* ── Hand: radbryt korten på mobil ── */
     .hand {
         display: flex;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        overflow-y: hidden;
+        flex-wrap: wrap;
+        overflow: visible;
         min-height: auto;
         margin: 6px 0 2px;
-        gap: 0;
-        justify-content: flex-start;
-        padding: 4px;
+        gap: 4px;
+        justify-content: center;
+        padding: 8px 4px;
         align-items: flex-end;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
         position: relative;
     }
-    
-    .hand::-webkit-scrollbar {
+
+    .hand::after,
+    .hand.scrollable::after {
         display: none;
     }
 
-    .hand::after {
-        content: '';
-        position: absolute;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        width: 32px;
-        background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.35));
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-    }
-
-    .hand.scrollable::after {
-        opacity: 1;
-    }
-
     .card {
-        width: 72px;
-        height: 100px;
-        font-size: 1.5rem;
-        margin-left: -22px;
+        width: 68px;
+        height: 95px;
+        font-size: 1.4rem;
+        margin-left: 0;
         border-radius: 12px;
         flex-shrink: 0;
         background: #ffffff;
         box-shadow: 0 3px 14px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8);
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, width 0.2s ease, height 0.2s ease, margin-left 0.2s ease;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, width 0.2s ease, height 0.2s ease;
         border: 1px solid rgba(0, 0, 0, 0.08);
     }
 
     .hand.hand-compact .card {
-        width: 60px;
-        height: 84px;
-        margin-left: -16px;
-        font-size: 1.3rem;
+        width: 56px;
+        height: 78px;
+        margin-left: 0;
+        font-size: 1.2rem;
     }
 
     .hand.hand-tight .card {
-        width: 52px;
-        height: 72px;
-        margin-left: -12px;
-        font-size: 1.1rem;
+        width: 48px;
+        height: 67px;
+        margin-left: 0;
+        font-size: 1rem;
     }
 
     .card:first-child {
