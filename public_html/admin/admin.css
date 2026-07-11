@@ -1723,3 +1723,28 @@ body {
         width: 100%;
     }
 }
+
+/* === Tvinga stående läge på mobil === */
+@media (orientation: landscape) and (max-height: 500px) and (hover: none) and (pointer: coarse) {
+    body::after {
+        content: "🔄\A Vänd telefonen\A till stående läge";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        white-space: pre-line;
+        padding: var(--space-lg);
+        background: var(--bg-primary, #0f172a);
+        color: var(--text-primary, #f1f5f9);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 1.25rem;
+        font-weight: 600;
+        line-height: 1.5;
+    }
+}
