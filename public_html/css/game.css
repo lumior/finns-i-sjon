@@ -366,12 +366,12 @@ html, body {
 .opponent-video,
 .self-player-video {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    aspect-ratio: 1 / 1;
-    border-radius: 50%;
+    top: var(--space-md);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -397,8 +397,7 @@ html, body {
     left: 0;
     width: 100%;
     height: 100%;
-    aspect-ratio: 1 / 1;
-    border-radius: 50%;
+    border-radius: var(--radius-lg);
     overflow: hidden;
 }
 
@@ -962,6 +961,7 @@ body.my-turn-active .game-board {
     text-align: center;
     margin: auto auto var(--space-md);
     transition: all 0.2s ease;
+    position: relative;
 }
 
 .self-player.current-turn {
@@ -2666,6 +2666,13 @@ input:checked + .toggle::after {
         height: 46px;
         aspect-ratio: 1 / 1;
     }
+
+    .opponent-video,
+    .self-player-video {
+        width: 46px;
+        height: 46px;
+        top: 10px;
+    }
     
     .turn-badge {
         display: flex;
@@ -2771,6 +2778,13 @@ input:checked + .toggle::after {
         height: 46px;
         aspect-ratio: 1 / 1;
         margin-bottom: 4px;
+    }
+
+    .opponent-video,
+    .self-player-video {
+        width: 46px;
+        height: 46px;
+        top: 10px;
     }
     
     .self-player-name {
@@ -3337,6 +3351,13 @@ input:checked + .toggle::after {
         aspect-ratio: 1 / 1;
         margin-bottom: 3px;
     }
+
+    .opponent-video,
+    .self-player-video {
+        width: 40px;
+        height: 40px;
+        top: 8px;
+    }
     
     .self-player-name {
         font-size: 0.8rem;
@@ -3436,6 +3457,12 @@ input:checked + .toggle::after {
         aspect-ratio: 1 / 1;
         margin-bottom: 0;
         margin-right: 4px;
+    }
+
+    .opponent-video {
+        width: 18px;
+        height: 18px;
+        top: 4px;
     }
     
     .opponent-name {

@@ -1639,8 +1639,8 @@ class GameClient {
                 el.innerHTML = `
                     <div class="opponent-avatar-wrap">
                         <img src="${p.avatar || '/assets/images/default-avatar.png'}" class="opponent-avatar" alt="${p.name}">
-                        <div class="opponent-video" data-opponent-video="${p.socketId || p.id}"></div>
                     </div>
+                    <div class="opponent-video" data-opponent-video="${p.socketId || p.id}"></div>
                     <div class="opponent-name">
                         ${p.name}
                         ${p.isAI ? `<span class="ai-badge">AI ${p.aiDifficulty}</span>` : ''}
