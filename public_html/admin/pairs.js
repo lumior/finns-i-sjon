@@ -37,6 +37,8 @@ const aiCancelBtn = document.getElementById('ai-cancel-btn');
 const aiProgressWrap = document.getElementById('ai-progress-wrap');
 const aiProgressFill = document.getElementById('ai-progress-fill');
 const aiProgressText = document.getElementById('ai-progress-text');
+const bulkUploadBtn = document.getElementById('bulk-upload-btn');
+const bulkUploadInput = document.getElementById('bulk-upload-input');
 const createThemeToggleBtn = document.getElementById('create-theme-toggle-btn');
 const createThemeSection = document.getElementById('create-theme-section');
 const createThemeBtn = document.getElementById('create-theme-btn');
@@ -75,6 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
     saveBtn.addEventListener('click', saveChanges);
     aiGenerateBtn.addEventListener('click', generateWithAI);
     aiCancelBtn.addEventListener('click', cancelAIGeneration);
+    bulkUploadBtn.addEventListener('click', () => bulkUploadInput.click());
+    bulkUploadInput.addEventListener('change', () => handleBulkUpload(bulkUploadInput));
 
     createThemeToggleBtn.addEventListener('click', () => {
         createThemeSection.classList.toggle('active');
@@ -101,6 +105,7 @@ function resetView() {
     themeInfoEl.style.display = 'none';
     saveBtn.disabled = true;
     aiGenerateBtn.disabled = true;
+    bulkUploadBtn.disabled = true;
     aiToolbar.style.display = 'none';
     aiProgressWrap.classList.remove('active');
 }
@@ -188,6 +193,7 @@ async function loadTheme(folder) {
         renderPairs();
         saveBtn.disabled = false;
         aiGenerateBtn.disabled = false;
+        bulkUploadBtn.disabled = false;
         aiToolbar.style.display = 'flex';
     } catch (err) {
         loadingEl.style.display = 'none';
@@ -387,6 +393,38 @@ function handleSameImageToggle(checkbox) {
     }
 
     updatePreview(index, 'B');
+}
+
+function handleBulkUpload(input) {
+    const files = Array.from(input.files || [])
+        .filter(file => file.type.startsWith('image/'))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (files.length === 0) {
+        return;
+    }
+
+    if (files.length < pairsData.length) {
+        showToast(`Valde ${files.length} bilder, men temat har ${pairsData.length} par. De första ${files.length} paren får bilder.`, 'warning');
+    } else if (files.length > pairsData.length) {
+        showToast(`Valde ${files.length} bilder, men endast de första ${pairsData.length} används.`, 'warning');
+    }
+
+    pairsData.forEach((pair, index) => {
+        if (index >= files.length) {
+            return;
+        }
+        pair.fileA = files[index];
+        if (pair.sameImage) {
+            pair.fileB = null;
+        }
+        updatePreview(index, 'A');
+        if (pair.sameImage) {
+            updatePreview(index, 'B');
+        }
+    });
+
+    input.value = '';
 }
 
 function updatePreview(index, side) {
