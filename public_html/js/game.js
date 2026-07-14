@@ -1815,6 +1815,7 @@ class GameClient {
             const rotation = (index - sortedHand.length / 2) * 3;
             const translateY = Math.abs(index - sortedHand.length / 2) * -2;
             const transformStyle = `rotate(${rotation}deg) translateY(${translateY}px)`;
+            const showName = card.showName !== false;
 
             let cardEl = existingCards.get(card.id);
             const themeChanged = cardEl && cardEl.dataset.deckTheme !== deckTheme;
@@ -1851,10 +1852,12 @@ class GameClient {
                         { once: true }
                     );
                     cardEl.appendChild(img);
-                    const nameEl = document.createElement('span');
-                    nameEl.className = 'pair-name';
-                    nameEl.textContent = card.name || card.pairId;
-                    cardEl.appendChild(nameEl);
+                    if (showName) {
+                        const nameEl = document.createElement('span');
+                        nameEl.className = 'pair-name';
+                        nameEl.textContent = card.name || card.pairId;
+                        cardEl.appendChild(nameEl);
+                    }
                 } else if (deckTheme === 'standard' && card.suit && card.suitSymbol) {
                     cardEl.classList.add(card.suitColor || 'black');
                     cardEl.innerHTML = `
@@ -1879,6 +1882,19 @@ class GameClient {
             cardEl.className = `card ${cardStyleClass}${cardTypeClass}${suitColorClass}${isSelectedAsk ? ' selected-ask-card' : ''}`;
             cardEl.dataset.deckTheme = deckTheme;
             cardEl.dataset.pairId = card.pairId;
+
+            // Uppdatera text-overlay på bildkort om showName-flaggan ändrats
+            if (hasCardImage) {
+                const existingName = cardEl.querySelector('.pair-name');
+                if (showName && !existingName) {
+                    const nameEl = document.createElement('span');
+                    nameEl.className = 'pair-name';
+                    nameEl.textContent = card.name || card.pairId;
+                    cardEl.appendChild(nameEl);
+                } else if (!showName && existingName) {
+                    existingName.remove();
+                }
+            }
 
             fragment.appendChild(cardEl);
         });
@@ -2069,6 +2085,7 @@ class GameClient {
 
         pairContainer.innerHTML = pairs.map(pair => {
             const pairName = pair.name || pair.pairId;
+            const hideLabel = useImageDeck && pair.image && pair.showName === false;
 
             if (useImageDeck && pair.image) {
                 return `
@@ -2077,7 +2094,7 @@ class GameClient {
                         <img src="${pair.image}" alt="${pairName}"
                              style="width: 50px; height: 70px; object-fit: cover; border-radius: var(--radius-md); display: block; box-shadow: 1px 1px 6px rgba(0,0,0,0.3);"
                              data-fb-name="${pairName}">
-                        <span class="pair-btn-label">${pairName}</span>
+                        <span class="pair-btn-label" style="${hideLabel ? 'display:none' : ''}">${pairName}</span>
                     </button>
                 `;
             }

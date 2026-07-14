@@ -26,7 +26,8 @@ router.get('/', async (req, res) => {
                     pairId: p.pair_id,
                     name: p.name,
                     sortOrder: p.sort_order,
-                    imagePath: p.image_path
+                    imagePath: p.image_path,
+                    showName: p.show_name === 0 || p.show_name === false ? false : true
                 }))
             });
         }
@@ -61,7 +62,8 @@ router.get('/:folder', async (req, res) => {
                     pairId: p.pair_id,
                     name: p.name,
                     sortOrder: p.sort_order,
-                    imagePath: p.image_path
+                    imagePath: p.image_path,
+                    showName: p.show_name === 0 || p.show_name === false ? false : true
                 }))
             }
         });

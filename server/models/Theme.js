@@ -58,7 +58,7 @@ class Theme {
         // Använd snake_case-kolumnnamn direkt; PostgreSQL viker annars
         // icke-citerade camelCase-alias till gemener (pairId -> pairid).
         return db.query(
-            'SELECT pair_id, name, description, sort_order, image_path, image_path_b FROM theme_pairs WHERE theme_id = ? ORDER BY sort_order, pair_id',
+            'SELECT pair_id, name, description, sort_order, image_path, image_path_b, show_name FROM theme_pairs WHERE theme_id = ? ORDER BY sort_order, pair_id',
             [themeId]
         );
     }
@@ -129,16 +129,16 @@ class Theme {
 
     static async addPair(
         themeId,
-        { pairId, name, description = '', sortOrder = 0, imagePath = null, imagePathB = null }
+        { pairId, name, description = '', sortOrder = 0, imagePath = null, imagePathB = null, showName = 1 }
     ) {
         const result = await db.run(
-            'INSERT INTO theme_pairs (theme_id, pair_id, name, description, sort_order, image_path, image_path_b) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [themeId, pairId, name, description, sortOrder, imagePath, imagePathB]
+            'INSERT INTO theme_pairs (theme_id, pair_id, name, description, sort_order, image_path, image_path_b, show_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [themeId, pairId, name, description, sortOrder, imagePath, imagePathB, showName ? 1 : 0]
         );
         return db.get('SELECT * FROM theme_pairs WHERE id = ?', [result.id]);
     }
 
-    static async updatePair(themeId, pairId, { name, description, sortOrder, imagePath, imagePathB }) {
+    static async updatePair(themeId, pairId, { name, description, sortOrder, imagePath, imagePathB, showName }) {
         const fields = [];
         const values = [];
         if (name !== undefined) {
@@ -160,6 +160,10 @@ class Theme {
         if (imagePathB !== undefined) {
             fields.push('image_path_b = ?');
             values.push(imagePathB);
+        }
+        if (showName !== undefined) {
+            fields.push('show_name = ?');
+            values.push(showName ? 1 : 0);
         }
         if (fields.length === 0) {
             return db.get('SELECT * FROM theme_pairs WHERE theme_id = ? AND pair_id = ?', [themeId, pairId]);
@@ -243,7 +247,8 @@ class Theme {
                         description: '',
                         sortOrder: sortOrder++,
                         imagePath: `${folderName}/${file}`,
-                        imagePathB
+                        imagePathB,
+                        showName: 1
                     });
                 }
                 continue;
@@ -264,7 +269,8 @@ class Theme {
                     pairId,
                     name: rank,
                     sortOrder: sortOrder++,
-                    imagePath: `${folderName}/aubergine/${rank}.png`
+                    imagePath: `${folderName}/aubergine/${rank}.png`,
+                    showName: 1
                 });
             }
         }
@@ -296,7 +302,8 @@ class Theme {
                 description: '',
                 sortOrder: i - 1,
                 imagePath: null,
-                imagePathB: null
+                imagePathB: null,
+                showName: 1
             });
         }
         await Theme.setPairs(theme.id, pairs);

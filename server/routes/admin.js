@@ -116,7 +116,8 @@ router.get('/themes/:theme', async (req, res) => {
                     description: p.description,
                     sortOrder: p.sort_order,
                     imagePath: p.image_path,
-                    imagePathB: p.image_path_b
+                    imagePathB: p.image_path_b,
+                    showName: p.show_name === 0 || p.show_name === false ? false : true
                 })),
                 editable: true
             }
@@ -149,7 +150,8 @@ router.get('/themes/:theme/config', async (req, res) => {
                     description: p.description,
                     sortOrder: p.sort_order,
                     imagePath: p.image_path,
-                    imagePathB: p.image_path_b
+                    imagePathB: p.image_path_b,
+                    showName: p.show_name === 0 || p.show_name === false ? false : true
                 }))
             }
         });
@@ -204,7 +206,8 @@ router.post('/themes', requireAdmin, async (req, res) => {
                     description: description || '',
                     sortOrder: sortOrder ?? 0,
                     imagePath,
-                    imagePathB
+                    imagePathB,
+                    showName: pair.showName === false || pair.showName === 0 ? 0 : 1
                 });
             }
         }
@@ -302,7 +305,8 @@ router.put('/themes/:theme', requireAdmin, async (req, res) => {
                     description: description || '',
                     sortOrder: sortOrder ?? 0,
                     imagePath: imagePath || null,
-                    imagePathB: imagePathB || null
+                    imagePathB: imagePathB || null,
+                    showName: pair.showName === false || pair.showName === 0 ? 0 : 1
                 });
             }
         }
@@ -357,7 +361,8 @@ router.put('/themes/:theme/pairs', requireAdmin, async (req, res) => {
                 description: pair.description || '',
                 sortOrder: pair.sortOrder ?? 0,
                 imagePath: resolvePairImagePath(req.params.theme, pairId, existingPath),
-                imagePathB: pair.imagePathB !== undefined ? pair.imagePathB : existingPathB || null
+                imagePathB: pair.imagePathB !== undefined ? pair.imagePathB : existingPathB || null,
+                showName: pair.showName === false || pair.showName === 0 ? 0 : 1
             };
         });
 

@@ -220,6 +220,7 @@ class Database {
                     sort_order INT DEFAULT 0,
                     image_path VARCHAR(200),
                     image_path_b VARCHAR(200),
+                    show_name SMALLINT DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(theme_id, pair_id),
@@ -278,11 +279,14 @@ class Database {
                 `CREATE INDEX IF NOT EXISTS idx_room_invites_friend ON room_invites(friend_user_id, delivered)`
             );
 
-            // Migration: lägg till image_path_b och description för theme_pairs
+            // Migration: lägg till image_path_b, description och show_name för theme_pairs
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS image_path_b VARCHAR(200)`).catch(
                 () => {}
             );
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS description VARCHAR(255)`).catch(() => {});
+            await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS show_name SMALLINT DEFAULT 1`).catch(
+                () => {}
+            );
 
             // Migration: lägg till email_verified för befintliga databaser
             await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified SMALLINT DEFAULT 0`).catch(
@@ -445,6 +449,7 @@ class Database {
                     sort_order INT DEFAULT 0,
                     image_path VARCHAR(200),
                     image_path_b VARCHAR(200),
+                    show_name TINYINT DEFAULT 1,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     UNIQUE(theme_id, pair_id),
@@ -498,11 +503,14 @@ class Database {
                 `CREATE INDEX IF NOT EXISTS idx_room_invites_friend ON room_invites(friend_user_id, delivered)`
             );
 
-            // Migration: lägg till image_path_b och description för theme_pairs
+            // Migration: lägg till image_path_b, description och show_name för theme_pairs
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS image_path_b VARCHAR(200)`).catch(
                 () => {}
             );
             await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS description VARCHAR(255)`).catch(() => {});
+            await this.run(`ALTER TABLE theme_pairs ADD COLUMN IF NOT EXISTS show_name TINYINT DEFAULT 1`).catch(
+                () => {}
+            );
 
             // Migration: lägg till email_verified för befintliga databaser
             await this.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified TINYINT DEFAULT 0`).catch(
@@ -602,7 +610,7 @@ class Database {
                 `CREATE TABLE IF NOT EXISTS themes (id INTEGER PRIMARY KEY AUTOINCREMENT, folder_name TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL, description TEXT, is_active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
             );
             this.db.run(
-                `CREATE TABLE IF NOT EXISTS theme_pairs (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_id INTEGER NOT NULL, pair_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, sort_order INTEGER DEFAULT 0, image_path TEXT, image_path_b TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_id, pair_id), FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE CASCADE)`
+                `CREATE TABLE IF NOT EXISTS theme_pairs (id INTEGER PRIMARY KEY AUTOINCREMENT, theme_id INTEGER NOT NULL, pair_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, sort_order INTEGER DEFAULT 0, image_path TEXT, image_path_b TEXT, show_name INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(theme_id, pair_id), FOREIGN KEY (theme_id) REFERENCES themes(id) ON DELETE CASCADE)`
             );
             this.db.run(
                 `CREATE TABLE IF NOT EXISTS persistent_rooms (room_id TEXT PRIMARY KEY, owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, room_name TEXT NOT NULL, game_type TEXT DEFAULT 'standard', max_players INTEGER DEFAULT 6, allow_ai INTEGER DEFAULT 1, turn_timer INTEGER DEFAULT 1, spectator_mode INTEGER DEFAULT 1, deck_theme TEXT DEFAULT 'standard', password_hash TEXT, is_private INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`
@@ -612,9 +620,10 @@ class Database {
             );
             this.db.run(`CREATE INDEX IF NOT EXISTS idx_theme_pairs_theme ON theme_pairs(theme_id)`);
             this.db.run(`CREATE INDEX IF NOT EXISTS idx_persistent_rooms_owner ON persistent_rooms(owner_user_id)`);
-            // Migration: lägg till image_path_b och description för theme_pairs
+            // Migration: lägg till image_path_b, description och show_name för theme_pairs
             this.db.run(`ALTER TABLE theme_pairs ADD COLUMN image_path_b TEXT`, () => {});
             this.db.run(`ALTER TABLE theme_pairs ADD COLUMN description TEXT`, () => {});
+            this.db.run(`ALTER TABLE theme_pairs ADD COLUMN show_name INTEGER DEFAULT 1`, () => {});
 
             // Migration: lägg till email_verified, is_admin och user_tokens för befintliga SQLite-databaser
             this.db.run(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`, () => {});

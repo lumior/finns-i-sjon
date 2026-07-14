@@ -167,6 +167,7 @@ async function loadTheme(folder) {
             sortOrder: p.sortOrder ?? index,
             imagePath: p.imagePath || null,
             imagePathB: p.imagePathB || null,
+            showName: p.showName !== false,
             fileA: null,
             fileB: null,
             sameImage: !p.imagePathB
@@ -183,6 +184,7 @@ async function loadTheme(folder) {
                 sortOrder: pairsData.length,
                 imagePath: null,
                 imagePathB: null,
+                showName: true,
                 fileA: null,
                 fileB: null,
                 sameImage: true
@@ -268,6 +270,11 @@ function renderPairs() {
                         <span>Samma bild på båda korten</span>
                     </label>
 
+                    <label class="show-name-toggle">
+                        <input type="checkbox" id="show-name-${index}" ${pair.showName ? 'checked' : ''}>
+                        <span>Visa namn på kortet</span>
+                    </label>
+
                     <div class="pair-image-inputs">
                         <input type="file"
                             class="pair-image-input"
@@ -296,6 +303,10 @@ function renderPairs() {
 
     gridEl.querySelectorAll('.same-image-toggle input').forEach(checkbox => {
         checkbox.addEventListener('change', () => handleSameImageToggle(checkbox));
+    });
+
+    gridEl.querySelectorAll('.show-name-toggle input').forEach(checkbox => {
+        checkbox.addEventListener('change', () => handleShowNameToggle(checkbox));
     });
 
     gridEl.querySelectorAll('.pair-id-input').forEach(input => {
@@ -395,6 +406,16 @@ function handleSameImageToggle(checkbox) {
     updatePreview(index, 'B');
 }
 
+function handleShowNameToggle(checkbox) {
+    const index = parseInt(checkbox.id.replace('show-name-', ''), 10);
+    const pair = pairsData[index];
+    if (!pair) {
+        return;
+    }
+
+    pair.showName = checkbox.checked;
+}
+
 function handleBulkUpload(input) {
     const files = Array.from(input.files || [])
         .filter(file => file.type.startsWith('image/'))
@@ -491,7 +512,8 @@ async function createTheme() {
             defaultPairs.push({
                 pairId: `pair-${i}`,
                 name: `Par ${i}`,
-                sortOrder: i - 1
+                sortOrder: i - 1,
+                showName: true
             });
         }
 
@@ -577,6 +599,7 @@ async function saveChanges() {
         pair.name = name || pairId;
         pair.description = description;
         pair.sameImage = sameImageCheckbox.checked;
+        pair.showName = showNameCheckbox ? showNameCheckbox.checked : true;
 
         // Om par-ID ändrats är gamla bilder inte längre giltiga, men
         // användaren kan fortfarande ha laddat upp nya filer för det nya ID:t.
@@ -596,7 +619,8 @@ async function saveChanges() {
             name: pair.name,
             description: pair.description,
             sortOrder: i,
-            imagePathB: pair.sameImage ? null : pair.imagePathB
+            imagePathB: pair.sameImage ? null : pair.imagePathB,
+            showName: pair.showName
         });
     }
 

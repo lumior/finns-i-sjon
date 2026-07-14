@@ -27,7 +27,8 @@ class CardDeck {
                         suit,
                         suitSymbol: SUIT_SYMBOLS[suit],
                         suitColor: SUIT_COLORS[suit],
-                        image: null
+                        image: null,
+                        showName: true
                     });
                 }
             }
@@ -53,6 +54,7 @@ class CardDeck {
         for (const pair of pairs) {
             const pairId = pair.pair_id;
             const name = pair.name;
+            const showName = pair.show_name !== 0 && pair.show_name !== false;
             let imagePath = pair.image_path;
             let imagePathB = pair.image_path_b;
 
@@ -89,13 +91,15 @@ class CardDeck {
                 id: `${pairId}-a`,
                 pairId,
                 name,
-                image: `/assets/cards/${finalImagePathA}`
+                image: `/assets/cards/${finalImagePathA}`,
+                showName
             });
             this.cards.push({
                 id: `${pairId}-b`,
                 pairId,
                 name,
-                image: `/assets/cards/${finalImagePathB}`
+                image: `/assets/cards/${finalImagePathB}`,
+                showName
             });
         }
 
